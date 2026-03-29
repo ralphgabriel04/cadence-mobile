@@ -2,7 +2,7 @@
 
 ## Conventions de commits
 
-Nous utilisons Conventional Commits :
+Nous utilisons [Conventional Commits](https://www.conventionalcommits.org/) :
 
 - `feat:` — Nouvelle fonctionnalité
 - `fix:` — Correction de bug
@@ -33,4 +33,3 @@ Avant de merger une PR :
 - [ ] Testé manuellement sur le flow complet
 - [ ] Preview build EAS envoyé à Alexandre
 - [ ] Merge sur `develop` vérifié
-- [ ] Issue GitHub fermée avec référence au commit/PR
