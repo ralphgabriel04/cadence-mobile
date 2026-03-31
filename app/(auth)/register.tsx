@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Link } from "expo-router";
 import { useAuth } from "@/lib/auth-context";
+import { maskEmail } from "@/lib/mask-email";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Text } from "@/components/ui/Text";
@@ -84,7 +85,7 @@ export default function RegisterScreen() {
           Vérifiez votre courriel
         </Text>
         <Text variant="body" className="text-center mb-8">
-          Un lien de confirmation a été envoyé à {email}. Cliquez dessus pour
+          Un lien de confirmation a été envoyé à {maskEmail(email)}. Cliquez dessus pour
           activer votre compte.
         </Text>
         <Link href="/(auth)/login">
