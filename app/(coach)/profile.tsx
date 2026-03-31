@@ -16,13 +16,23 @@ export default function CoachProfileScreen() {
         </Text>
 
         <Card className="mb-6">
-          <Text variant="body" className="font-semibold mb-1">
-            {profile?.first_name} {profile?.last_name}
-          </Text>
+          {profile?.first_name || profile?.last_name ? (
+            <Text variant="body" className="font-semibold mb-1">
+              {profile.first_name} {profile.last_name}
+            </Text>
+          ) : null}
           <Text variant="caption">{user?.email}</Text>
-          <View className="mt-3 self-start rounded-full bg-blue-100 dark:bg-blue-900 px-3 py-1">
-            <Text className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-              Coach
+          <View className={`mt-3 self-start rounded-full px-3 py-1 ${
+            profile?.role === "coach"
+              ? "bg-blue-100 dark:bg-blue-900"
+              : "bg-green-100 dark:bg-green-900"
+          }`}>
+            <Text className={`text-sm font-medium ${
+              profile?.role === "coach"
+                ? "text-blue-700 dark:text-blue-300"
+                : "text-green-700 dark:text-green-300"
+            }`}>
+              {profile?.role === "coach" ? "Coach" : "Athlète"}
             </Text>
           </View>
         </Card>

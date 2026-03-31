@@ -45,8 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from("profiles") as any)
       .select("id, email, first_name, last_name, role, avatar_url, onboarding_completed")
       .eq("id", userId)
       .single();
@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lastName: string;
     role: "coach" | "athlete";
   }) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: params.email,
       password: params.password,
       options: {
@@ -105,6 +105,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       },
     });
+
+    if (!error && data.user) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from("profiles") as any).upsert({
+        id: data.user.id,
+        email: params.email,
+        first_name: params.firstName,
+        last_name: params.lastName,
+        role: params.role,
+      });
+    }
+
     if (error) {
       if (error.message.includes("already registered")) {
         return { error: "Ce courriel est déjà utilisé" };
