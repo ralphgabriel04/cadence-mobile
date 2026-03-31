@@ -15,7 +15,7 @@ export function maskEmail(email: string): string {
   if (!email) return "";
 
   const atIndex = email.indexOf("@");
-  if (atIndex === -1) return email;
+  if (atIndex <= 0) return email;
 
   const local = email.substring(0, atIndex);
   const domain = email.substring(atIndex);
