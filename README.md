@@ -4,9 +4,9 @@
 
 ## Stack technique
 
-- **React Native** + Expo SDK 52+
-- **Expo Router v4** — Navigation file-based
-- **NativeWind v4** — Tailwind CSS pour React Native
+- **React Native** 0.81 + Expo SDK 54
+- **Expo Router v6** — Navigation file-based
+- **NativeWind v4** — Tailwind CSS 3.4 pour React Native
 - **Supabase** — Auth + PostgreSQL + RLS + Realtime + Storage
 - **TypeScript strict** — Zéro `any`
 
@@ -24,24 +24,23 @@ npx expo start
 
 ```
 cadence-mobile/
-├── app/                  # Routes (Expo Router v4)
-│   ├── (auth)/           # Écrans d'authentification
-│   ├── (tabs)/           # Navigation principale
-│   │   ├── coach/        # Écrans coach
-│   │   └── athlete/      # Écrans athlète
-│   └── _layout.tsx       # Layout racine
+├── app/                  # Routes (Expo Router v6)
+│   ├── (auth)/           # Login, Register, Forgot/Reset Password
+│   ├── (coach)/          # Tab bar coach (Accueil, Programmes, Athlètes, Profil)
+│   ├── (athlete)/        # Tab bar athlète (Aujourd'hui, Historique, Profil)
+│   ├── _layout.tsx       # Root layout (AuthProvider)
+│   └── index.tsx         # Router: loading → auth → role redirect
 ├── components/           # Composants réutilisables
-│   ├── ui/               # Design system (boutons, inputs, cards...)
-│   └── features/         # Composants métier
+│   └── ui/               # Design system (Button, Input, Text, Card)
 ├── lib/                  # Utilitaires et configuration
-│   ├── supabase.ts       # Client Supabase
-│   ├── auth-context.tsx  # Contexte d'authentification
-│   └── utils.ts          # Fonctions utilitaires
-├── types/                # Types TypeScript
-├── constants/            # Constantes (couleurs, spacing, config)
-├── hooks/                # Custom hooks
-├── assets/               # Images, fonts, icônes
-└── docs/                 # Documentation technique (ADRs, etc.)
+│   ├── supabase.ts       # Client Supabase + SecureStore adapter
+│   ├── auth-context.tsx  # AuthProvider + useAuth hook
+│   └── constants.ts      # Variables d'environnement
+├── types/                # Types TypeScript (database.ts)
+├── hooks/                # Custom hooks (useSupabase)
+├── supabase/             # Migrations SQL (14 tables + RLS)
+├── assets/               # Images, icônes
+└── docs/                 # ADRs + Wiki
 ```
 
 ## Conventions

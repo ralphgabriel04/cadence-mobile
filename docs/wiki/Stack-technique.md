@@ -4,9 +4,9 @@
 
 | Catégorie | Technologie | Version | Justification |
 |-----------|-------------|---------|---------------|
-| Framework | React Native | 0.76+ | Écosystème React, code partagé |
-| Plateforme | Expo SDK | 52+ | DX supérieure, EAS, OTA updates |
-| Routing | Expo Router | v4 | File-based routing, deep linking natif |
+| Framework | React Native | 0.81 | Écosystème React, code partagé |
+| Plateforme | Expo SDK | 54 | DX supérieure, EAS, OTA updates |
+| Routing | Expo Router | v6 | File-based routing, deep linking natif |
 | Styling | NativeWind | v4 | Tailwind CSS pour RN, cohérence avec le web |
 | Backend | Supabase | Latest | Auth, DB, Realtime, Storage — tout-en-un |
 | Language | TypeScript | 5.x | Strict mode, type safety |
@@ -22,7 +22,7 @@
 ### ADR-001 : Expo plutôt que React Native CLI
 - **Statut** : Accepté
 - **Contexte** : Équipe de 1-2 devs, besoin de vélocité maximale
-- **Décision** : Expo SDK 52+ avec Expo Router v4
+- **Décision** : Expo SDK 54 avec Expo Router v6
 - **Conséquences** : DX supérieure, EAS builds, OTA updates, mais limitations sur certains modules natifs
 
 ### ADR-002 : NativeWind plutôt que StyleSheet

@@ -5,7 +5,7 @@
 | Outil | Version | Installation |
 |-------|---------|-------------|
 | Node.js | 20 LTS | [nodejs.org](https://nodejs.org) |
-| pnpm | 9+ | `npm install -g pnpm` |
+| pnpm | 10+ | `npm install -g pnpm` |
 | Expo CLI | Latest | `npx expo` |
 | EAS CLI | Latest | `npm install -g eas-cli` |
 | Xcode | 15+ | Mac App Store (iOS) |
@@ -44,7 +44,7 @@ npx expo start
 | `npx expo start --ios` | Lancer sur simulateur iOS |
 | `npx expo start --android` | Lancer sur émulateur Android |
 | `pnpm lint` | Lancer ESLint |
-| `pnpm test` | Lancer les tests |
+| `pnpm typecheck` | Vérifier les types TypeScript |
 | `eas build --platform ios` | Build iOS via EAS |
 | `eas build --platform android` | Build Android via EAS |
 | `eas submit` | Soumettre aux stores |
@@ -53,19 +53,18 @@ npx expo start
 
 ```
 cadence-mobile/
-├── app/                  # Expo Router (file-based routing)
-│   ├── (auth)/           # Écrans d'authentification
-│   ├── (tabs)/           # Navigation par onglets
-│   │   ├── coach/        # Vue coach
-│   │   └── athlete/      # Vue athlète
-│   ├── _layout.tsx       # Root layout
-│   └── index.tsx         # Entry point
+├── app/                  # Expo Router v6 (file-based routing)
+│   ├── (auth)/           # Login, Register, Forgot/Reset Password
+│   ├── (coach)/          # Tab bar coach (Accueil, Programmes, Athlètes, Profil)
+│   ├── (athlete)/        # Tab bar athlète (Aujourd'hui, Historique, Profil)
+│   ├── _layout.tsx       # Root layout (AuthProvider)
+│   └── index.tsx         # Router: loading → auth → role redirect
 ├── components/           # Composants React Native
-│   ├── ui/               # Composants UI réutilisables
-│   └── features/         # Composants métier
-├── lib/                  # Utilitaires, Supabase client
-├── types/                # Types TypeScript
-├── constants/            # Constantes (couleurs, config)
-├── hooks/                # Custom hooks
-└── assets/               # Images, fonts
+│   └── ui/               # Design system (Button, Input, Text, Card)
+├── lib/                  # Supabase client, AuthContext, constants
+├── types/                # Types TypeScript (database.ts)
+├── hooks/                # Custom hooks (useSupabase)
+├── supabase/             # Migrations SQL (14 tables + RLS)
+├── assets/               # Images, icônes
+└── docs/                 # ADRs + Wiki
 ```

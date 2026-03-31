@@ -5,11 +5,11 @@
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    Client Mobile                      │
-│              React Native + Expo SDK 52+              │
+│              React Native + Expo SDK 54               │
 │                                                       │
 │  ┌───────────┐  ┌──────────┐  ┌──────────────────┐  │
 │  │ Expo Router│  │NativeWind│  │  React Native    │  │
-│  │   v4      │  │   v4     │  │  Reanimated      │  │
+│  │   v6      │  │   v4     │  │  Reanimated      │  │
 │  └───────────┘  └──────────┘  └──────────────────┘  │
 └────────────────────────┬────────────────────────────┘
                          │ HTTPS
@@ -24,7 +24,7 @@
 │                                                      │
 │  ┌──────────────────────────────────────────────┐   │
 │  │           PostgreSQL + RLS                    │   │
-│  │    13+ tables, Row Level Security policies    │   │
+│  │    14 tables, Row Level Security policies      │   │
 │  └──────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────┘
 ```
@@ -50,13 +50,21 @@ User Action → Component → Hook → Supabase Client → PostgreSQL
 ## Authentification
 
 - Supabase Auth (GoTrue) avec deep linking
-- Magic Link + OAuth (Google, Apple)
-- Session persistée dans SecureStore (Expo)
-- Redirection automatique via `(auth)` layout group
+- Email/Password avec confirmation par courriel
+- Session persistée dans SecureStore (expo-secure-store)
+- Redirection automatique via auth guards dans les layouts
+- Password reset via deep link (`cadence://reset-password`)
 
 ## Navigation
 
-Expo Router v4 avec file-based routing :
-- `(auth)/` — Login, Register, Forgot Password
-- `(tabs)/coach/` — Dashboard coach, gestion athlètes, programmes
-- `(tabs)/athlete/` — Dashboard athlète, sessions, progression
+Expo Router v6 avec file-based routing :
+
+- `(auth)/` — Login, Register, Forgot Password, Reset Password
+- `(coach)/` — Tab bar coach : Accueil, Programmes, Athlètes, Profil
+- `(athlete)/` — Tab bar athlète : Aujourd'hui, Historique, Profil
+
+Auth guards dans chaque `_layout.tsx` :
+
+- `(auth)` redirige si déjà authentifié
+- `(coach)` requiert auth + rôle coach
+- `(athlete)` requiert auth + rôle athlète
