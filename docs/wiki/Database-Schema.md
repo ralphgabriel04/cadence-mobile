@@ -1,209 +1,277 @@
-# 🗃️ Database Schema
+# Database Schema
 
 ## Vue d'ensemble
 
-Cadence utilise **PostgreSQL via Supabase** avec **Row Level Security (RLS)** activé sur toutes les tables. Le schéma est partagé entre le web et le mobile.
+Cadence utilise **PostgreSQL via Supabase** avec **Row Level Security (RLS)** active sur toutes les tables. Le schema est partage entre le web et le mobile.
+
+**14 tables**, toutes avec : `id UUID PK`, `created_at`, `updated_at`, `is_deleted`, `deleted_at` (soft delete).
+
+Source de verite : [`supabase/migrations/001_initial_schema.sql`](../../supabase/migrations/001_initial_schema.sql)
+
+## Enums PostgreSQL
+
+| Enum                  | Valeurs                                                      |
+|-----------------------|--------------------------------------------------------------|
+| `user_role`           | coach, athlete                                               |
+| `relationship_status` | pending, active, inactive                                    |
+| `program_status`      | draft, active, archived                                      |
+| `assignment_status`   | active, completed, paused                                    |
+| `session_log_status`  | in_progress, completed, skipped                              |
+| `exercise_category`   | strength, cardio, flexibility, mobility, plyometrics, other  |
+| `difficulty_level`    | beginner, intermediate, advanced                             |
+| `message_type`        | text, image, session_log                                     |
 
 ## Tables
 
-### `profiles`
-Extension de `auth.users`. Contient les infos publiques de l'utilisateur.
+### 1. `profiles`
+
+Extension de `auth.users`. Auto-cree par trigger `handle_new_user()`.
 
 | Colonne | Type | Description |
 |---------|------|-------------|
-| id | uuid (PK, FK → auth.users) | ID utilisateur |
-| full_name | text | Nom complet |
-| avatar_url | text | URL de l'avatar |
-| role | enum('coach', 'athlete') | Rôle principal |
-| created_at | timestamptz | Date de création |
-| updated_at | timestamptz | Dernière mise à jour |
+| id | uuid (PK, FK -> auth.users) | ID utilisateur |
+| email | text | Courriel |
+| first_name | text | Prenom |
+| last_name | text | Nom de famille |
+| role | user_role | Coach ou athlete |
+| avatar_url | text | URL avatar |
+| phone | text | Telephone |
+| bio | text | Biographie |
+| timezone | text | Fuseau horaire (defaut: America/Toronto) |
+| preferred_language | text | Langue (defaut: fr) |
+| onboarding_completed | boolean | Onboarding termine |
+| last_active_at | timestamptz | Derniere activite |
 
-**RLS** : Lecture publique, écriture par le propriétaire uniquement.
+**RLS** : SELECT pour tout authentifie, UPDATE par le proprietaire uniquement.
 
-### `coach_athletes`
-Relation many-to-many entre coachs et athlètes.
+### 2. `coach_athletes`
 
-| Colonne | Type | Description |
-|---------|------|-------------|
-| id | uuid (PK) | ID relation |
-| coach_id | uuid (FK → profiles) | Coach |
-| athlete_id | uuid (FK → profiles) | Athlète |
-| status | enum('pending', 'active', 'inactive') | Statut |
-| created_at | timestamptz | Date de création |
-
-**RLS** : Visible par le coach et l'athlète concernés.
-
-### `programs`
-Programmes d'entraînement créés par les coachs.
+Relation many-to-many entre coachs et athletes.
 
 | Colonne | Type | Description |
 |---------|------|-------------|
-| id | uuid (PK) | ID programme |
-| coach_id | uuid (FK → profiles) | Créateur |
+| coach_id | uuid (FK -> profiles) | Coach |
+| athlete_id | uuid (FK -> profiles) | Athlete |
+| status | relationship_status | Statut de la relation |
+| invited_at | timestamptz | Date d'invitation |
+| accepted_at | timestamptz | Date d'acceptation |
+| notes | text | Notes du coach |
+
+**Contrainte** : UNIQUE (coach_id, athlete_id)
+
+**RLS** : Coach CRUD sur ses relations, athlete SELECT ses propres.
+
+### 3. `exercises`
+
+Bibliotheque d'exercices reutilisables du coach.
+
+| Colonne | Type | Description |
+|---------|------|-------------|
+| coach_id | uuid (FK -> profiles) | Coach proprietaire |
+| name | text | Nom de l'exercice |
+| description | text | Description |
+| category | exercise_category | Type d'exercice |
+| equipment | text | Equipement necessaire |
+| muscle_groups | text[] | Groupes musculaires cibles |
+| video_url | text | URL video demonstrative |
+| instructions | text | Instructions detaillees |
+
+**RLS** : Coach CRUD ses exercices.
+
+### 4. `programs`
+
+Programmes d'entrainement crees par les coachs.
+
+| Colonne | Type | Description |
+|---------|------|-------------|
+| coach_id | uuid (FK -> profiles) | Createur |
 | name | text | Nom du programme |
 | description | text | Description |
-| duration_weeks | integer | Durée en semaines |
-| created_at | timestamptz | Date de création |
+| duration_weeks | integer | Duree en semaines |
+| goal | text | Objectif |
+| difficulty | difficulty_level | Niveau de difficulte |
+| status | program_status | draft, active, archived |
+| is_template | boolean | Programme template reutilisable |
 
-**RLS** : CRUD par le coach créateur, lecture par les athlètes assignés.
+**RLS** : Coach CRUD ses programmes, athletes SELECT via program_assignments.
 
-### `program_assignments`
-Assignation d'un programme à un athlète.
+### 5. `sessions`
 
-| Colonne | Type | Description |
-|---------|------|-------------|
-| id | uuid (PK) | ID assignation |
-| program_id | uuid (FK → programs) | Programme |
-| athlete_id | uuid (FK → profiles) | Athlète |
-| start_date | date | Date de début |
-| status | enum('active', 'completed', 'paused') | Statut |
-
-**RLS** : Visible par le coach du programme et l'athlète assigné.
-
-### `sessions`
-Séances d'entraînement dans un programme.
+Seances d'entrainement dans un programme.
 
 | Colonne | Type | Description |
 |---------|------|-------------|
-| id | uuid (PK) | ID séance |
-| program_id | uuid (FK → programs) | Programme parent |
-| name | text | Nom de la séance |
-| day_of_week | integer | Jour (1-7) |
-| week_number | integer | Semaine dans le programme |
+| program_id | uuid (FK -> programs) | Programme parent |
+| name | text | Nom de la seance |
+| description | text | Description |
+| day_of_week | integer (1-7) | Jour de la semaine |
+| week_number | integer (>= 1) | Semaine dans le programme |
 | order_index | integer | Ordre d'affichage |
+| estimated_duration_minutes | integer | Duree estimee |
 
-**RLS** : Hérité du programme parent.
+**RLS** : Herite du programme parent (JOIN).
 
-### `exercises`
-Exercices dans une séance.
+### 6. `session_exercises`
 
-| Colonne | Type | Description |
-|---------|------|-------------|
-| id | uuid (PK) | ID exercice |
-| session_id | uuid (FK → sessions) | Séance parent |
-| name | text | Nom de l'exercice |
-| sets | integer | Nombre de séries |
-| reps | text | Répétitions (ex: "8-12") |
-| rest_seconds | integer | Repos entre séries |
-| notes | text | Instructions du coach |
-| order_index | integer | Ordre d'affichage |
-| type | enum('strength', 'cardio', 'flexibility', 'other') | Type |
-
-**RLS** : Hérité du programme parent.
-
-### `session_logs`
-Logs de complétion d'une séance par un athlète.
+Table de jonction : lie les exercices de la bibliotheque aux seances avec parametres specifiques.
 
 | Colonne | Type | Description |
 |---------|------|-------------|
-| id | uuid (PK) | ID log |
-| session_id | uuid (FK → sessions) | Séance |
-| athlete_id | uuid (FK → profiles) | Athlète |
-| completed_at | timestamptz | Date de complétion |
-| duration_minutes | integer | Durée réelle |
-| rpe | integer (1-10) | Effort perçu |
-| notes | text | Notes de l'athlète |
+| session_id | uuid (FK -> sessions) | Seance |
+| exercise_id | uuid (FK -> exercises) | Exercice de la bibliotheque |
+| order_index | integer | Ordre dans la seance |
+| sets | integer | Nombre de series |
+| reps | text | Repetitions (ex: "8-12") |
+| weight_suggestion | text | Poids suggere |
+| rest_seconds | integer | Repos entre series |
+| tempo | text | Tempo (ex: "3-1-2-0") |
+| notes | text | Instructions specifiques |
+| superset_group | integer | Groupe de superset |
 
-**RLS** : Écriture par l'athlète, lecture par l'athlète et son coach.
+**RLS** : Herite du programme parent (JOIN sessions -> programs).
 
-### `exercise_logs`
-Logs détaillés par exercice.
+### 7. `program_assignments`
+
+Assignation d'un programme a un athlete.
 
 | Colonne | Type | Description |
 |---------|------|-------------|
-| id | uuid (PK) | ID log |
-| session_log_id | uuid (FK → session_logs) | Log de séance |
-| exercise_id | uuid (FK → exercises) | Exercice |
-| sets_completed | integer | Séries complétées |
-| reps_completed | text | Reps par série (JSON) |
-| weight | numeric | Poids utilisé |
+| program_id | uuid (FK -> programs) | Programme |
+| athlete_id | uuid (FK -> profiles) | Athlete |
+| coach_id | uuid (FK -> profiles) | Coach |
+| start_date | date | Date de debut |
+| end_date | date | Date de fin |
+| status | assignment_status | active, completed, paused |
+
+**RLS** : Coach CRUD ses assignations, athlete SELECT ses propres.
+
+### 8. `session_logs`
+
+Logs de completion d'une seance par un athlete.
+
+| Colonne | Type | Description |
+|---------|------|-------------|
+| session_id | uuid (FK -> sessions) | Seance |
+| athlete_id | uuid (FK -> profiles) | Athlete |
+| program_assignment_id | uuid (FK -> program_assignments) | Assignation |
+| started_at | timestamptz | Debut |
+| completed_at | timestamptz | Fin |
+| duration_minutes | integer | Duree reelle |
+| overall_rpe | integer (1-10) | Effort percu global |
+| notes | text | Notes de l'athlete |
+| status | session_log_status | in_progress, completed, skipped |
+
+**RLS** : Athlete CRUD ses logs, coach SELECT pour ses athletes.
+
+### 9. `exercise_logs`
+
+Logs detailles par exercice et par serie.
+
+| Colonne | Type | Description |
+|---------|------|-------------|
+| session_log_id | uuid (FK -> session_logs) | Log de seance |
+| exercise_id | uuid (FK -> exercises) | Exercice |
+| session_exercise_id | uuid (FK -> session_exercises) | Ref session_exercise |
+| set_number | integer | Numero de serie |
+| reps_completed | integer | Reps completees |
+| weight_kg | numeric | Poids utilise (kg) |
+| rpe | integer (1-10) | Effort percu |
+| duration_seconds | integer | Duree (cardio) |
+| distance_meters | numeric | Distance (cardio) |
+| is_pr | boolean | Record personnel |
 | notes | text | Notes |
 
-**RLS** : Hérité du session_log parent.
+**RLS** : Herite du session_log parent (JOIN).
 
-### `session_images`
-Photos attachées aux logs de séance.
+### 10. `readiness_logs`
 
-| Colonne | Type | Description |
-|---------|------|-------------|
-| id | uuid (PK) | ID image |
-| session_log_id | uuid (FK → session_logs) | Log parent |
-| image_url | text | URL dans Supabase Storage |
-| created_at | timestamptz | Date d'upload |
-
-**RLS** : Écriture par l'athlète, lecture par l'athlète et son coach.
-
-### `conversations`
-Conversations de messagerie.
+Formulaire de readiness quotidien de l'athlete.
 
 | Colonne | Type | Description |
 |---------|------|-------------|
-| id | uuid (PK) | ID conversation |
-| coach_id | uuid (FK → profiles) | Coach |
-| athlete_id | uuid (FK → profiles) | Athlète |
-| created_at | timestamptz | Date de création |
+| athlete_id | uuid (FK -> profiles) | Athlete |
+| log_date | date | Date |
+| sleep_quality | integer (1-5) | Qualite du sommeil |
+| energy_level | integer (1-5) | Niveau d'energie |
+| muscle_soreness | integer (1-5) | Douleurs musculaires |
+| stress_level | integer (1-5) | Niveau de stress |
+| motivation | integer (1-5) | Motivation |
+| overall_readiness | numeric (GENERATED) | Score calcule automatiquement |
+| notes | text | Notes libres |
 
-**RLS** : Visible uniquement par les deux participants.
+**Contrainte** : UNIQUE (athlete_id, log_date)
 
-### `messages`
+**RLS** : Athlete CRUD ses logs, coach SELECT pour ses athletes.
+
+### 11. `conversations`
+
+Conversations de messagerie coach-athlete.
+
+| Colonne | Type | Description |
+|---------|------|-------------|
+| coach_id | uuid (FK -> profiles) | Coach |
+| athlete_id | uuid (FK -> profiles) | Athlete |
+| last_message_at | timestamptz | Dernier message |
+
+**Contrainte** : UNIQUE (coach_id, athlete_id)
+
+**RLS** : Visible et modifiable par les deux participants.
+
+### 12. `messages`
+
 Messages dans une conversation.
 
 | Colonne | Type | Description |
 |---------|------|-------------|
-| id | uuid (PK) | ID message |
-| conversation_id | uuid (FK → conversations) | Conversation |
-| sender_id | uuid (FK → profiles) | Expéditeur |
-| content | text | Contenu du message |
-| created_at | timestamptz | Date d'envoi |
+| conversation_id | uuid (FK -> conversations) | Conversation |
+| sender_id | uuid (FK -> profiles) | Expediteur |
+| content | text | Contenu |
+| message_type | message_type | text, image, session_log |
+| related_session_log_id | uuid (FK -> session_logs) | Ref optionnelle |
 | read_at | timestamptz | Date de lecture |
 
 **RLS** : Visible par les participants de la conversation.
 
-### `readiness_logs`
-Formulaire de readiness quotidien de l'athlète.
+### 13. `session_images`
+
+Photos attachees aux logs de seance.
 
 | Colonne | Type | Description |
 |---------|------|-------------|
-| id | uuid (PK) | ID log |
-| athlete_id | uuid (FK → profiles) | Athlète |
-| date | date | Date |
-| sleep_quality | integer (1-5) | Qualité du sommeil |
-| energy_level | integer (1-5) | Niveau d'énergie |
-| stress_level | integer (1-5) | Niveau de stress |
-| muscle_soreness | integer (1-5) | Douleurs musculaires |
-| motivation | integer (1-5) | Motivation |
-| notes | text | Notes libres |
+| session_log_id | uuid (FK -> session_logs) | Log parent |
+| athlete_id | uuid (FK -> profiles) | Athlete |
+| image_url | text | URL dans Supabase Storage |
+| caption | text | Legende |
 
-**RLS** : Écriture par l'athlète, lecture par l'athlète et son coach.
+**RLS** : Athlete CRUD ses images, coach SELECT pour ses athletes.
 
-### `coach_messages`
-Messages broadcast du coach vers tous ses athlètes.
+### 14. `coach_notes`
+
+Notes privees du coach sur un athlete ou une seance.
 
 | Colonne | Type | Description |
 |---------|------|-------------|
-| id | uuid (PK) | ID message |
-| coach_id | uuid (FK → profiles) | Coach |
-| content | text | Contenu |
-| created_at | timestamptz | Date d'envoi |
+| coach_id | uuid (FK -> profiles) | Coach |
+| athlete_id | uuid (FK -> profiles) | Athlete concerne |
+| session_log_id | uuid (FK -> session_logs) | Ref optionnelle |
+| content | text | Contenu de la note |
+| is_private | boolean | Toujours prive (defaut: true) |
 
-**RLS** : Écriture par le coach, lecture par ses athlètes.
+**RLS** : Coach uniquement — l'athlete n'a **jamais** acces.
 
-### `motivational_quotes`
-Citations motivationnelles affichées dans l'app.
+## Triggers
 
-| Colonne | Type | Description |
-|---------|------|-------------|
-| id | uuid (PK) | ID citation |
-| content | text | Texte de la citation |
-| author | text | Auteur |
-| category | text | Catégorie |
-
-**RLS** : Lecture publique.
+| Trigger                | Table      | Description                                |
+|------------------------|------------|--------------------------------------------|
+| `on_auth_user_created` | auth.users | Auto-cree un profil dans `profiles`        |
+| `update_*_updated_at`  | Toutes     | Met a jour `updated_at` sur chaque UPDATE  |
 
 ## Conventions
 
-- Toutes les tables utilisent `uuid` comme clé primaire
+- Toutes les tables utilisent `uuid` comme cle primaire (`gen_random_uuid()`)
 - `created_at` et `updated_at` sont en `timestamptz`
-- RLS est **toujours** activé — aucune table n'est publique en écriture
+- Soft delete : `is_deleted BOOLEAN DEFAULT FALSE` + `deleted_at TIMESTAMPTZ`
+- RLS est **toujours** active — toutes les policies filtrent `WHERE NOT is_deleted`
+- Les index sont des **partial indexes** `WHERE NOT is_deleted`
 - Les enums utilisent des types PostgreSQL natifs
-- Les foreign keys ont des `ON DELETE CASCADE` appropriés
+- Les foreign keys ont des `ON DELETE CASCADE` appropries

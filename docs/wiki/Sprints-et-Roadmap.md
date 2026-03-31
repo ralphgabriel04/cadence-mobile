@@ -1,33 +1,42 @@
-# 📅 Sprints et Roadmap
+# Sprints et Roadmap
 
 ## Vue d'ensemble
 
-Cadence suit un cycle de **12 sprints** pour atteindre le MVP (v1.0.0). Chaque sprint dure **2 semaines**.
+Cadence suit un cycle de **11 sprints** pour atteindre le MVP (v1.0.0). Chaque sprint dure **2 semaines**.
 
 ## Sprints
 
 | Sprint | Nom | Focus | Version |
 |--------|-----|-------|---------|
-| 0 | Foundation | Repo, CI/CD, Supabase, Auth | v0.1.0-alpha.1 |
-| 1 | Core Auth | Login, Register, Profile | v0.1.0-alpha.2 |
-| 2 | Coach Dashboard | Vue coach, liste athlètes | v0.2.0-alpha.1 |
-| 3 | Program Builder | Création de programmes | v0.3.0-alpha.1 |
-| 4 | Athlete Dashboard | Vue athlète, sessions | v0.4.0-alpha.1 |
-| 5 | Workout Tracker | Logging exercices, timer | v0.5.0-beta.1 |
+| 1 | Setup & Auth | Expo init, Supabase, DB schema, Auth system | v0.1.0-alpha.1 |
+| 2 | Coach Core | Dashboard coach, gestion athlètes, programmes | v0.2.0-alpha.1 |
+| 3 | Program Builder | Création de programmes, exercices, sessions | v0.3.0-alpha.1 |
+| 4 | Athlete Core | Vue athlète, sessions du jour, logging | v0.4.0-alpha.1 |
+| 5 | Workout Tracker | Timer, sets/reps logging, RPE, PR detection | v0.5.0-beta.1 |
 | 6 | Messaging | Chat coach-athlète, realtime | v0.6.0-beta.1 |
-| 7 | Readiness & Analytics | Formulaire readiness, graphiques | v0.7.0-beta.1 |
-| 8 | Notifications | Push notifications, rappels | v0.8.0-beta.1 |
-| 9 | Polish & Performance | Animations, optimisations | v0.9.0-beta.1 |
-| 10 | Testing & QA | Tests E2E, bug fixes | v0.10.0-rc.1 |
-| 11 | Launch Prep | Store submission, landing page | v1.0.0 |
+| 7 | Readiness & Analytics | Formulaire readiness, graphiques, trends | v0.7.0-beta.1 |
+| 8 | Media & Storage | Photos de session, avatars, Supabase Storage | v0.8.0-beta.1 |
+| 9 | Onboarding & Landing | Onboarding flows, landing page | v0.9.0-beta.1 |
+| 10 | Notifications & A11y | Push notifications, accessibilité | v0.10.0-rc.1 |
+| 11 | Launch & Security | Stripe, OWASP audit, store submission | v1.0.0 |
 
-## Règles de sprint
+## Sprint 1 — Complété (v0.1.0-alpha.1)
 
-1. **Pas de scope creep** — chaque sprint a un périmètre défini
-2. **Demo** à la fin de chaque sprint (même si c'est entre nous)
-3. **Retrospective** informelle après chaque sprint
-4. **Vélocité** mesurée en story points (Fibonacci)
-5. **Sprint 0** est plus long (setup initial)
+- Expo SDK 54 + TypeScript strict + NativeWind v4 + Expo Router v6
+- Supabase client + SecureStore adapter + env vars
+- EAS Build profiles (development, preview, production)
+- 14 tables PostgreSQL avec RLS, soft delete, triggers
+- Auth system complet (login, register, forgot/reset password)
+- Role-based routing (coach/athlete tab bars)
+- 4 UI components (Button, Input, Text, Card)
+
+## Conventions de sprint
+
+1. **Pas de scope creep** — chaque sprint a un perimetre defini
+2. **Demo** a la fin de chaque sprint
+3. **Retrospective** informelle apres chaque sprint
+4. **Tag** a la fin de chaque sprint (ex: v0.1.0-alpha.1)
+5. **Issues** fermees via commit messages (`Closes #N`)
 
 ## Post-MVP Roadmap
 
