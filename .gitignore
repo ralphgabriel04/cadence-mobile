@@ -38,6 +38,3 @@ coverage/
 
 # Build
 *.tsbuildinfo
-
-# EAS
-eas.json
