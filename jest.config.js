@@ -1,6 +1,5 @@
-import type { Config } from "jest";
-
-const config: Config = {
+/** @type {import('jest').Config} */
+module.exports = {
   // Use node environment for utility function tests
   testEnvironment: "node",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
@@ -47,5 +46,3 @@ const config: Config = {
   clearMocks: true,
   testTimeout: 10000,
 };
-
-export default config;
