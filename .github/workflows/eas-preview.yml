@@ -1,0 +1,65 @@
+name: EAS Preview
+
+on:
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: EAS Preview Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Only run if EXPO_TOKEN secret is configured
+    if: ${{ github.event.pull_request.draft == false }}
+    steps:
+      - name: Check for EXPO_TOKEN
+        id: check-secret
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "EXPO_TOKEN not configured. Skipping preview build."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout code
+        if: steps.check-secret.outputs.skip != 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        if: steps.check-secret.outputs.skip != 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        if: steps.check-secret.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Setup Expo
+        if: steps.check-secret.outputs.skip != 'true'
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        if: steps.check-secret.outputs.skip != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Create preview build
+        if: steps.check-secret.outputs.skip != 'true'
+        run: eas build --platform all --profile preview --non-interactive
+
+      - name: Skip message
+        if: steps.check-secret.outputs.skip == 'true'
+        run: |
+          echo "::notice::EAS Preview build skipped. Configure EXPO_TOKEN secret to enable preview builds."
