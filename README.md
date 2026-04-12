@@ -61,6 +61,91 @@ cadence-mobile/
 1.0.0          → Production (App Store + Google Play)
 ```
 
+## Security
+
+Cadence handles health-related data and takes security seriously:
+
+- **Dependabot** monitors dependencies weekly for vulnerabilities
+- **ESLint Security Plugin** enforces secure coding patterns
+- **TruffleHog** scans for accidentally committed secrets
+- **pnpm audit** runs on every PR
+
+```bash
+# Run security audit locally
+./scripts/audit-deps.sh
+
+# Just audit dependencies
+pnpm audit
+
+# Security-focused lint
+pnpm lint:security
+```
+
+See [docs/SECURITY.md](docs/SECURITY.md) for our full security policy.
+
+## Development Workflow
+
+### Local Development
+
+```bash
+# Install dependencies
+pnpm install
+
+# Run all CI checks locally before pushing
+pnpm ci
+
+# Individual checks
+pnpm lint          # ESLint (zero warnings tolerated)
+pnpm type-check    # TypeScript strict mode
+pnpm test          # Jest unit tests
+pnpm build         # Expo export (verify compilation)
+
+# Format code
+pnpm format        # Auto-fix formatting with Prettier
+pnpm format:check  # Check formatting without fixing
+```
+
+### Pull Request Process
+
+1. Create a feature branch: `git checkout -b feature/123-my-feature`
+2. Make your changes and commit using [Conventional Commits](https://www.conventionalcommits.org/)
+3. Run `pnpm ci` locally to verify all checks pass
+4. Push and create a PR to `develop` (or `main` for hotfixes)
+5. Wait for CI checks to pass:
+   - **Lint** — ESLint with zero warnings
+   - **Type Check** — TypeScript strict mode
+   - **Test** — Jest unit tests with coverage
+   - **Build** — Expo export verification
+
+### CI/CD Pipeline
+
+The CI pipeline runs automatically on:
+- Push to `main` or `develop`
+- Pull requests to `main` or `develop`
+
+All 4 jobs run in parallel for speed (~3-5 min total).
+
+### EAS Preview Builds
+
+Preview builds are automatically created for PRs when `EXPO_TOKEN` is configured.
+
+```bash
+# Manual EAS build
+eas build --platform all --profile preview
+```
+
+### Branch Protection (GitHub Settings)
+
+**main branch:**
+- Require PR reviews (1 reviewer)
+- Require status checks: lint, typecheck, test, build
+- Require branches to be up to date
+- No bypassing (even for admins)
+
+**develop branch:**
+- Require status checks: lint, typecheck, test
+- No PR review required (solo dev during MVP)
+
 ## Documentation
 
 Voir le [Wiki](../../wiki) pour la documentation complète.
