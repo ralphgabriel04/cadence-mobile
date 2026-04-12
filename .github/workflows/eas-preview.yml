@@ -1,4 +1,14 @@
-name: EAS Preview
+name: EAS Preview Build
+
+# Internal preview builds (.ipa / .apk) for PRs targeting develop or main.
+#
+# Phase 2 of the mobile deploy strategy — see docs/DEPLOY-STRATEGY.md.
+# Skips gracefully until Phase 2 credentials are configured:
+#   - EXPO_TOKEN                    (Expo access token)
+#   - ASC_API_KEY_BASE64            (App Store Connect API key — Phase 2 gate)
+#
+# Once ASC_API_KEY_BASE64 is set, the workflow goes live. Until then, PRs
+# emit a ::notice:: and succeed with no build, so the check stays green.
 
 on:
   pull_request:
@@ -9,57 +19,74 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Opt into Node.js 24 for GitHub Actions runners (same as ci.yml).
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   preview:
     name: EAS Preview Build
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Only run if EXPO_TOKEN secret is configured
     if: ${{ github.event.pull_request.draft == false }}
     steps:
-      - name: Check for EXPO_TOKEN
-        id: check-secret
+      - name: Check Phase 2 prerequisites
+        id: check-secrets
         run: |
           if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
             echo "EXPO_TOKEN not configured. Skipping preview build."
             echo "skip=true" >> $GITHUB_OUTPUT
+            echo "reason=missing-expo-token" >> $GITHUB_OUTPUT
+          elif [ -z "${{ secrets.ASC_API_KEY_BASE64 }}" ]; then
+            echo "ASC_API_KEY_BASE64 not configured — Phase 2 prereqs not met. Skipping preview build."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "reason=phase2-not-ready" >> $GITHUB_OUTPUT
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout code
-        if: steps.check-secret.outputs.skip != 'true'
+        if: steps.check-secrets.outputs.skip != 'true'
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        if: steps.check-secret.outputs.skip != 'true'
+        if: steps.check-secrets.outputs.skip != 'true'
         uses: pnpm/action-setup@v4
         with:
           version: 10
 
       - name: Setup Node.js
-        if: steps.check-secret.outputs.skip != 'true'
+        if: steps.check-secrets.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: "pnpm"
 
       - name: Setup Expo
-        if: steps.check-secret.outputs.skip != 'true'
+        if: steps.check-secrets.outputs.skip != 'true'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        if: steps.check-secret.outputs.skip != 'true'
+        if: steps.check-secrets.outputs.skip != 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Create preview build
-        if: steps.check-secret.outputs.skip != 'true'
+        if: steps.check-secrets.outputs.skip != 'true'
         run: eas build --platform all --profile preview --non-interactive
 
-      - name: Skip message
-        if: steps.check-secret.outputs.skip == 'true'
+      - name: Skip message (missing EXPO_TOKEN)
+        if: steps.check-secrets.outputs.skip == 'true' && steps.check-secrets.outputs.reason == 'missing-expo-token'
         run: |
           echo "::notice::EAS Preview build skipped. Configure EXPO_TOKEN secret to enable preview builds."
+          echo "::notice::See docs/DEPLOY-STRATEGY.md for setup instructions."
+
+      - name: Skip message (Phase 2 not ready)
+        if: steps.check-secrets.outputs.skip == 'true' && steps.check-secrets.outputs.reason == 'phase2-not-ready'
+        run: |
+          echo "::notice::EAS Preview build skipped — Phase 2 of the deploy strategy is not yet enabled."
+          echo "::notice::Phase 2 requires Apple Developer Program + Google Play Console credentials."
+          echo "::notice::Tracking ticket: https://github.com/ralphgabriel04/cadence-mobile/issues/70"
+          echo "::notice::See docs/DEPLOY-STRATEGY.md#phase-2--internal-preview-builds-sprint-10."
