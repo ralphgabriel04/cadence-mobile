@@ -1,0 +1,85 @@
+name: EAS OTA Update
+
+# Over-the-air update deploys for JavaScript changes.
+# Publishes updates to Expo's hosted update service when commits land on
+# develop (preview channel) or main (production channel). Requires EXPO_TOKEN
+# secret to be configured; skips gracefully if missing.
+#
+# Phase 1 of the mobile deploy strategy — see docs/DEPLOY-STRATEGY.md.
+
+on:
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Opt into Node.js 24 for GitHub Actions runners (same as ci.yml).
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  deploy:
+    name: Deploy OTA Update
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check for EXPO_TOKEN
+        id: check-secret
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "EXPO_TOKEN not configured. Skipping OTA update."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout code
+        if: steps.check-secret.outputs.skip != 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        if: steps.check-secret.outputs.skip != 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        if: steps.check-secret.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Setup Expo
+        if: steps.check-secret.outputs.skip != 'true'
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        if: steps.check-secret.outputs.skip != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish OTA update
+        if: steps.check-secret.outputs.skip != 'true'
+        env:
+          BRANCH: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          # Use only the first line of the commit message to avoid multi-line quoting issues
+          FIRST_LINE=$(echo "$COMMIT_MSG" | head -n 1)
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+          eas update \
+            --branch "$BRANCH" \
+            --message "$SHORT_SHA: $FIRST_LINE" \
+            --non-interactive
+
+      - name: Skip message
+        if: steps.check-secret.outputs.skip == 'true'
+        run: |
+          echo "::notice::OTA update skipped. Configure EXPO_TOKEN secret to enable deploys."
+          echo "::notice::See docs/DEPLOY-STRATEGY.md for setup instructions."
