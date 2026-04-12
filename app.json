@@ -35,6 +35,16 @@
     "plugins": [
       "expo-router",
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "efe57938-74dd-4c05-8cbc-56bab0b6da96"
+      }
+    },
+    "owner": "dopman",
+    "updates": {
+      "url": "https://u.expo.dev/efe57938-74dd-4c05-8cbc-56bab0b6da96"
+    }
   }
 }
