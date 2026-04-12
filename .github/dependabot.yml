@@ -1,0 +1,52 @@
+version: 2
+updates:
+  # npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Montreal"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "ralphgabriel04"
+    assignees:
+      - "ralphgabriel04"
+    labels:
+      - "Type: Security"
+      - "scope: deps"
+    # Group minor/patch updates together to reduce noise
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+      expo-ecosystem:
+        patterns:
+          - "expo*"
+          - "@expo/*"
+          - "react-native*"
+          - "@react-native/*"
+      development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Montreal"
+    labels:
+      - "Type: Security"
+      - "scope: ci"
+    commit-message:
+      prefix: "chore(ci)"
