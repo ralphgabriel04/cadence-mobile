@@ -24,8 +24,8 @@ importers:
         specifier: ~6.0.23
         version: 6.0.23(a0d9eea63d969d1fe864ce2d3bcc049a)
       expo-secure-store:
-        specifier: ^15.0.8
-        version: 15.0.8(expo@54.0.33)
+        specifier: ^55.0.13
+        version: 55.0.13(expo@54.0.33)
       expo-splash-screen:
         specifier: ~31.0.13
         version: 31.0.13(expo@54.0.33)
@@ -2870,8 +2870,8 @@ packages:
       react-server-dom-webpack:
         optional: true
 
-  expo-secure-store@15.0.8:
-    resolution: {integrity: sha512-lHnzvRajBu4u+P99+0GEMijQMFCOYpWRO4dWsXSuMt77+THPIGjzNvVKrGSl6mMrLsfVaKL8BpwYZLGlgA+zAw==}
+  expo-secure-store@55.0.13:
+    resolution: {integrity: sha512-I6r0JNO1Fd4o0Gu7Ixiic7s89lqgdUHq17uBH9y1f/AntoyKn71TdtYJH82RgfsBbu5qNVzrwImmvlANyOlITQ==}
     peerDependencies:
       expo: '*'
 
@@ -5100,6 +5100,10 @@ packages:
 
   tinyglobby@0.2.15:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
+    engines: {node: '>=12.0.0'}
+
+  tinyglobby@0.2.16:
+    resolution: {integrity: sha512-pn99VhoACYR8nFHhxqix+uvsbXineAasWm5ojXoN8xEwK5Kd3/TrhNn1wByuD52UxWRLy8pu+kRMniEi6Eq9Zg==}
     engines: {node: '>=12.0.0'}
 
   tmpl@1.0.5:
@@ -7427,7 +7431,7 @@ snapshots:
       hermes-parser: 0.32.0
       invariant: 2.2.4
       nullthrows: 1.1.1
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.16
       yargs: 17.7.2
 
   '@react-native/community-cli-plugin@0.81.5(@react-native/metro-config@0.84.1(@babel/core@7.29.0))':
@@ -7489,7 +7493,9 @@ snapshots:
       metro-runtime: 0.83.5
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.81.5': {}
 
@@ -9101,7 +9107,7 @@ snapshots:
       - '@types/react-dom'
       - supports-color
 
-  expo-secure-store@15.0.8(expo@54.0.33):
+  expo-secure-store@55.0.13(expo@54.0.33):
     dependencies:
       expo: 54.0.33(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native@0.81.5(@babel/core@7.29.0)(@react-native/metro-config@0.84.1(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
 
@@ -11942,6 +11948,11 @@ snapshots:
   throat@5.0.0: {}
 
   tinyglobby@0.2.15:
+    dependencies:
+      fdir: 6.5.0(picomatch@4.0.4)
+      picomatch: 4.0.4
+
+  tinyglobby@0.2.16:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
