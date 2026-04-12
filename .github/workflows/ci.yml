@@ -12,7 +12,7 @@ concurrency:
 
 # Opt into Node.js 24 for GitHub Actions runners — silences deprecation
 # warnings emitted for actions/checkout@v4, setup-node@v4, upload-artifact@v4,
-# and pnpm/action-setup@v4 (Node 20 forced removal scheduled 2026-09-16).
+# and pnpm/action-setup@v6 (Node 20 forced removal scheduled 2026-09-16).
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -51,7 +51,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -110,7 +110,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
