@@ -51,7 +51,7 @@ jobs:
 
       - name: Setup pnpm
         if: steps.check-secrets.outputs.skip != 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
