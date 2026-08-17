@@ -44,6 +44,14 @@ export default function AthleteLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Aujourd'hui" }} />
+      {/*
+        The plan view (cm#23) is registered as a tab because nothing else links
+        to it yet: the home screen belongs to the design track, so a push
+        navigation from there cannot be added from here. A fourth tab is a
+        visible navigation change and should be reviewed by that track -- if it
+        prefers a push from Aujourd'hui, drop this entry and add the link there.
+      */}
+      <Tabs.Screen name="plan" options={{ title: "Plan" }} />
       <Tabs.Screen name="history" options={{ title: "Historique" }} />
       <Tabs.Screen name="profile" options={{ title: "Profil" }} />
     </Tabs>
