@@ -191,18 +191,9 @@ CREATE POLICY "Coaches can CRUD their programs"
   USING (auth.uid() = coach_id AND NOT is_deleted)
   WITH CHECK (auth.uid() = coach_id);
 
-CREATE POLICY "Athletes can view assigned programs"
-  ON programs FOR SELECT
-  TO authenticated
-  USING (
-    NOT is_deleted AND
-    EXISTS (
-      SELECT 1 FROM program_assignments pa
-      WHERE pa.program_id = programs.id
-        AND pa.athlete_id = auth.uid()
-        AND NOT pa.is_deleted
-    )
-  );
+-- "Athletes can view assigned programs" is defined in section 15 at the end of
+-- this file: it references program_assignments, which cannot be created before
+-- programs because it holds a foreign key to it.
 
 CREATE TRIGGER update_programs_updated_at
   BEFORE UPDATE ON programs
@@ -252,20 +243,8 @@ CREATE POLICY "Coaches can CRUD sessions in their programs"
     )
   );
 
-CREATE POLICY "Athletes can view sessions in assigned programs"
-  ON sessions FOR SELECT
-  TO authenticated
-  USING (
-    NOT is_deleted AND
-    EXISTS (
-      SELECT 1 FROM program_assignments pa
-      JOIN programs p ON p.id = pa.program_id
-      WHERE p.id = sessions.program_id
-        AND pa.athlete_id = auth.uid()
-        AND NOT pa.is_deleted
-        AND NOT p.is_deleted
-    )
-  );
+-- "Athletes can view sessions in assigned programs" is defined in section 15,
+-- for the same forward-reference reason.
 
 CREATE TRIGGER update_sessions_updated_at
   BEFORE UPDATE ON sessions
@@ -322,20 +301,8 @@ CREATE POLICY "Coaches can CRUD session_exercises in their programs"
     )
   );
 
-CREATE POLICY "Athletes can view session_exercises in assigned programs"
-  ON session_exercises FOR SELECT
-  TO authenticated
-  USING (
-    NOT is_deleted AND
-    EXISTS (
-      SELECT 1 FROM sessions s
-      JOIN program_assignments pa ON pa.program_id = s.program_id
-      WHERE s.id = session_exercises.session_id
-        AND pa.athlete_id = auth.uid()
-        AND NOT s.is_deleted
-        AND NOT pa.is_deleted
-    )
-  );
+-- "Athletes can view session_exercises in assigned programs" is defined in
+-- section 15, for the same forward-reference reason.
 
 CREATE TRIGGER update_session_exercises_updated_at
   BEFORE UPDATE ON session_exercises
@@ -737,3 +704,67 @@ CREATE TRIGGER update_coach_notes_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE INDEX idx_coach_notes_coach_athlete ON coach_notes(coach_id, athlete_id) WHERE NOT is_deleted;
+
+-- ============================================================================
+-- 15. DEFERRED POLICIES — forward references resolved
+-- ============================================================================
+--
+-- These three policies were originally declared next to their own tables, which
+-- made this file impossible to execute: PostgreSQL validates a policy
+-- expression when the policy is created, and all three reference
+-- program_assignments, created in section 7. Any `supabase db reset` on an
+-- empty database failed at the first of them with
+--
+--     ERROR:  relation "program_assignments" does not exist
+--
+-- program_assignments cannot be created earlier either -- it holds a foreign key
+-- to programs. Moving the policies to the end is the only ordering that works.
+--
+-- This is a pure reordering: the resulting schema is identical to what the
+-- policies always described. It is applied in place, as an exception to the
+-- rule that an applied migration is never edited, because a migration that
+-- cannot execute does not describe a reproducible schema at all. See ADR-004.
+-- ============================================================================
+
+CREATE POLICY "Athletes can view assigned programs"
+  ON programs FOR SELECT
+  TO authenticated
+  USING (
+    NOT is_deleted AND
+    EXISTS (
+      SELECT 1 FROM program_assignments pa
+      WHERE pa.program_id = programs.id
+        AND pa.athlete_id = auth.uid()
+        AND NOT pa.is_deleted
+    )
+  );
+
+CREATE POLICY "Athletes can view sessions in assigned programs"
+  ON sessions FOR SELECT
+  TO authenticated
+  USING (
+    NOT is_deleted AND
+    EXISTS (
+      SELECT 1 FROM program_assignments pa
+      JOIN programs p ON p.id = pa.program_id
+      WHERE p.id = sessions.program_id
+        AND pa.athlete_id = auth.uid()
+        AND NOT pa.is_deleted
+        AND NOT p.is_deleted
+    )
+  );
+
+CREATE POLICY "Athletes can view session_exercises in assigned programs"
+  ON session_exercises FOR SELECT
+  TO authenticated
+  USING (
+    NOT is_deleted AND
+    EXISTS (
+      SELECT 1 FROM sessions s
+      JOIN program_assignments pa ON pa.program_id = s.program_id
+      WHERE s.id = session_exercises.session_id
+        AND pa.athlete_id = auth.uid()
+        AND NOT s.is_deleted
+        AND NOT pa.is_deleted
+    )
+  );
