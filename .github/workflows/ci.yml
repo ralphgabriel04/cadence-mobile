@@ -101,6 +101,20 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  sql-tests:
+    name: SQL / RLS Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Runs the migrations against a disposable PostgreSQL container and
+      # executes the RLS, trigger and constraint suite. No Supabase project is
+      # contacted. Docker is preinstalled on ubuntu-latest runners.
+      - name: Run RLS and trigger tests
+        run: ./supabase/tests/run.sh
+
   build:
     name: Build
     runs-on: ubuntu-latest

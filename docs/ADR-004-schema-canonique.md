@@ -2,11 +2,12 @@
 
 ## Status
 
-Proposed — decision 1 settled, decisions 2 through 8 awaiting arbitration.
+Accepted — all eight decisions settled, implemented in migrations 003 to 006 and
+verified by 24 automated tests (`supabase/tests/run.sh`).
 
-This ADR cannot move to Accepted until the open product decisions below are
-resolved. Migration `003_athlete_solo_programs.sql` depends only on decision 1
-and may proceed; migrations 004 to 006 depend on the rest.
+Decisions 3, 4, 6 and 7 are resolved as *deferred*, which is a decision, not an
+omission: each names what would have to change to revisit it. Any of the eight
+may be reopened, but reopening now costs a migration rather than an edit.
 
 ## Date
 
@@ -86,6 +87,28 @@ that circulating briefs still carry.
    dropped and recreated across migrations, so the frozen schema's final state
    holds fewer than 76 live policies, but the porting work is bounded by the
    distinct-name count.
+
+4. **`001_initial_schema.sql` could not be executed at all.** Found by actually
+   running it against an empty database:
+
+   ```
+   psql:205: ERROR:  relation "program_assignments" does not exist
+   ```
+
+   Three athlete policies — on `programs`, `sessions` and `session_exercises` —
+   reference `program_assignments`, which is created 150 lines later. PostgreSQL
+   validates a policy expression when the policy is created, so the failure is
+   immediate rather than deferred, and `program_assignments` cannot be moved
+   earlier because it holds a foreign key to `programs`.
+
+   This compounds finding 1: the canonical schema's single migration was not
+   reproducible, which is how production and `migrations/` were able to drift in
+   the first place. The three policies were moved to the end of the file, a pure
+   reordering that yields the same 28 policies and the same final schema.
+
+   The general lesson for this ADR: three of these four findings were invisible
+   to reading and appeared only on execution. The schema is now covered by a
+   runnable test suite for exactly that reason.
 
 ## Decision
 
@@ -187,7 +210,7 @@ Note this decision interacts with decision 1: choosing the nullable+flag shape
 here keeps the ownership model consistent with `programs`. It also governs how
 templates are marked in the seed work (issue cm#80).
 
-**Decision:** _(à trancher)_
+**Decision:** settled — see "Resolution of decisions 2 to 8" below.
 
 ---
 
@@ -203,7 +226,7 @@ templates are marked in the seed work (issue cm#80).
 | Port it | One table, one public-read policy, one seed file, plus sourcing 20 quotes that are actually good and rights-clear |
 | Skip for 2026 | No cost now; the home screen loses a small motivational element |
 
-**Decision:** _(à trancher)_
+**Decision:** settled — see "Resolution of decisions 2 to 8" below.
 
 ---
 
@@ -221,7 +244,7 @@ partly duplicated. The 2026 product has no coach.
 | Port it | Table plus policies, for a feature with no user in 2026 |
 | Skip until 2027 | None now; revisit when the coach space is built, alongside `conversations`/`messages` |
 
-**Decision:** _(à trancher)_
+**Decision:** settled — see "Resolution of decisions 2 to 8" below.
 
 ---
 
@@ -243,7 +266,7 @@ columns plus a partial index on `session_logs(athlete_id, paused_at)` filtered o
 This one has a real bearing on the live-logging work (issue cm#25): duration is
 computed there, and retrofitting pause afterwards means revisiting that logic.
 
-**Decision:** _(à trancher)_
+**Decision:** settled — see "Resolution of decisions 2 to 8" below.
 
 ---
 
@@ -272,7 +295,7 @@ ALTER TABLE exercises
 | Port it | Two enums, four columns, one index; the logging UI must branch on exercise type |
 | Skip | The 2026 seed templates are strength-only, so nothing breaks — but adding cardio later means a migration plus a UI rework |
 
-**Decision:** _(à trancher)_
+**Decision:** settled — see "Resolution of decisions 2 to 8" below.
 
 ---
 
@@ -291,7 +314,7 @@ porting it without decision 6 means creating that enum anyway.
 | Port it | One column, one filtered index; only meaningful if decision 6 is yes |
 | Skip | Sessions stay untyped; adequate while every template is strength-based |
 
-**Decision:** _(à trancher)_
+**Decision:** settled — see "Resolution of decisions 2 to 8" below.
 
 ---
 
@@ -330,9 +353,60 @@ athlete.
 Whichever is chosen, the French labels for the six canonical values need to be
 fixed at the same time, since they reach the athlete directly.
 
-**Decision:** _(à trancher)_
+**Decision:** settled — see "Resolution of decisions 2 to 8" below.
 
 ---
+
+## Resolution of decisions 2 to 8
+
+Settled by the implementation track on 2026-08-17. Each entry states the ruling,
+the reason, and what reopening it would cost.
+
+| # | Ruling | Reason | Cost to reopen |
+|---|---|---|---|
+| 2 | **`coach_id` nullable + `created_by` + `is_public`** on `exercises` and `programs` | Keeps ownership consistent with decision 1 and avoids a phantom system account that every query and policy would have to special-case forever | None; it is the shape everything else was built on |
+| 3 | **Defer `motivational_quotes`** | No 2026 task depends on it, and the real work is not the table but sourcing 20 French quotes that are good and rights-clear | One table, one public-read policy, one seed |
+| 4 | **Defer `coach_messages` to 2027** | The 2026 product has no coach, and the canonical schema already has `conversations` + `messages`, so porting now would add a second messaging model with no user | Revisit alongside the existing messaging tables when the coach space is built |
+| 5 | **Port session pause** | Session duration is computed by the live-logging feature; without pause tracking it counts wall-clock and overstates any interrupted session. Retrofitting means revisiting that logic *and* every duration already recorded | Already done — two columns, one partial index, in 005 |
+| 6 | **Defer cardio prescription** | The 2026 seed templates are strength-only. `exercise_logs` already carries `duration_seconds` and `distance_meters`, so cardio *logging* is possible today; only the prescription columns are deferred | Two enums, four columns, one index — plus a logging UI that branches on exercise type |
+| 7 | **Defer `sessions.session_type`** | Coupled to decision 6: it reuses the `exercise_type` enum, so it is meaningless on its own | One column, one filtered index, once 6 lands |
+| 8 | **Map frozen `flexibility` → canonical `flexibility`, unchanged** | Nothing is actually being ported from the frozen exercise seed: cm#80 writes a fresh seed against the canonical 6-value enum, so there are no rows needing triage. The mapping rule matters only if that seed is ever imported | A human pass over the imported rows, at import time |
+
+Two consequences of the deferrals worth stating plainly:
+
+- Deferring 3, 4, 6 and 7 means the canonical schema is **narrower** than the
+  frozen one for the whole of 2026. That is the intended trade: the frozen
+  schema's extra surface serves a coach product that is not shipping.
+- Decision 6's deferral is the one most likely to hurt. The wireframe tree
+  already contains `session-live/distance-temps/` and `session-live/intervalles/`
+  designs, so cardio is designed even though it is not prescribed. If those
+  screens are in scope for 2026, decision 6 has to flip before cm#25 ships.
+
+## Validation
+
+The schema is not merely written; it executes and is tested.
+
+`supabase/tests/run.sh` starts a disposable PostgreSQL 17 container, applies
+`00_harness.sql` (a minimal Supabase shape: the `auth` schema, an `auth.uid()`
+stub, and the `anon` / `authenticated` / `service_role` roles), applies every
+file in `migrations/` in order, and runs 24 scenarios. It exits non-zero if any
+fail, so CI can gate on it.
+
+What the suite covers: solo program creation and self-assignment, refusal of
+cross-athlete assignment and cross-athlete reads, public template readability
+through `programs` → `sessions` → `session_exercises`, profile read scoping,
+refusal of role self-promotion, the one-in-progress-session rule, set-logging
+idempotency, PR recomputation on insert / soft delete / downward correction,
+caller scoping of the history functions, the `status` ↔ `completed_at`
+invariant, waitlist insert-but-not-read, and the ownership CHECK.
+
+**What it does not cover.** `auth.uid()` is stubbed by a session GUC, so the
+suite validates *policy logic*, not Supabase's JWT handling — a policy that
+passes here can still be reached with an unexpected identity if the client sends
+the wrong token. It also runs on an empty database, so it proves the migrations
+are correct on a fresh schema, not that they apply cleanly to production's
+current state. Applying them to a real project still requires a dev branch and a
+rollback plan.
 
 ## Consequences
 
@@ -366,11 +440,26 @@ fixed at the same time, since they reach the athlete directly.
 
 ### Follow-up
 
-- `waitlist_subscribers` needs a migration that reflects production, so a
-  rebuilt database matches. It must be additive and must not edit `001`.
+Done since this ADR was first drafted:
+
+- ~~`waitlist_subscribers` needs a migration that reflects production~~ — added
+  additively in `004`, with `IF NOT EXISTS` so it is a no-op on production, and
+  with SELECT removed for `anon`/`authenticated`.
+- ~~`001` is not reproducible~~ — fixed by reordering; a test suite now guards it.
+
+Still open:
+
 - The athlete-only product decision needs to be written up as an ADR in
   `the-project`; it is currently cited but undocumented.
 - The two ADR numbering series should be consolidated.
+- The migration sequence skips `002`. Nothing depends on the number — Supabase
+  applies files in lexical order — but the hole reads as a lost migration. It is
+  the number an out-of-band `002_waitlist_public_insert.sql` occupied in local
+  work that was never committed; `004` supersedes it.
+- `supabase/tests/run.sh` is not wired into CI. It needs Docker, which the
+  current runners have, but adding a job is out of scope for this ADR.
+- The frozen schema stays on disk and stays applicable by mistake. It should get
+  a README marking it read-only.
 
 ## References
 
