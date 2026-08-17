@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { ActivityIndicator, RefreshControl, SectionList, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, SectionList, View } from "react-native";
+import { useRouter } from "expo-router";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -219,6 +220,7 @@ function WeekHeader({ week }: { week: PlanWeek }) {
 }
 
 function SessionRow({ session }: { session: PlanSession }) {
+  const router = useRouter();
   const details = [
     session.dayOfWeek === null ? null : dayNameFr(session.dayOfWeek),
     `${session.exerciseCount} exercice${session.exerciseCount === 1 ? "" : "s"}`,
@@ -227,17 +229,42 @@ function SessionRow({ session }: { session: PlanSession }) {
       : formatDurationFr(session.estimatedDurationMinutes),
   ].filter((d): d is string => d !== null);
 
+  // Only today's session is actionable. Making every row tappable would
+  // suggest an athlete can log Friday's workout on Monday, which the schema
+  // allows but the product should not invite.
+  const startable = session.state === "today";
+
+  const card = (
+    <Card className="flex-row items-center gap-3 p-4">
+      <View className="flex-1 gap-1">
+        <Text variant="body" className="font-semibold">
+          {session.name}
+        </Text>
+        <Text variant="caption">{details.join(" · ")}</Text>
+        {startable ? (
+          <Text variant="caption" className="font-semibold text-blue-600 dark:text-blue-400">
+            Toucher pour démarrer
+          </Text>
+        ) : null}
+      </View>
+      <SessionStateBadge state={session.state} />
+    </Card>
+  );
+
   return (
     <View className="px-4 pt-3">
-      <Card className="flex-row items-center gap-3 p-4">
-        <View className="flex-1 gap-1">
-          <Text variant="body" className="font-semibold">
-            {session.name}
-          </Text>
-          <Text variant="caption">{details.join(" · ")}</Text>
-        </View>
-        <SessionStateBadge state={session.state} />
-      </Card>
+      {startable ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Démarrer ${session.name}`}
+          onPress={() => router.push("/(athlete)/session")}
+          className="active:opacity-80"
+        >
+          {card}
+        </Pressable>
+      ) : (
+        card
+      )}
     </View>
   );
 }
