@@ -77,6 +77,7 @@ const sections = new Map([
   ["ENUM", []],
   ["COLUMN", []],
   ["FUNCTION", []],
+  ["FK", []],
 ]);
 for (const line of lines) {
   const [kind, ...rest] = line.split("|");
@@ -85,6 +86,23 @@ for (const line of lines) {
 const enumRows = sections.get("ENUM") ?? [];
 const columnRows = sections.get("COLUMN") ?? [];
 const functionRows = sections.get("FUNCTION") ?? [];
+const fkRows = sections.get("FK") ?? [];
+
+// ── relationships ───────────────────────────────────────────────────────────
+// postgrest-js requires GenericTable.Relationships. Omitting it makes the whole
+// schema fail the GenericSchema constraint, which silently degrades the client's
+// Schema type and breaks every typed rpc() call -- not just embedded selects.
+const relationships = new Map();
+for (const [name, table, cols, refTable, refCols, isOneToOne] of fkRows) {
+  if (!relationships.has(table)) relationships.set(table, []);
+  relationships.get(table).push({
+    name,
+    columns: cols.split(","),
+    referencedRelation: refTable,
+    referencedColumns: refCols.split(","),
+    isOneToOne: isOneToOne === "t",
+  });
+}
 
 // ── enums ───────────────────────────────────────────────────────────────────
 const enumValues = new Map();
@@ -166,6 +184,19 @@ const FUNCTION_SIGNATURES = new Map(Object.entries({
     args: "{ p_start_date: string; p_on_date: string }",
     returns: "number | null",
   },
+  // Returns Json on purpose. The payload is a nested discriminated union, which
+  // no mechanical mapping from a SQL signature can express, so the service layer
+  // validates it at the boundary (src/services/today-session.ts) and hands the
+  // rest of the app a fully typed object. Typing it as anything narrower here
+  // would be a claim the database does not actually guarantee.
+  get_today_screen: {
+    // p_on_date is REQUIRED here even though SQL gives it a DEFAULT. The default
+    // is CURRENT_DATE, i.e. the server's timezone, which is wrong for every
+    // athlete not sitting in it -- see the header of migration 007. Typing it as
+    // required makes "forgot to pass the local date" a compile error.
+    args: "{ p_on_date: string }",
+    returns: "Json",
+  },
 }));
 
 // Functions that exist for the database's own use and are not callable as RPCs.
@@ -175,6 +206,7 @@ const NON_RPC_FUNCTIONS = new Set([
   "prevent_profile_identity_change",
   "recompute_exercise_pr",
   "exercise_logs_pr_trigger",
+  "empty_week_days",
 ]);
 
 const discovered = new Set(functionRows.map(([name]) => name));
@@ -219,6 +251,15 @@ out.push("  | { [key: string]: Json | undefined }");
 out.push("  | Json[];");
 out.push("");
 out.push("export type Database = {");
+// postgrest-js infers its client options from this key:
+//   ClientOptions = Database extends { __InternalSupabase: infer I } ? I : {}
+// Omitting it leaves ClientOptions as {}, which degrades RPC argument typing --
+// `client.rpc("fn", args)` then reports the args parameter as `undefined` and
+// every typed RPC call fails to compile. `supabase gen types` emits this block;
+// this generator has to as well.
+out.push("  __InternalSupabase: {");
+out.push('    PostgrestVersion: "13.0.5";');
+out.push("  };");
 out.push("  public: {");
 out.push("    Tables: {");
 
@@ -250,6 +291,25 @@ for (const table of [...tables.keys()].sort()) {
     out.push(`          ${quoteKey(c.column)}?: ${t}${c.nullable ? " | null" : ""};`);
   }
   out.push("        };");
+
+  const rels = relationships.get(table) ?? [];
+  if (rels.length === 0) {
+    out.push("        Relationships: [];");
+  } else {
+    out.push("        Relationships: [");
+    for (const r of rels) {
+      out.push("          {");
+      out.push(`            foreignKeyName: ${JSON.stringify(r.name)};`);
+      out.push(`            columns: [${r.columns.map((c) => JSON.stringify(c)).join(", ")}];`);
+      out.push(`            isOneToOne: ${r.isOneToOne};`);
+      out.push(`            referencedRelation: ${JSON.stringify(r.referencedRelation)};`);
+      out.push(
+        `            referencedColumns: [${r.referencedColumns.map((c) => JSON.stringify(c)).join(", ")}];`,
+      );
+      out.push("          },");
+    }
+    out.push("        ];");
+  }
 
   out.push("      };");
 }

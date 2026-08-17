@@ -56,9 +56,20 @@ for f in "$MIGRATIONS"/*.sql; do
 done
 
 echo "==> running tests"
-docker exec -i "$CONTAINER" psql -U postgres -d cadence -q -f - \
-  < "$HERE/90_rls_tests.sql" 2>&1 \
-  | grep -vE '^(NOTICE|CREATE|INSERT|DO|SELECT [0-9])'
+# Lexical order matters: 90_ creates the rec() helper and the shared fixtures
+# that later files build on.
+for t in "$HERE"/9*.sql; do
+  printf '    %s\n' "$(basename "$t")"
+  # `|| true`: under `set -o pipefail`, a grep that filters out every line exits
+  # 1, which would abort the run through `set -e` even though nothing failed.
+  docker exec -i "$CONTAINER" psql -U postgres -d cadence -q -f - < "$t" 2>&1 \
+    | { grep -vE '^(NOTICE|CREATE|INSERT|DO|UPDATE [0-9]|SELECT [0-9])' || true; }
+done
+
+docker exec "$CONTAINER" psql -U postgres -d cadence -q -c \
+  "SELECT CASE WHEN passed THEN 'PASS' ELSE 'FAIL' END AS r, name,
+          CASE WHEN passed THEN '' ELSE detail END AS detail
+     FROM test_results ORDER BY n;"
 
 # Non-zero exit if anything failed, so CI can gate on it.
 failed=$(docker exec "$CONTAINER" psql -U postgres -d cadence -tAc \
