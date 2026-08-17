@@ -5,12 +5,18 @@ import { useRouter } from "expo-router";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
+import { useRestTimer } from "@/hooks/use-rest-timer";
 import { useTodaySession } from "@/hooks/use-today-session";
 import { useWorkoutSession } from "@/hooks/use-workout-session";
 import { useAuth } from "@/providers/auth-provider";
 import type { PrescribedExercise } from "@/types/today-screen";
 import { formatDurationFr } from "@/utils/format-date-fr";
 
+import {
+  DEFAULT_REST_SECONDS,
+  formatCountdown,
+  REST_ADJUST_SECONDS,
+} from "./rest-timer";
 import {
   currentExercise,
   isExerciseComplete,
@@ -130,9 +136,23 @@ function ActiveWorkout({
   const { state, status, pendingCount, startedAt, dispatch, validateSet, finish, retryPending } =
     useWorkoutSession({ sessionId, athleteId, exercises });
 
+  const rest = useRestTimer();
   const elapsed = useElapsedMinutes(startedAt);
   const exercise = currentExercise(state);
   const done = exercise ? setsLoggedFor(state.logged, exercise.exerciseId) : [];
+
+  /**
+   * Validating a set starts the rest (cm#27).
+   *
+   * Started here rather than inside the reducer: the reducer is pure and the
+   * timer needs the clock and the OS. The rest never blocks -- the athlete can
+   * validate the next set while it runs, which is what an athlete supersetting
+   * actually does.
+   */
+  const validateAndRest = () => {
+    validateSet();
+    void rest.start(exercise?.restSeconds ?? DEFAULT_REST_SECONDS);
+  };
 
   if (status.status === "starting") {
     return <Centered><ActivityIndicator size="large" color="#3b82f6" /></Centered>;
@@ -192,6 +212,19 @@ function ActiveWorkout({
         <View className="mx-4 mt-3 rounded-xl bg-red-100 p-3 dark:bg-red-900/40">
           <Text variant="caption" className="text-red-900 dark:text-red-100">{status.message}</Text>
         </View>
+      ) : null}
+
+      {/* Rest timer. Sits above the exercise so it is visible without scrolling,
+          and never covers the controls: resting is a suggestion. */}
+      {rest.isResting || rest.isFinished ? (
+        <RestBar
+          remaining={rest.remaining}
+          progress={rest.progress}
+          finished={rest.isFinished}
+          notificationsReady={rest.notificationsReady}
+          onAdjust={(delta) => void rest.adjust(delta)}
+          onCancel={() => void rest.cancel()}
+        />
       ) : null}
 
       {/* Exercise */}
@@ -261,7 +294,7 @@ function ActiveWorkout({
 
       {/* Actions */}
       <View className="gap-3 px-4 pt-8">
-        <Button title="Série terminée" onPress={validateSet} className="h-14" />
+        <Button title="Série terminée" onPress={validateAndRest} className="h-14" />
 
         <View className="flex-row gap-3">
           <View className="flex-1">
@@ -345,6 +378,80 @@ function StepButton({
     >
       <Text variant="body" className={`${colour} ${small ? "text-base" : "text-2xl"} font-bold`}>
         {symbol}
+      </Text>
+    </Pressable>
+  );
+}
+
+/**
+ * Rest countdown.
+ *
+ * A bar rather than a full-screen takeover: cm#27 requires that resting does
+ * not block input, and a modal countdown is precisely what stops an athlete
+ * from starting their next set early.
+ */
+function RestBar({
+  remaining,
+  progress,
+  finished,
+  notificationsReady,
+  onAdjust,
+  onCancel,
+}: {
+  remaining: number;
+  progress: number;
+  finished: boolean;
+  notificationsReady: boolean | null;
+  onAdjust: (delta: number) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <View
+      className={`mx-4 mt-3 gap-2 rounded-2xl p-4 ${
+        finished ? "bg-green-100 dark:bg-green-900/40" : "bg-blue-50 dark:bg-blue-950"
+      }`}
+    >
+      <View className="flex-row items-center justify-between">
+        <Text variant="caption" className="uppercase">
+          {finished ? "Repos terminé" : "Repos"}
+        </Text>
+        <Text variant="heading" className="text-3xl">
+          {formatCountdown(remaining)}
+        </Text>
+      </View>
+
+      <View className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+        <View
+          className={`h-full rounded-full ${finished ? "bg-green-500" : "bg-blue-500"}`}
+          style={{ width: `${Math.round(progress * 100)}%` }}
+        />
+      </View>
+
+      <View className="flex-row items-center justify-between gap-2 pt-1">
+        <RestChip label={`−${REST_ADJUST_SECONDS} s`} onPress={() => onAdjust(-REST_ADJUST_SECONDS)} />
+        <RestChip label={`+${REST_ADJUST_SECONDS} s`} onPress={() => onAdjust(REST_ADJUST_SECONDS)} />
+        <RestChip label={finished ? "Fermer" : "Passer"} onPress={onCancel} />
+      </View>
+
+      {notificationsReady === false ? (
+        <Text variant="caption">
+          Notifications désactivées : le minuteur ne te préviendra pas si l&apos;écran est
+          éteint.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function RestChip({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      className="flex-1 rounded-full bg-white px-3 py-2 active:opacity-70 dark:bg-gray-800"
+    >
+      <Text variant="caption" className="text-center font-semibold">
+        {label}
       </Text>
     </Pressable>
   );
