@@ -297,20 +297,38 @@ porting it without decision 6 means creating that enum anyway.
 
 #### Decision 8 — `flexibility` versus `mobility`
 
-**Question:** the frozen schema's `exercise_type` enum uses `'flexibility'`. The
-canonical schema's `exercise_category` enum uses its own set of values. Which
-label wins, and how do the two enums map onto each other?
+**Question:** the two schemas classify exercises with different enums, and the
+canonical one is strictly finer-grained:
 
-This is not cosmetic. The value is persisted in enum types, so changing it later
-requires an `ALTER TYPE` plus a data migration, and it surfaces directly in the
-French UI where "flexibilité" and "mobilité" are not synonyms to an athlete.
+```sql
+-- frozen web schema (013_exercise_types_and_cardio.sql)
+CREATE TYPE exercise_type AS ENUM ('strength', 'cardio', 'flexibility');
+
+-- canonical schema (001_initial_schema.sql)
+CREATE TYPE exercise_category AS ENUM
+  ('strength', 'cardio', 'flexibility', 'mobility', 'plyometrics', 'other');
+```
+
+So this is not "which label wins" — the canonical enum already carries **both**
+`flexibility` and `mobility` as distinct values. The real question is where the
+frozen schema's `flexibility` rows land when ported, given that it collapses a
+distinction the canonical schema makes.
+
+This is not cosmetic. The value is persisted in an enum type, so revising it
+later requires an `ALTER TYPE` plus a data migration, and it surfaces directly
+in the French UI where "flexibilité" and "mobilité" are not synonyms to an
+athlete.
 
 **Options:**
 
 | Option | Cost |
 |---|---|
-| Keep `flexibility` | Matches the frozen schema, so ported data needs no rewriting |
-| Standardise on `mobility` | Arguably the better term for what the exercises are; requires a mapping at port time and a decision on the French label |
+| Map frozen `flexibility` → canonical `flexibility` wholesale | Mechanical, no judgement needed; mislabels any stretching-vs-mobility work that was only ever `flexibility` because the frozen enum had no better slot |
+| Triage the ported rows between `flexibility` and `mobility` | Correct data, but requires a human pass over the frozen exercise seed and a documented rule for future entries |
+| Drop `mobility` from the canonical enum | Simplest UI, but `ALTER TYPE ... DROP VALUE` is unsupported in PostgreSQL — it means recreating the type and rewriting every dependent column |
+
+Whichever is chosen, the French labels for the six canonical values need to be
+fixed at the same time, since they reach the athlete directly.
 
 **Decision:** _(à trancher)_
 
