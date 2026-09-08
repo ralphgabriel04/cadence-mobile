@@ -4,7 +4,10 @@ import { useRouter } from "expo-router";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { LinearProgress } from "@/components/ui/linear-progress";
+import { Pill } from "@/components/ui/pill";
 import { Text } from "@/components/ui/text";
+import { usePalette } from "@/theme/tokens";
 import { useProgramPlan } from "@/hooks/use-program-plan";
 import type { Difficulty, PlanSession, PlanWeek, ProgramPlan } from "@/types/program-plan";
 import {
@@ -33,11 +36,12 @@ const DIFFICULTY_LABEL: Record<Difficulty, string> = {
  */
 export function ProgramPlanScreen() {
   const { state, refetch } = useProgramPlan();
+  const palette = usePalette();
 
   if (state.status === "loading") {
     return (
-      <View className="flex-1 items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View className="flex-1 items-center justify-center bg-bg">
+        <ActivityIndicator size="large" color={palette.accent} />
       </View>
     );
   }
@@ -69,7 +73,7 @@ function PlanError({
   onRetry: () => void;
 }) {
   return (
-    <View className="flex-1 items-center justify-center gap-4 bg-gray-50 px-8 dark:bg-gray-900">
+    <View className="flex-1 items-center justify-center gap-4 bg-bg px-8">
       <Text variant="heading" className="text-center text-xl">
         {kind === "unauthenticated" ? "Session expirée" : "Chargement impossible"}
       </Text>
@@ -89,7 +93,7 @@ function PlanError({
 
 function NoProgram() {
   return (
-    <View className="flex-1 items-center justify-center gap-4 bg-gray-50 px-8 dark:bg-gray-900">
+    <View className="flex-1 items-center justify-center gap-4 bg-bg px-8">
       <Text variant="heading" className="text-center text-xl">
         Aucun programme en cours
       </Text>
@@ -118,6 +122,7 @@ function PlanContent({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
+  const palette = usePalette();
   const sections = useMemo(
     () => plan.weeks.map((week) => ({ week, data: week.sessions })),
     [plan.weeks],
@@ -131,13 +136,13 @@ function PlanContent({
   // sticky header keeps the athlete oriented in the meantime.
   return (
     <SectionList
-      className="flex-1 bg-gray-50 dark:bg-gray-900"
+      className="flex-1 bg-bg"
       contentContainerClassName="pb-8"
       sections={sections}
       keyExtractor={(session, index) => `${session.sessionId}-${index}`}
       stickySectionHeadersEnabled
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} colors={[palette.accent]} />
       }
       ListHeaderComponent={<PlanHeader plan={plan} />}
       renderSectionHeader={({ section }) => <WeekHeader week={section.week} />}
@@ -162,34 +167,22 @@ function PlanHeader({ plan }: { plan: ProgramPlan }) {
       {plan.description ? <Text variant="body">{plan.description}</Text> : null}
 
       <View className="flex-row flex-wrap gap-2">
-        {plan.goal ? <Tag label={plan.goal} /> : null}
-        {plan.difficulty ? <Tag label={DIFFICULTY_LABEL[plan.difficulty]} /> : null}
-        <Tag label={`${plan.weeks.length} semaines`} />
+        {plan.goal ? <Pill label={plan.goal} /> : null}
+        {plan.difficulty ? <Pill label={DIFFICULTY_LABEL[plan.difficulty]} /> : null}
+        <Pill label={`${plan.weeks.length} semaines`} />
       </View>
 
       <Card className="gap-2 p-4">
         <View className="flex-row items-baseline justify-between">
-          <Text variant="caption" className="font-semibold uppercase">
+          <Text variant="caption" weight="semibold" className="uppercase">
             Progression
           </Text>
-          <Text variant="body" className="font-semibold">
+          <Text variant="body" weight="semibold">
             {plan.completedSessions} / {plan.totalSessions} séances
           </Text>
         </View>
-        <View className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-          <View className="h-full rounded-full bg-blue-500" style={{ width: `${progress}%` }} />
-        </View>
+        <LinearProgress value={progress} />
       </Card>
-    </View>
-  );
-}
-
-function Tag({ label }: { label: string }) {
-  return (
-    <View className="rounded-full bg-gray-200 px-3 py-1 dark:bg-gray-700">
-      <Text variant="caption" className="text-xs font-medium">
-        {label}
-      </Text>
     </View>
   );
 }
@@ -199,12 +192,12 @@ function WeekHeader({ week }: { week: PlanWeek }) {
     <View
       className={`flex-row items-center justify-between border-b px-4 py-2 ${
         week.isCurrent
-          ? "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950"
-          : "border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
+          ? "border-accent bg-accent-dim"
+          : "border-border bg-bg"
       }`}
     >
       <View>
-        <Text variant="body" className="font-bold">
+        <Text variant="body" weight="bold">
           Semaine {week.weekNumber}
           {week.isCurrent ? " · en cours" : ""}
         </Text>
@@ -237,12 +230,12 @@ function SessionRow({ session }: { session: PlanSession }) {
   const card = (
     <Card className="flex-row items-center gap-3 p-4">
       <View className="flex-1 gap-1">
-        <Text variant="body" className="font-semibold">
+        <Text variant="body" weight="semibold">
           {session.name}
         </Text>
         <Text variant="caption">{details.join(" · ")}</Text>
         {startable ? (
-          <Text variant="caption" className="font-semibold text-blue-600 dark:text-blue-400">
+          <Text variant="caption" weight="semibold" className="text-accent">
             Toucher pour démarrer
           </Text>
         ) : null}
