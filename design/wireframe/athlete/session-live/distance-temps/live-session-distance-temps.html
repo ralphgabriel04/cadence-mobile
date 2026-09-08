@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cadence — Live Session · Distance & Temps</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #1a1a1a; font-family: 'DM Sans', sans-serif; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ─── THEMES ──────────────────────────────────────────────────── */
+const T = {
+  signal: {
+    bg:"#0C0C0F", surface:"#16161C", surface2:"#1E1E28", border:"#2A2A36",
+    text:"#EEEEF5", textSub:"#9090A8", textMuted:"#50506A",
+    accent:"oklch(0.62 0.22 22)", accentDim:"oklch(0.18 0.06 22)",
+    pill:"#252534", pillText:"#BBBBCC",
+    btnPrimary:"oklch(0.62 0.22 22)", btnPrimaryText:"#fff",
+    btnGhost:"#1E1E28", btnGhostText:"#9090A8",
+    chartLine:"oklch(0.62 0.22 22)", chartFill:"oklch(0.18 0.06 22)",
+    stripeW:4, dark:true,
+  },
+  pulse: {
+    bg:"#F6F6F8", surface:"#FFFFFF", surface2:"#F0F0F4", border:"#E4E4EC",
+    text:"#111118", textSub:"#707088", textMuted:"#A0A0B4",
+    accent:"oklch(0.52 0.22 22)", accentDim:"oklch(0.95 0.06 22)",
+    pill:"#EBEBF2", pillText:"#404058",
+    btnPrimary:"#111118", btnPrimaryText:"#fff",
+    btnGhost:"#EBEBF2", btnGhostText:"#707088",
+    chartLine:"oklch(0.52 0.22 22)", chartFill:"oklch(0.95 0.06 22)",
+    stripeW:6, dark:false,
+  },
+};
+
+/* ─── PRIMITIVES ──────────────────────────────────────────────── */
+function StatusBar({ t }) {
+  return (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 20px 6px", height:44 }}>
+      <span style={{ fontFamily:"DM Mono", fontSize:13, fontWeight:500, color:t.text, letterSpacing:"0.02em" }}>9:41</span>
+      <div style={{ width:110, height:14, background:t.dark?"#2A2A3A":"#D8D8E0", borderRadius:7 }} />
+      <div style={{ display:"flex", gap:5, alignItems:"center" }}>
+        <svg width="15" height="11" viewBox="0 0 15 11" fill={t.textMuted}>
+          <rect x="0" y="5" width="2.5" height="6" rx="1"/><rect x="3.5" y="3" width="2.5" height="8" rx="1"/>
+          <rect x="7" y="1" width="2.5" height="10" rx="1"/><rect x="10.5" y="0" width="2.5" height="11" rx="1"/>
+        </svg>
+        <svg width="17" height="11" viewBox="0 0 20 11" fill="none">
+          <rect x="0.5" y="0.5" width="17" height="10" rx="3" stroke={t.textMuted} strokeWidth="1"/>
+          <rect x="2" y="2" width="12" height="7" rx="2" fill={t.textMuted}/>
+          <rect x="18" y="3.5" width="2" height="4" rx="1" fill={t.textMuted}/>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function TopBar({ t, elapsed, paused }) {
+  return (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 20px 0" }}>
+      <button style={{ width:38, height:38, borderRadius:12, background:t.surface, border:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1.5" fill={t.textMuted}/></svg>
+      </button>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontFamily:"DM Mono", fontSize:20, fontWeight:500, color:t.text, letterSpacing:"0.02em" }}>{elapsed}</div>
+        <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.08em", textTransform:"uppercase" }}>Durée</div>
+      </div>
+      <button style={{ width:38, height:38, borderRadius:12, background:t.surface, border:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+        {paused
+          ? <svg width="12" height="14" viewBox="0 0 12 14" fill="none"><path d="M1 1l10 6-10 6V1z" fill={t.textSub}/></svg>
+          : <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><rect x="0" y="0" width="3.5" height="12" rx="1.5" fill={t.textSub}/><rect x="6.5" y="0" width="3.5" height="12" rx="1.5" fill={t.textSub}/></svg>}
+      </button>
+    </div>
+  );
+}
+
+/* ─── LINEAR PROGRESS BAR ─────────────────────────────────────── */
+function LinearProgress({ t, pct, label, sublabel }) {
+  return (
+    <div style={{ padding:"12px 20px 0" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+        <span style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase" }}>{label}</span>
+        <span style={{ fontFamily:"DM Mono", fontSize:11, color:t.textMuted }}>{sublabel}</span>
+      </div>
+      <div style={{ height:4, background:t.border, borderRadius:2, overflow:"hidden" }}>
+        <div style={{ height:"100%", width:`${pct*100}%`, background:t.accent, borderRadius:2 }} />
+      </div>
+    </div>
+  );
+}
+
+/* ─── ZONE BADGE ──────────────────────────────────────────────── */
+function ZoneBadge({ t, zone, label }) {
+  return (
+    <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:t.accentDim, border:`1px solid ${t.accent}`, borderRadius:20, padding:"4px 12px" }}>
+      <div style={{ width:6, height:6, borderRadius:"50%", background:t.accent }} />
+      <span style={{ fontFamily:"DM Mono", fontSize:11, fontWeight:500, color:t.accent }}>{zone}</span>
+      <span style={{ fontFamily:"DM Sans", fontSize:11, color:t.accent, opacity:0.7 }}>·</span>
+      <span style={{ fontFamily:"DM Sans", fontSize:11, color:t.accent }}>{label}</span>
+    </div>
+  );
+}
+
+/* ─── PACE SPARKLINE ──────────────────────────────────────────── */
+function PaceSparkline({ t, width=350, height=48 }) {
+  // Synthetic pace data points (lower = faster)
+  const pts = [4.3,4.25,4.2,4.22,4.18,4.15,4.12,4.14,4.1,4.08,4.12,4.15,4.13,4.1,4.08,4.05,4.07,4.1,4.12,4.08];
+  const min = Math.min(...pts) - 0.05;
+  const max = Math.max(...pts) + 0.05;
+  const xs = pts.map((_,i) => (i/(pts.length-1))*width);
+  const ys = pts.map(p => ((p - min)/(max - min)) * (height - 6) + 3);
+  const path = xs.map((x,i) => `${i===0?"M":"L"}${x},${ys[i]}`).join(" ");
+  const fill = xs.map((x,i) => `${i===0?"M":"L"}${x},${ys[i]}`).join(" ") + ` L${width},${height} L0,${height} Z`;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display:"block" }}>
+      <path d={fill} fill={t.chartFill} />
+      <path d={path} fill="none" stroke={t.chartLine} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* Current position dot */}
+      <circle cx={xs[xs.length-1]} cy={ys[ys.length-1]} r="3" fill={t.accent}/>
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 1a — DISTANCE CIBLE (en cours)
+   ═══════════════════════════════════════════════════════════════ */
+function ScreenDistanceActive({ t }) {
+  return (
+    <div style={{ width:390, height:844, background:t.bg, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <StatusBar t={t} />
+      <TopBar t={t} elapsed="28:14" />
+      <LinearProgress t={t} pct={0.62} label="Distance" sublabel="6.2 / 10 km" />
+
+      {/* Zone badge */}
+      <div style={{ padding:"14px 20px 0", display:"flex", justifyContent:"center" }}>
+        <ZoneBadge t={t} zone="Zone 2" label="Endurance fondamentale" />
+      </div>
+
+      {/* ── PRIMARY METRIC — distance remaining ── */}
+      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 20px" }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.10em", textTransform:"uppercase", marginBottom:10 }}>Distance restante</div>
+        <div style={{ display:"flex", alignItems:"baseline", gap:8, marginBottom:4 }}>
+          <span style={{ fontFamily:"DM Mono", fontSize:86, fontWeight:600, color:t.text, letterSpacing:"-0.04em", lineHeight:1 }}>3.8</span>
+          <span style={{ fontFamily:"DM Mono", fontSize:24, color:t.textSub, letterSpacing:"-0.02em" }}>km</span>
+        </div>
+        <div style={{ fontFamily:"DM Sans", fontSize:13, color:t.textMuted, marginBottom:28 }}>Arrivée estimée dans <span style={{ fontFamily:"DM Mono", color:t.textSub }}>16:10</span></div>
+
+        {/* Secondary metrics 3-col */}
+        <div style={{ width:"100%", background:t.surface, borderRadius:18, border:`1px solid ${t.border}`, padding:"14px 0" }}>
+          <div style={{ display:"flex" }}>
+            {[
+              { label:"Allure", value:"4:33", unit:"/km", target:"4:30–4:45" },
+              { label:"FC", value:"148", unit:"bpm", target:"cible <155" },
+              { label:"Cadence", value:"174", unit:"spm", target:"cible 170+" },
+            ].map((m,i) => (
+              <React.Fragment key={i}>
+                <div style={{ flex:1, textAlign:"center" }}>
+                  <div style={{ fontFamily:"DM Sans", fontSize:9, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:4 }}>{m.label}</div>
+                  <div style={{ fontFamily:"DM Mono", fontSize:20, fontWeight:500, color:t.text, letterSpacing:"-0.01em", marginBottom:2 }}>
+                    {m.value}<span style={{ fontSize:12, color:t.textMuted, marginLeft:2 }}>{m.unit}</span>
+                  </div>
+                  <div style={{ fontFamily:"DM Sans", fontSize:9, color:t.textMuted }}>{m.target}</div>
+                </div>
+                {i < 2 && <div style={{ width:1, background:t.border, margin:"0 4px" }} />}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Pace sparkline */}
+      <div style={{ margin:"0 20px 14px", background:t.surface, borderRadius:16, border:`1px solid ${t.border}`, padding:"12px 16px 8px" }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:8 }}>Allure · derniers km</div>
+        <PaceSparkline t={t} width={326} height={44} />
+        <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
+          <span style={{ fontFamily:"DM Mono", fontSize:9, color:t.textMuted }}>km 1</span>
+          <span style={{ fontFamily:"DM Mono", fontSize:9, color:t.textMuted }}>maintenant</span>
+        </div>
+      </div>
+
+      {/* Stop CTA */}
+      <div style={{ padding:"0 20px 32px" }}>
+        <button style={{ width:"100%", height:56, background:t.btnPrimary, border:"none", borderRadius:40, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+          <svg width="12" height="14" viewBox="0 0 12 14" fill="none"><rect x="1" y="1" width="4" height="12" rx="1.5" fill={t.btnPrimaryText}/><rect x="7" y="1" width="4" height="12" rx="1.5" fill={t.btnPrimaryText}/></svg>
+          <span style={{ fontFamily:"DM Sans", fontSize:15, fontWeight:700, color:t.btnPrimaryText }}>Pause</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 1b — TEMPS CIBLE (en cours)
+   ═══════════════════════════════════════════════════════════════ */
+function ScreenTempsActive({ t }) {
+  return (
+    <div style={{ width:390, height:844, background:t.bg, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <StatusBar t={t} />
+      <TopBar t={t} elapsed="28:14" />
+      <LinearProgress t={t} pct={0.47} label="Temps" sublabel="28:14 / 60:00" />
+
+      {/* Zone badge */}
+      <div style={{ padding:"14px 20px 0", display:"flex", justifyContent:"center" }}>
+        <ZoneBadge t={t} zone="Zone 2" label="Endurance fondamentale" />
+      </div>
+
+      {/* ── PRIMARY METRIC — time remaining ── */}
+      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 20px" }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.10em", textTransform:"uppercase", marginBottom:10 }}>Temps restant</div>
+        <div style={{ display:"flex", alignItems:"baseline", gap:4, marginBottom:4 }}>
+          <span style={{ fontFamily:"DM Mono", fontSize:86, fontWeight:600, color:t.text, letterSpacing:"-0.04em", lineHeight:1 }}>31:46</span>
+        </div>
+        <div style={{ fontFamily:"DM Sans", fontSize:13, color:t.textMuted, marginBottom:28 }}>Distance projetée <span style={{ fontFamily:"DM Mono", color:t.textSub }}>≈ 13.6 km</span></div>
+
+        {/* Secondary metrics */}
+        <div style={{ width:"100%", background:t.surface, borderRadius:18, border:`1px solid ${t.border}`, padding:"14px 0" }}>
+          <div style={{ display:"flex" }}>
+            {[
+              { label:"Distance", value:"6.2", unit:"km", target:"proj. 13.6 km" },
+              { label:"FC", value:"152", unit:"bpm", target:"cible <155" },
+              { label:"Allure", value:"4:33", unit:"/km", target:"cible 4:30–45" },
+            ].map((m,i) => (
+              <React.Fragment key={i}>
+                <div style={{ flex:1, textAlign:"center" }}>
+                  <div style={{ fontFamily:"DM Sans", fontSize:9, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:4 }}>{m.label}</div>
+                  <div style={{ fontFamily:"DM Mono", fontSize:20, fontWeight:500, color:t.text, letterSpacing:"-0.01em", marginBottom:2 }}>
+                    {m.value}<span style={{ fontSize:12, color:t.textMuted, marginLeft:2 }}>{m.unit}</span>
+                  </div>
+                  <div style={{ fontFamily:"DM Sans", fontSize:9, color:t.textMuted }}>{m.target}</div>
+                </div>
+                {i < 2 && <div style={{ width:1, background:t.border, margin:"0 4px" }} />}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Pace sparkline */}
+      <div style={{ margin:"0 20px 14px", background:t.surface, borderRadius:16, border:`1px solid ${t.border}`, padding:"12px 16px 8px" }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:8 }}>Allure · derniers km</div>
+        <PaceSparkline t={t} width={326} height={44} />
+        <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
+          <span style={{ fontFamily:"DM Mono", fontSize:9, color:t.textMuted }}>km 1</span>
+          <span style={{ fontFamily:"DM Mono", fontSize:9, color:t.textMuted }}>maintenant</span>
+        </div>
+      </div>
+
+      <div style={{ padding:"0 20px 32px" }}>
+        <button style={{ width:"100%", height:56, background:t.btnPrimary, border:"none", borderRadius:40, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+          <svg width="12" height="14" viewBox="0 0 12 14" fill="none"><rect x="1" y="1" width="4" height="12" rx="1.5" fill={t.btnPrimaryText}/><rect x="7" y="1" width="4" height="12" rx="1.5" fill={t.btnPrimaryText}/></svg>
+          <span style={{ fontFamily:"DM Sans", fontSize:15, fontWeight:700, color:t.btnPrimaryText }}>Pause</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 2 — PAUSE
+   ═══════════════════════════════════════════════════════════════ */
+function ScreenPause({ t }) {
+  return (
+    <div style={{ width:390, height:844, background:t.bg, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <StatusBar t={t} />
+      <TopBar t={t} elapsed="28:14" paused={true} />
+      <LinearProgress t={t} pct={0.62} label="Distance" sublabel="6.2 / 10 km" />
+
+      {/* Pause indicator */}
+      <div style={{ padding:"20px 20px 0", textAlign:"center" }}>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:t.surface, border:`1px solid ${t.border}`, borderRadius:40, padding:"8px 18px", marginBottom:0 }}>
+          <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><rect x="0" y="0" width="3.5" height="12" rx="1.5" fill={t.textMuted}/><rect x="6.5" y="0" width="3.5" height="12" rx="1.5" fill={t.textMuted}/></svg>
+          <span style={{ fontFamily:"DM Sans", fontSize:13, fontWeight:600, color:t.textMuted }}>En pause</span>
+        </div>
+      </div>
+
+      {/* Frozen stats — dimmed */}
+      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 20px", opacity:0.5 }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.10em", textTransform:"uppercase", marginBottom:10 }}>Distance restante</div>
+        <div style={{ display:"flex", alignItems:"baseline", gap:8, marginBottom:4 }}>
+          <span style={{ fontFamily:"DM Mono", fontSize:86, fontWeight:600, color:t.text, letterSpacing:"-0.04em", lineHeight:1 }}>3.8</span>
+          <span style={{ fontFamily:"DM Mono", fontSize:24, color:t.textSub }}>km</span>
+        </div>
+        <div style={{ fontFamily:"DM Sans", fontSize:13, color:t.textMuted, marginBottom:28 }}>Arrivée estimée dans <span style={{ fontFamily:"DM Mono" }}>16:10</span></div>
+        <div style={{ width:"100%", background:t.surface, borderRadius:18, border:`1px solid ${t.border}`, padding:"14px 0" }}>
+          <div style={{ display:"flex" }}>
+            {[
+              { label:"Allure moy.", value:"4:33", unit:"/km" },
+              { label:"FC moy.", value:"148", unit:"bpm" },
+              { label:"Cadence moy.", value:"174", unit:"spm" },
+            ].map((m,i) => (
+              <React.Fragment key={i}>
+                <div style={{ flex:1, textAlign:"center" }}>
+                  <div style={{ fontFamily:"DM Sans", fontSize:9, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:4 }}>{m.label}</div>
+                  <div style={{ fontFamily:"DM Mono", fontSize:20, fontWeight:500, color:t.text, marginBottom:2 }}>
+                    {m.value}<span style={{ fontSize:12, color:t.textMuted, marginLeft:2 }}>{m.unit}</span>
+                  </div>
+                </div>
+                {i < 2 && <div style={{ width:1, background:t.border }} />}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Pause actions */}
+      <div style={{ padding:"0 20px 32px", display:"flex", flexDirection:"column", gap:10 }}>
+        <button style={{ width:"100%", height:56, background:t.btnPrimary, border:"none", borderRadius:40, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+          <svg width="12" height="14" viewBox="0 0 12 14" fill="none"><path d="M1 1l10 6-10 6V1z" fill={t.btnPrimaryText}/></svg>
+          <span style={{ fontFamily:"DM Sans", fontSize:15, fontWeight:700, color:t.btnPrimaryText }}>Reprendre</span>
+        </button>
+        <button style={{ width:"100%", height:44, background:t.btnGhost, border:"none", borderRadius:40, cursor:"pointer" }}>
+          <span style={{ fontFamily:"DM Sans", fontSize:13, fontWeight:600, color:t.btnGhostText }}>Terminer la séance</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 3 — RÉCAP
+   ═══════════════════════════════════════════════════════════════ */
+function PaceBarChart({ t, width=350, height=60 }) {
+  // km splits (allure en min/km)
+  const splits = [4.48, 4.42, 4.38, 4.35, 4.33, 4.36, 4.32, 4.29, 4.33, 4.31];
+  const min = Math.min(...splits) - 0.1;
+  const max = Math.max(...splits) + 0.1;
+  const barW = (width - (splits.length - 1) * 4) / splits.length;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      {splits.map((s, i) => {
+        const h = ((s - min) / (max - min)) * (height - 12) + 8;
+        const x = i * (barW + 4);
+        const isLast = i === splits.length - 1;
+        return (
+          <rect key={i} x={x} y={height - h} width={barW} height={h}
+            rx="3" fill={t.accent} opacity={isLast ? 1 : 0.4 + (i / splits.length) * 0.5} />
+        );
+      })}
+    </svg>
+  );
+}
+
+function ScreenRecap({ t }) {
+  return (
+    <div style={{ width:390, height:844, background:t.bg, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <StatusBar t={t} />
+
+      {/* Header */}
+      <div style={{ padding:"20px 20px 0", textAlign:"center" }}>
+        <div style={{ fontFamily:"DM Mono", fontSize:32, color:t.accent, marginBottom:8 }}>✓</div>
+        <h1 style={{ fontFamily:"DM Sans", fontSize:24, fontWeight:700, color:t.text, letterSpacing:"-0.03em", marginBottom:4 }}>Séance terminée</h1>
+        <p style={{ fontFamily:"DM Sans", fontSize:13, color:t.textMuted }}>Course à pied · Distance unique · 10 km</p>
+      </div>
+
+      {/* Main stats */}
+      <div style={{ margin:"18px 20px 0", background:t.surface, border:`1px solid ${t.border}`, borderRadius:18, padding:"16px 0" }}>
+        <div style={{ display:"flex" }}>
+          {[
+            { label:"Distance", value:"10.0 km" },
+            { label:"Durée", value:"45:32" },
+            { label:"Allure moy.", value:"4:33" },
+          ].map((m, i) => (
+            <React.Fragment key={i}>
+              <div style={{ flex:1, textAlign:"center" }}>
+                <div style={{ fontFamily:"DM Mono", fontSize:22, fontWeight:600, color:t.text, letterSpacing:"-0.03em", lineHeight:1, marginBottom:4 }}>{m.value}</div>
+                <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase" }}>{m.label}</div>
+              </div>
+              {i < 2 && <div style={{ width:1, background:t.border }} />}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      {/* Secondary stats */}
+      <div style={{ margin:"10px 20px 0", display:"flex", gap:10 }}>
+        {[{label:"FC moy.",value:"148 bpm",sub:"cible <155"},{label:"Cadence moy.",value:"174 spm",sub:"cible 170+"}].map((m,i) => (
+          <div key={i} style={{ flex:1, background:t.surface, borderRadius:14, border:`1px solid ${t.border}`, padding:"12px 14px" }}>
+            <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:4 }}>{m.label}</div>
+            <div style={{ fontFamily:"DM Mono", fontSize:18, fontWeight:500, color:t.text, letterSpacing:"-0.01em", marginBottom:2 }}>{m.value}</div>
+            <div style={{ fontFamily:"DM Sans", fontSize:10, color:t.textMuted }}>{m.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Zone bar */}
+      <div style={{ margin:"10px 20px 0", background:t.surface, border:`1px solid ${t.border}`, borderRadius:16, padding:"12px 16px" }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:8 }}>Répartition par zone</div>
+        <div style={{ display:"flex", height:6, borderRadius:3, overflow:"hidden", gap:2, marginBottom:6 }}>
+          {[{pct:5,op:0.25},{pct:72,op:0.85},{pct:15,op:0.65},{pct:6,op:0.5},{pct:2,op:1}].map((z,i) => (
+            <div key={i} style={{ flex:z.pct, background:t.accent, opacity:z.op, borderRadius:2 }} />
+          ))}
+        </div>
+        <div style={{ display:"flex", justifyContent:"space-between" }}>
+          {["Z1 5%","Z2 72%","Z3 15%","Z4 6%","Z5 2%"].map((z,i) => (
+            <span key={i} style={{ fontFamily:"DM Mono", fontSize:9, color:t.textMuted }}>{z}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Pace per km */}
+      <div style={{ margin:"10px 20px 0", background:t.surface, border:`1px solid ${t.border}`, borderRadius:16, padding:"12px 16px 8px" }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:8 }}>Allure par kilomètre</div>
+        <PaceBarChart t={t} width={326} height={52} />
+        <div style={{ display:"flex", justifyContent:"space-between", marginTop:6 }}>
+          <span style={{ fontFamily:"DM Mono", fontSize:9, color:t.textMuted }}>km 1</span>
+          <span style={{ fontFamily:"DM Mono", fontSize:9, color:t.textMuted }}>km 10</span>
+        </div>
+      </div>
+
+      {/* Coach shortcut */}
+      <div style={{ margin:"10px 20px 14px", padding:"12px 14px", background:t.accentDim, border:`1px solid ${t.accent}`, borderRadius:14, display:"flex", alignItems:"center", gap:10 }}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 3V4a1 1 0 0 1 1-1z" stroke={t.accent} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <span style={{ fontFamily:"DM Sans", fontSize:12, color:t.accent, fontWeight:500 }}>Envoyer un résumé à ton coach</span>
+        <svg width="7" height="12" viewBox="0 0 7 12" fill="none" style={{ marginLeft:"auto" }}><path d="M1 1l5 5-5 5" stroke={t.accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      </div>
+
+      <div style={{ padding:"0 20px 32px" }}>
+        <button style={{ width:"100%", height:52, background:t.btnPrimary, border:"none", borderRadius:40, cursor:"pointer" }}>
+          <span style={{ fontFamily:"DM Sans", fontSize:15, fontWeight:700, color:t.btnPrimaryText }}>Enregistrer la séance</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── APP ─────────────────────────────────────────────────────── */
+const screens = [
+  { id:"s1a", label:"1a. Distance cible · En cours", comp: ScreenDistanceActive },
+  { id:"s1b", label:"1b. Temps cible · En cours",    comp: ScreenTempsActive },
+  { id:"s2",  label:"2. Pause",                      comp: ScreenPause },
+  { id:"s3",  label:"3. Récap séance",               comp: ScreenRecap },
+];
+
+function App() {
+  return (
+    <DesignCanvas title="Cadence — Live Session · Distance & Temps">
+      <DCSection id="signal" title="Signal — Dark mode">
+        {screens.map(s => (
+          <DCArtboard key={s.id} id={`signal-${s.id}`} label={s.label} width={390} height={860}>
+            <s.comp t={T.signal} />
+          </DCArtboard>
+        ))}
+      </DCSection>
+      <DCSection id="pulse" title="Pulse — Light mode">
+        {screens.map(s => (
+          <DCArtboard key={s.id} id={`pulse-${s.id}`} label={s.label} width={390} height={860}>
+            <s.comp t={T.pulse} />
+          </DCArtboard>
+        ))}
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

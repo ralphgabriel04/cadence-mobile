@@ -1,0 +1,178 @@
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 16px; font-family: var(--font-sans);">
+<div style="max-width: 320px; margin: 0 auto; background: var(--color-background-primary); border-radius: 24px; border: 0.5px solid var(--color-border-secondary); overflow: hidden;">
+
+  <!-- Status bar -->
+  <div style="padding: 10px 20px 4px; display: flex; justify-content: space-between;">
+    <span style="font-size: 11px; font-weight: 500; color: var(--color-text-primary);">9:41</span>
+    <span style="font-size: 11px; color: var(--color-text-secondary);">●●●</span>
+  </div>
+
+  <!-- Header -->
+  <div style="padding: 8px 16px 12px; border-bottom: 0.5px solid var(--color-border-tertiary);">
+    <p style="font-size: 18px; font-weight: 500; margin: 0 0 2px; color: var(--color-text-primary);">Live</p>
+    <p style="font-size: 12px; color: var(--color-text-secondary); margin: 0;">Lancer et animer une séance avec vos athlètes</p>
+  </div>
+
+  <div style="padding: 14px 16px 24px; max-height: 590px; overflow-y: auto;">
+
+    <!-- Session en cours — rappel si active -->
+    <div style="border: 1.5px solid #534AB7; border-radius: var(--border-radius-lg); padding: 11px 13px; margin-bottom: 16px; background: #EEEDFE; display: flex; align-items: center; gap: 10px;">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #A32D2D; flex-shrink: 0;"></div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 12px; font-weight: 500; color: #3C3489; margin: 0;">Session en cours · 23:14</p>
+        <p style="font-size: 11px; color: #534AB7; margin: 2px 0 0;">Intervalles 400m ×6 · ML, KD</p>
+      </div>
+      <button style="background: #534AB7; border: none; border-radius: var(--border-radius-md); padding: 5px 12px; font-size: 11px; font-weight: 500; color: #EEEDFE; cursor: pointer; flex-shrink: 0;">Rejoindre</button>
+    </div>
+
+    <!-- Athlètes -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">Athlètes</p>
+      <span style="font-size: 11px; color: #534AB7;">2 sélectionnés</span>
+    </div>
+
+    <!-- Recherche -->
+    <div style="display: flex; align-items: center; gap: 8px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 7px 10px; margin-bottom: 10px;">
+      <i class="ti ti-search" style="font-size: 15px; color: var(--color-text-tertiary); flex-shrink: 0;" aria-hidden="true"></i>
+      <span style="font-size: 13px; color: var(--color-text-tertiary);">Rechercher un athlète…</span>
+    </div>
+
+    <!-- Toggle individuel / groupe -->
+    <div style="display: flex; background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 3px; gap: 3px; margin-bottom: 10px;">
+      <div style="flex: 1; background: var(--color-background-primary); border-radius: 6px; text-align: center; padding: 5px; font-size: 12px; font-weight: 500; color: var(--color-text-primary); border: 0.5px solid var(--color-border-tertiary);">Individuel</div>
+      <div style="flex: 1; text-align: center; padding: 5px; font-size: 12px; color: var(--color-text-secondary);">Groupes</div>
+    </div>
+
+    <!-- Athlète 1 — sélectionné -->
+    <div style="border: 1.5px solid #534AB7; border-radius: var(--border-radius-md); padding: 9px 12px; margin-bottom: 6px; background: #EEEDFE; display: flex; align-items: center; gap: 10px; cursor: pointer;">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: #CECBF6; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #3C3489; flex-shrink: 0;">ML</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: #3C3489;">Marie-Luce D.</p>
+        <p style="font-size: 11px; color: #534AB7; margin: 1px 0 0;">Intervalles 400m ×6 · planifié aujourd'hui</p>
+      </div>
+      <div style="width: 20px; height: 20px; border-radius: 50%; background: #534AB7; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <i class="ti ti-check" style="font-size: 12px; color: #EEEDFE;" aria-hidden="true"></i>
+      </div>
+    </div>
+
+    <!-- Athlète 2 — sélectionné -->
+    <div style="border: 1.5px solid #534AB7; border-radius: var(--border-radius-md); padding: 9px 12px; margin-bottom: 6px; background: #EEEDFE; display: flex; align-items: center; gap: 10px; cursor: pointer;">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: #E1F5EE; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #0F6E56; flex-shrink: 0;">KD</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: #3C3489;">Kevin D.</p>
+        <p style="font-size: 11px; color: #534AB7; margin: 1px 0 0;">Intervalles 400m ×6 · planifié aujourd'hui</p>
+      </div>
+      <div style="width: 20px; height: 20px; border-radius: 50%; background: #534AB7; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <i class="ti ti-check" style="font-size: 12px; color: #EEEDFE;" aria-hidden="true"></i>
+      </div>
+    </div>
+
+    <!-- Athlète 3 -->
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 9px 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; cursor: pointer;">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: #FAEEDA; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #854F0B; flex-shrink: 0;">JB</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Julie B.</p>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 1px 0 0;">Aucune séance planifiée aujourd'hui</p>
+      </div>
+      <div style="width: 20px; height: 20px; border-radius: 50%; border: 0.5px solid var(--color-border-secondary); flex-shrink: 0;"></div>
+    </div>
+
+    <!-- Athlète 4 -->
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 9px 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; cursor: pointer;">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: #FAECE7; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #993C1D; flex-shrink: 0;">AP</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Alexandre P.</p>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 1px 0 0;">Musculation force · planifié 18h00</p>
+      </div>
+      <div style="width: 20px; height: 20px; border-radius: 50%; border: 0.5px solid var(--color-border-secondary); flex-shrink: 0;"></div>
+    </div>
+
+    <!-- Athlète 5 -->
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 9px 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; cursor: pointer;">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: #E6F1FB; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #185FA5; flex-shrink: 0;">TR</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Thomas R.</p>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 1px 0 0;">Endurance 5km · planifié 17h00</p>
+      </div>
+      <div style="width: 20px; height: 20px; border-radius: 50%; border: 0.5px solid var(--color-border-secondary); flex-shrink: 0;"></div>
+    </div>
+
+    <!-- Séance -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 6px;">Séance</p>
+    <p style="font-size: 11px; color: var(--color-text-tertiary); margin: 0 0 6px;">Planifiées aujourd'hui pour la sélection</p>
+
+    <!-- Séance sélectionnée -->
+    <div style="border: 1.5px solid #534AB7; border-radius: var(--border-radius-lg); padding: 11px 13px; margin-bottom: 8px; background: #EEEDFE; cursor: pointer;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: #3C3489;">Intervalles 400m ×6</p>
+        <div style="width: 20px; height: 20px; border-radius: 50%; background: #534AB7; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <i class="ti ti-check" style="font-size: 12px; color: #EEEDFE;" aria-hidden="true"></i>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <span style="font-size: 11px; color: #534AB7; display: flex; align-items: center; gap: 3px;"><i class="ti ti-clock" style="font-size: 11px;" aria-hidden="true"></i> 70 min</span>
+        <span style="font-size: 11px; color: #534AB7; display: flex; align-items: center; gap: 3px;"><i class="ti ti-run" style="font-size: 11px;" aria-hidden="true"></i> Intervalles</span>
+        <span style="font-size: 11px; color: #534AB7;">ML, KD</span>
+      </div>
+    </div>
+
+    <p style="font-size: 11px; color: var(--color-text-tertiary); margin: 0 0 6px;">Autres séances disponibles</p>
+
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 10px 12px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+      <div>
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Musculation force</p>
+        <div style="display: flex; gap: 8px; margin-top: 3px;">
+          <span style="font-size: 11px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 3px;"><i class="ti ti-clock" style="font-size: 11px;" aria-hidden="true"></i> 60 min</span>
+          <span style="font-size: 11px; color: var(--color-text-secondary);">Musculation</span>
+        </div>
+      </div>
+      <div style="width: 20px; height: 20px; border-radius: 50%; border: 0.5px solid var(--color-border-secondary); flex-shrink: 0;"></div>
+    </div>
+
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 10px 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+      <div>
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Mobilité & récupération</p>
+        <div style="display: flex; gap: 8px; margin-top: 3px;">
+          <span style="font-size: 11px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 3px;"><i class="ti ti-clock" style="font-size: 11px;" aria-hidden="true"></i> 45 min</span>
+          <span style="font-size: 11px; color: var(--color-text-secondary);">Mobilité</span>
+        </div>
+      </div>
+      <div style="width: 20px; height: 20px; border-radius: 50%; border: 0.5px solid var(--color-border-secondary); flex-shrink: 0;"></div>
+    </div>
+
+    <!-- Bouton démarrer -->
+    <button style="width: 100%; padding: 12px; background: #534AB7; border: none; border-radius: var(--border-radius-md); font-size: 13px; font-weight: 500; color: #EEEDFE; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      <i class="ti ti-player-play" style="font-size: 15px;" aria-hidden="true"></i> Démarrer la séance
+    </button>
+
+  </div>
+
+  <!-- Bottom nav -->
+  <div style="border-top: 0.5px solid var(--color-border-tertiary); display: flex; padding: 8px 0 12px;">
+    <div style="flex: 1; text-align: center;">
+      <i class="ti ti-home" style="font-size: 20px; color: var(--color-text-tertiary); display: block;" aria-hidden="true"></i>
+      <div style="font-size: 9px; color: var(--color-text-tertiary);">Accueil</div>
+    </div>
+    <div style="flex: 1; text-align: center;">
+      <i class="ti ti-users" style="font-size: 20px; color: var(--color-text-tertiary); display: block;" aria-hidden="true"></i>
+      <div style="font-size: 9px; color: var(--color-text-tertiary);">Athlètes</div>
+    </div>
+    <div style="flex: 1; text-align: center;">
+      <i class="ti ti-layout-list" style="font-size: 20px; color: var(--color-text-tertiary); display: block;" aria-hidden="true"></i>
+      <div style="font-size: 9px; color: var(--color-text-tertiary);">Plans</div>
+    </div>
+    <div style="flex: 1; text-align: center;">
+      <i class="ti ti-player-play" style="font-size: 20px; color: var(--color-text-primary); display: block;" aria-hidden="true"></i>
+      <div style="font-size: 9px; color: var(--color-text-primary); font-weight: 500;">Live</div>
+    </div>
+    <div style="flex: 1; text-align: center;">
+      <i class="ti ti-user" style="font-size: 20px; color: var(--color-text-tertiary); display: block;" aria-hidden="true"></i>
+      <div style="font-size: 9px; color: var(--color-text-tertiary);">Profil</div>
+    </div>
+  </div>
+
+</div>
+</div>

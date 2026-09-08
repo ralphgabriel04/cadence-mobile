@@ -92,7 +92,7 @@ See [docs/SECURITY.md](docs/SECURITY.md) for our full security policy.
 pnpm install
 
 # Run all CI checks locally before pushing
-pnpm ci
+pnpm run ci
 
 # Individual checks
 pnpm lint          # ESLint (zero warnings tolerated)
@@ -109,7 +109,7 @@ pnpm format:check  # Check formatting without fixing
 
 1. Create a feature branch: `git checkout -b feature/123-my-feature`
 2. Make your changes and commit using [Conventional Commits](https://www.conventionalcommits.org/)
-3. Run `pnpm ci` locally to verify all checks pass
+3. Run `pnpm run ci` locally to verify all checks pass
 4. Push and create a PR to `develop` (or `main` for hotfixes)
 5. Wait for CI checks to pass:
    - **Lint** — ESLint with zero warnings

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cadence — Mot de passe oublié</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>body{margin:0;background:#1a1a1a;}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="../../design-canvas.jsx"></script>
+<script type="text/babel" src="../../cadence-kit.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+function Title({ children }) {
+  return <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.15, textWrap: 'balance' }}>{children}</div>;
+}
+function Help({ children }) {
+  return <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-sub)', lineHeight: 1.45, textWrap: 'pretty' }}>{children}</div>;
+}
+
+function Saisie({ theme }) {
+  return (
+    <Screen theme={theme} height={760}>
+      <StatusBar />
+      <TopBar title="" />
+      <div style={{ padding: `8px ${PX}px`, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <Title>Réinitialiser le mot de passe</Title>
+        <Help>Entre le courriel associé à ton compte. On t'enverra un lien pour choisir un nouveau mot de passe.</Help>
+        <div style={{ height: 6 }} />
+        <Field label="Courriel" value="" placeholder="felix@exemple.com" />
+        <div style={{ marginTop: 8 }}><Btn variant="primary" height={56}>Envoyer le lien</Btn></div>
+      </div>
+    </Screen>
+  );
+}
+
+function Confirmation({ theme }) {
+  return (
+    <Screen theme={theme} height={760}>
+      <StatusBar />
+      <TopBar title="" />
+      <div style={{ padding: `8px ${PX}px`, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', textAlign: 'center' }}>
+        <div style={{ width: 76, height: 76, borderRadius: '50%', background: 'var(--accent-dim)', color: 'var(--accent)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 16 }}><Icon.mail /></div>
+        <Title>Courriel envoyé</Title>
+        <Help>On a envoyé un lien de réinitialisation à<br/><span className="mono" style={{ color: 'var(--text)', fontWeight: 500 }}>f•••x@exemple.com</span>. Vérifie ta boîte de réception.</Help>
+        <div style={{ width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Btn variant="ghost" height={52}>Renvoyer le lien</Btn>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}>Renvoyer disponible dans <span className="mono" style={{ color: 'var(--text-sub)' }}>0:42</span></div>
+        </div>
+        <a style={{ color: 'var(--accent)', fontSize: 13, fontWeight: 700, textDecoration: 'none', marginTop: 4 }}>Retour à la connexion</a>
+      </div>
+    </Screen>
+  );
+}
+
+function Nouveau({ theme }) {
+  return (
+    <Screen theme={theme} height={760}>
+      <StatusBar />
+      <TopBar title="" />
+      <div style={{ padding: `8px ${PX}px`, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <Title>Nouveau mot de passe</Title>
+        <Help>Choisis un mot de passe d'au moins 8 caractères.</Help>
+        <div style={{ height: 6 }} />
+        <div>
+          <Field label="Nouveau mot de passe" value="••••••••••" mono
+                 trailing={<span style={{ color: 'var(--text-muted)', display: 'flex' }}><Icon.eye /></span>} />
+          <div style={{ marginTop: 9 }}><StrengthMeter level={4} /></div>
+        </div>
+        <Field label="Confirmer le mot de passe" value="••••••••••" mono
+               trailing={<span style={{ color: 'var(--text-muted)', display: 'flex' }}><Icon.eye /></span>} />
+        <div style={{ marginTop: 8 }}><Btn variant="primary" height={56}>Réinitialiser</Btn></div>
+      </div>
+    </Screen>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="signal" title="Signal — Dark mode" subtitle="Mot de passe oublié · flux 3 étapes (modal)">
+        <DCArtboard id="s-a" label="a · Saisie courriel"   width={390} height={760}><Saisie theme="signal" /></DCArtboard>
+        <DCArtboard id="s-b" label="b · Confirmation"      width={390} height={760}><Confirmation theme="signal" /></DCArtboard>
+        <DCArtboard id="s-c" label="c · Nouveau mot de passe" width={390} height={760}><Nouveau theme="signal" /></DCArtboard>
+      </DCSection>
+      <DCSection id="pulse" title="Pulse — Light mode">
+        <DCArtboard id="p-a" label="a · Saisie courriel"   width={390} height={760}><Saisie theme="pulse" /></DCArtboard>
+        <DCArtboard id="p-b" label="b · Confirmation"      width={390} height={760}><Confirmation theme="pulse" /></DCArtboard>
+        <DCArtboard id="p-c" label="c · Nouveau mot de passe" width={390} height={760}><Nouveau theme="pulse" /></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

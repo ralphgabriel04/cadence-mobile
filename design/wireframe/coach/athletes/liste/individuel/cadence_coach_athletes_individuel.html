@@ -1,0 +1,173 @@
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 16px; font-family: var(--font-sans);">
+  <div style="max-width: 320px; margin: 0 auto; background: var(--color-background-primary); border-radius: 24px; border: 0.5px solid var(--color-border-secondary); overflow: hidden;">
+
+    <!-- Status bar -->
+    <div style="padding: 10px 20px 4px; display: flex; justify-content: space-between;">
+      <span style="font-size: 11px; font-weight: 500; color: var(--color-text-primary);">9:41</span>
+      <span style="font-size: 11px; color: var(--color-text-secondary);">●●●</span>
+    </div>
+
+    <!-- Header -->
+    <div style="padding: 8px 16px 10px;">
+      <p style="font-size: 18px; font-weight: 500; margin: 0 0 10px; color: var(--color-text-primary);">Athlètes</p>
+
+      <!-- Toggle groupes / individuel -->
+      <div style="display: flex; background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 3px; gap: 3px; margin-bottom: 10px;">
+        <div style="flex: 1; text-align: center; padding: 5px; font-size: 12px; color: var(--color-text-secondary);">Groupes</div>
+        <div style="flex: 1; background: var(--color-background-primary); border-radius: 6px; text-align: center; padding: 5px; font-size: 12px; font-weight: 500; color: var(--color-text-primary); border: 0.5px solid var(--color-border-tertiary);">Individuel</div>
+      </div>
+
+      <!-- Barre de recherche -->
+      <div style="display: flex; align-items: center; gap: 8px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 7px 10px;">
+        <i class="ti ti-search" style="font-size: 15px; color: var(--color-text-tertiary); flex-shrink: 0;" aria-hidden="true"></i>
+        <span style="font-size: 13px; color: var(--color-text-tertiary);">Rechercher un athlète…</span>
+      </div>
+    </div>
+
+    <!-- Filtre statut -->
+    <div style="padding: 0 16px 10px; display: flex; gap: 6px; overflow-x: auto;">
+      <div style="flex-shrink: 0; background: var(--color-text-primary); color: var(--color-background-primary); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 500;">Tous</div>
+      <div style="flex-shrink: 0; background: #EAF3DE; color: #3B6D11; border-radius: 20px; padding: 4px 12px; font-size: 11px;">Actifs</div>
+      <div style="flex-shrink: 0; background: var(--color-background-secondary); color: var(--color-text-secondary); border-radius: 20px; padding: 4px 12px; font-size: 11px;">Repos</div>
+      <div style="flex-shrink: 0; background: #FCEBEB; color: #A32D2D; border-radius: 20px; padding: 4px 12px; font-size: 11px;">Alertes</div>
+    </div>
+
+    <!-- Liste athlètes -->
+    <div style="padding: 0 16px 16px;">
+
+      <!-- Athlète 1 — live actif -->
+      <div style="border: 1.5px solid #534AB7; border-radius: var(--border-radius-lg); padding: 11px 12px; margin-bottom: 8px; background: #EEEDFE;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 38px; height: 38px; border-radius: 50%; background: #CECBF6; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #3C3489; flex-shrink: 0;">ML</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <p style="font-size: 14px; font-weight: 500; margin: 0; color: #3C3489;">Marie-Luce D.</p>
+              <div style="background: #534AB7; color: #EEEDFE; font-size: 10px; padding: 2px 8px; border-radius: var(--border-radius-md);">Live</div>
+            </div>
+            <p style="font-size: 11px; color: #534AB7; margin: 2px 0 0;">Intervalles 400m · pace 1:42 · 174 bpm</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Athlète 2 — en cours autonome -->
+      <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 11px 12px; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 38px; height: 38px; border-radius: 50%; background: #FAEEDA; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #854F0B; flex-shrink: 0;">SA</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <p style="font-size: 14px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Sara A.</p>
+              <div style="background: #FAEEDA; color: #854F0B; font-size: 10px; padding: 2px 8px; border-radius: var(--border-radius-md);">Autonome</div>
+            </div>
+            <p style="font-size: 11px; color: var(--color-text-secondary); margin: 2px 0 0;">Full body A · débuté 9h05</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Athlète 3 — alerte -->
+      <div style="border: 0.5px solid #F09595; border-radius: var(--border-radius-lg); padding: 11px 12px; margin-bottom: 8px; background: #FCEBEB;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 38px; height: 38px; border-radius: 50%; background: #F7C1C1; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #791F1F; flex-shrink: 0;">KD</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <p style="font-size: 14px; font-weight: 500; margin: 0; color: #791F1F;">Kevin D.</p>
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <i class="ti ti-alert-triangle" style="font-size: 13px; color: #A32D2D;" aria-hidden="true"></i>
+                <span style="font-size: 10px; color: #A32D2D;">Alerte FC</span>
+              </div>
+            </div>
+            <p style="font-size: 11px; color: #A32D2D; margin: 2px 0 0;">192 bpm · Live en cours</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Athlète 4 — séance planifiée -->
+      <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 11px 12px; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 38px; height: 38px; border-radius: 50%; background: #E1F5EE; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #0F6E56; flex-shrink: 0;">TR</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <p style="font-size: 14px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Thomas R.</p>
+              <span style="font-size: 11px; color: var(--color-text-tertiary);">17h00</span>
+            </div>
+            <p style="font-size: 11px; color: var(--color-text-secondary); margin: 2px 0 0;">Endurance 5km · Planifié</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Athlète 5 — complété -->
+      <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 11px 12px; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 38px; height: 38px; border-radius: 50%; background: #EAF3DE; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #3B6D11; flex-shrink: 0;">AP</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <p style="font-size: 14px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Alexandre P.</p>
+              <div style="background: #EAF3DE; color: #3B6D11; font-size: 10px; padding: 2px 8px; border-radius: var(--border-radius-md);">Complété</div>
+            </div>
+            <p style="font-size: 11px; color: var(--color-text-secondary); margin: 2px 0 0;">Mobilité · 45 min · 8h12</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Athlète 6 — repos -->
+      <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 11px 12px; margin-bottom: 8px; opacity: 0.55;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--color-background-secondary); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: var(--color-text-tertiary); flex-shrink: 0;">JB</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <p style="font-size: 14px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Julie B.</p>
+              <span style="font-size: 11px; color: var(--color-text-tertiary);">Repos</span>
+            </div>
+            <p style="font-size: 11px; color: var(--color-text-secondary); margin: 2px 0 0;">Récupération planifiée</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Athlète 7 — aucune séance assignée -->
+      <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 11px 12px; margin-bottom: 14px; opacity: 0.55;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--color-background-secondary); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: var(--color-text-tertiary); flex-shrink: 0;">NC</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <p style="font-size: 14px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Nicolas C.</p>
+              <i class="ti ti-alert-circle" style="font-size: 14px; color: var(--color-text-tertiary);" aria-hidden="true"></i>
+            </div>
+            <p style="font-size: 11px; color: var(--color-text-secondary); margin: 2px 0 0;">Aucune séance assignée</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bouton ajouter athlète -->
+      <button style="width: 100%; padding: 10px; border: 0.5px dashed var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-secondary); font-size: 13px; cursor: pointer;">
+        <i class="ti ti-user-plus" style="font-size: 14px; vertical-align: -2px;" aria-hidden="true"></i> Ajouter un athlète
+      </button>
+    </div>
+
+    <!-- Bottom nav -->
+    <div style="border-top: 0.5px solid var(--color-border-tertiary); display: flex; padding: 8px 0 12px;">
+      <div style="flex: 1; text-align: center;">
+        <i class="ti ti-home" style="font-size: 20px; color: var(--color-text-tertiary); display: block;" aria-hidden="true"></i>
+        <div style="font-size: 9px; color: var(--color-text-tertiary);">Accueil</div>
+      </div>
+      <div style="flex: 1; text-align: center;">
+        <i class="ti ti-users" style="font-size: 20px; color: var(--color-text-primary); display: block;" aria-hidden="true"></i>
+        <div style="font-size: 9px; color: var(--color-text-primary); font-weight: 500;">Athlètes</div>
+      </div>
+      <div style="flex: 1; text-align: center;">
+        <i class="ti ti-layout-list" style="font-size: 20px; color: var(--color-text-tertiary); display: block;" aria-hidden="true"></i>
+        <div style="font-size: 9px; color: var(--color-text-tertiary);">Plans</div>
+      </div>
+      <div style="flex: 1; text-align: center;">
+        <i class="ti ti-player-play" style="font-size: 20px; color: var(--color-text-tertiary); display: block;" aria-hidden="true"></i>
+        <div style="font-size: 9px; color: var(--color-text-tertiary);">Live</div>
+      </div>
+      <div style="flex: 1; text-align: center;">
+        <i class="ti ti-user" style="font-size: 20px; color: var(--color-text-tertiary); display: block;" aria-hidden="true"></i>
+        <div style="font-size: 9px; color: var(--color-text-tertiary);">Profil</div>
+      </div>
+    </div>
+
+  </div>
+</div>

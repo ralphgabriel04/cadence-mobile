@@ -1,0 +1,225 @@
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 16px; font-family: var(--font-sans);">
+<div style="max-width: 320px; margin: 0 auto; background: var(--color-background-primary); border-radius: 24px; border: 0.5px solid var(--color-border-secondary); overflow: hidden;">
+
+  <div style="padding: 10px 20px 4px; display: flex; justify-content: space-between;">
+    <span style="font-size: 11px; font-weight: 500; color: var(--color-text-primary);">9:41</span>
+    <span style="font-size: 11px; color: var(--color-text-secondary);">●●●</span>
+  </div>
+
+  <div style="padding: 6px 16px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid var(--color-border-tertiary);">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <i class="ti ti-arrow-left" style="font-size: 18px; color: var(--color-text-primary);" aria-hidden="true"></i>
+      <div>
+        <p style="font-size: 14px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Sprint & piste</p>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0;">6 athlètes · Élite</p>
+      </div>
+    </div>
+    <i class="ti ti-dots" style="font-size: 20px; color: var(--color-text-secondary);" aria-hidden="true"></i>
+  </div>
+
+  <!-- Tabs — 3 onglets -->
+  <div style="display: flex; border-bottom: 0.5px solid var(--color-border-tertiary);">
+    <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; font-weight: 500; color: var(--color-text-primary); border-bottom: 1.5px solid var(--color-text-primary);">Aperçu</div>
+    <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--color-text-tertiary);">Programme</div>
+    <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--color-text-tertiary);">Notes</div>
+  </div>
+
+  <div style="padding: 12px 16px 20px; max-height: 640px; overflow-y: auto;">
+
+    <!-- Stats rapides -->
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-bottom: 14px;">
+      <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 9px 10px;">
+        <p style="font-size: 10px; color: var(--color-text-tertiary); margin: 0 0 2px;">Actifs maintenant</p>
+        <p style="font-size: 22px; font-weight: 500; margin: 0; color: var(--color-text-primary);">3</p>
+        <p style="font-size: 10px; color: var(--color-text-secondary); margin: 1px 0 0;">sur 6 athlètes</p>
+      </div>
+      <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 9px 10px;">
+        <p style="font-size: 10px; color: var(--color-text-tertiary); margin: 0 0 2px;">Compliance (30j)</p>
+        <p style="font-size: 22px; font-weight: 500; margin: 0; color: var(--color-text-primary);">88%</p>
+        <p style="font-size: 10px; color: var(--color-text-secondary); margin: 1px 0 0;"><i class="ti ti-arrow-up" style="font-size:10px; color: #3B6D11;" aria-hidden="true"></i> +4% vs mois passé</p>
+      </div>
+    </div>
+
+    <!-- Graphique compliance par athlète -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 6px;">Compliance par athlète</p>
+    <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; margin-bottom: 14px;">
+      <div style="position: relative; width: 100%; height: 110px;">
+        <canvas id="complianceChart" role="img" aria-label="Compliance par athlète en pourcentage">ML:100, KD:92, JB:88, AP:75, TR:95, NC:70</canvas>
+      </div>
+    </div>
+
+    <!-- Graphique volume collectif -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 6px;">Volume collectif (séances/semaine)</p>
+    <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 10px 4px; margin-bottom: 14px;">
+      <div style="position: relative; width: 100%; height: 80px;">
+        <canvas id="volumeChart" role="img" aria-label="Volume collectif de séances par semaine sur 6 semaines">S1:18, S2:22, S3:19, S4:26, S5:24, S6:28</canvas>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0 2px; margin-top: 2px;">
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S1</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S2</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S3</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S4</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S5</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S6</span>
+      </div>
+    </div>
+
+    <!-- Prochain entraînement -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px;">Prochain entraînement</p>
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 10px 12px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Intervalles 400m ×6</p>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 2px 0 0;">Demain · Piste extérieure · 70 min</p>
+      </div>
+      <button style="background: #534AB7; border: none; border-radius: var(--border-radius-md); padding: 5px 10px; font-size: 11px; color: #EEEDFE; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+        <i class="ti ti-player-play" style="font-size: 11px;" aria-hidden="true"></i> Live
+      </button>
+    </div>
+
+    <!-- Membres -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">Membres aujourd'hui</p>
+      <button style="background: transparent; border: none; font-size: 11px; color: #534AB7; cursor: pointer; display: flex; align-items: center; gap: 3px; padding: 0;">
+        <i class="ti ti-user-plus" style="font-size: 12px;" aria-hidden="true"></i> Gérer
+      </button>
+    </div>
+
+    <!-- Membre 1 — live -->
+    <div style="border: 1.5px solid #534AB7; border-radius: var(--border-radius-md); padding: 9px 12px; margin-bottom: 6px; background: #EEEDFE; display: flex; align-items: center; gap: 10px;">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: #CECBF6; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #3C3489; flex-shrink: 0;">ML</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: #3C3489;">Marie-Luce D.</p>
+        <p style="font-size: 11px; color: #534AB7; margin: 1px 0 0;">Intervalles 200m · pace 1:42 · 174 bpm</p>
+      </div>
+      <div style="background: #534AB7; color: #EEEDFE; font-size: 10px; padding: 2px 8px; border-radius: var(--border-radius-md); flex-shrink: 0;">Live</div>
+    </div>
+
+    <!-- Membre 2 — alerte -->
+    <div style="border: 0.5px solid #F09595; border-radius: var(--border-radius-md); padding: 9px 12px; margin-bottom: 6px; background: #FCEBEB; display: flex; align-items: center; gap: 10px;">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: #F7C1C1; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #791F1F; flex-shrink: 0;">AP</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: #791F1F;">Alexandre P.</p>
+        <p style="font-size: 11px; color: #A32D2D; margin: 1px 0 0;">Séance manquée lundi</p>
+      </div>
+      <i class="ti ti-alert-triangle" style="font-size: 14px; color: #A32D2D; flex-shrink: 0;" aria-hidden="true"></i>
+    </div>
+
+    <!-- Membre 3 — complété -->
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 9px 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px;">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: #EAF3DE; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #3B6D11; flex-shrink: 0;">KD</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Kevin D.</p>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 1px 0 0;">Complété · meilleur split 24.8s</p>
+      </div>
+      <div style="background: #EAF3DE; color: #3B6D11; font-size: 10px; padding: 2px 8px; border-radius: var(--border-radius-md); flex-shrink: 0;">✓</div>
+    </div>
+
+    <!-- Membre 4 — planifié -->
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 9px 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px;">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: #FAEEDA; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #854F0B; flex-shrink: 0;">JB</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Julie B.</p>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 1px 0 0;">Prévu 17h00 · Piste</p>
+      </div>
+      <span style="font-size: 11px; color: var(--color-text-tertiary); flex-shrink: 0;">17h00</span>
+    </div>
+
+    <!-- Membre 5 — repos -->
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 9px 12px; margin-bottom: 6px; opacity: 0.55; display: flex; align-items: center; gap: 10px;">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-background-secondary); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); flex-shrink: 0;">TR</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Thomas R.</p>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 1px 0 0;">Repos planifié</p>
+      </div>
+      <i class="ti ti-zzz" style="font-size: 14px; color: var(--color-text-tertiary); flex-shrink: 0;" aria-hidden="true"></i>
+    </div>
+
+    <!-- Membre 6 — repos -->
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 9px 12px; margin-bottom: 14px; opacity: 0.55; display: flex; align-items: center; gap: 10px;">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-background-secondary); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); flex-shrink: 0;">NC</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 13px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Nicolas C.</p>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 1px 0 0;">Repos planifié</p>
+      </div>
+      <i class="ti ti-zzz" style="font-size: 14px; color: var(--color-text-tertiary); flex-shrink: 0;" aria-hidden="true"></i>
+    </div>
+
+    <!-- Action unique -->
+    <button style="width: 100%; padding: 10px; background: #534AB7; border: none; border-radius: var(--border-radius-md); font-size: 13px; font-weight: 500; color: #EEEDFE; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+      <i class="ti ti-player-play" style="font-size: 14px;" aria-hidden="true"></i> Lancer une session live
+    </button>
+
+  </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+const textColor = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)';
+
+new Chart(document.getElementById('complianceChart'), {
+  type: 'bar',
+  data: {
+    labels: ['ML', 'TR', 'KD', 'JB', 'AP', 'NC'],
+    datasets: [{
+      data: [100, 95, 92, 88, 75, 70],
+      backgroundColor: ['#534AB7','#534AB7','#534AB7','#AFA9EC','#F09595','#F09595'],
+      borderRadius: 4,
+      borderSkipped: false
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    scales: {
+      x: {
+        display: true,
+        min: 0, max: 100,
+        grid: { color: gridColor },
+        ticks: { color: textColor, font: { size: 9 }, callback: v => v + '%', maxTicksLimit: 4 },
+        border: { display: false }
+      },
+      y: {
+        display: true,
+        grid: { display: false },
+        ticks: { color: textColor, font: { size: 10 } },
+        border: { display: false }
+      }
+    }
+  }
+});
+
+new Chart(document.getElementById('volumeChart'), {
+  type: 'bar',
+  data: {
+    labels: ['S1','S2','S3','S4','S5','S6'],
+    datasets: [{
+      data: [18, 22, 19, 26, 24, 28],
+      backgroundColor: ['#AFA9EC','#AFA9EC','#AFA9EC','#AFA9EC','#AFA9EC','#534AB7'],
+      borderRadius: 3,
+      borderSkipped: false
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    scales: {
+      x: { display: false },
+      y: {
+        display: true,
+        grid: { color: gridColor },
+        ticks: { color: textColor, font: { size: 9 }, maxTicksLimit: 3 },
+        border: { display: false }
+      }
+    }
+  }
+});
+</script>

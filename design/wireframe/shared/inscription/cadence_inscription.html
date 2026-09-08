@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cadence — Inscription</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>body{margin:0;background:#1a1a1a;}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="../../design-canvas.jsx"></script>
+<script type="text/babel" src="../../cadence-kit.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+function RoleCard({ icon, title, sub, selected }) {
+  return (
+    <div style={{ flex: 1, position: 'relative', padding: '18px 14px', borderRadius: 'var(--radius-card)',
+      background: selected ? 'var(--accent-dim)' : 'var(--surface)',
+      border: `1.5px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
+      display: 'flex', flexDirection: 'column', gap: 10, cursor: 'pointer' }}>
+      <span style={{ color: selected ? 'var(--accent)' : 'var(--text-sub)', display: 'flex' }}>{icon}</span>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em', color: selected ? 'var(--text)' : 'var(--text)' }}>{title}</div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-sub)', marginTop: 4, lineHeight: 1.35, textWrap: 'pretty' }}>{sub}</div>
+      </div>
+      {selected && <div style={{ position: 'absolute', top: 12, right: 12, width: 20, height: 20, borderRadius: '50%',
+        background: 'var(--accent)', color: 'var(--btn-primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Icon.check width={13} /></div>}
+    </div>
+  );
+}
+
+function Checkbox({ checked }) {
+  return (
+    <div style={{ width: 22, height: 22, flex: '0 0 auto', borderRadius: 6, marginTop: 1,
+      background: checked ? 'var(--accent)' : 'transparent', border: `1.5px solid ${checked ? 'var(--accent)' : 'var(--border)'}`,
+      color: 'var(--btn-primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {checked && <Icon.check width={13} />}
+    </div>
+  );
+}
+
+function Inscription({ theme, role = 'athlete' }) {
+  return (
+    <Screen theme={theme} height={1024}>
+      <StatusBar />
+      <TopBar title="Créer un compte" />
+      <div style={{ padding: `8px ${PX}px 0`, display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {/* role choice */}
+        <div style={{ display: 'flex', gap: 12 }}>
+          <RoleCard icon={<Icon.dumbbell />} title="Je suis athlète" sub="Suis tes entraînements et ta progression" selected={role === 'athlete'} />
+          <RoleCard icon={<Icon.clipboard />} title="Je suis coach" sub="Crée des programmes pour tes athlètes" selected={role === 'coach'} />
+        </div>
+
+        {/* fields */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}><Field label="Prénom" value="Félix" /></div>
+            <div style={{ flex: 1 }}><Field label="Nom" value="Lavoie" /></div>
+          </div>
+          <Field label="Courriel" value="felix@exemple.com" />
+          <div>
+            <Field label="Mot de passe" value="••••••••••" mono
+                   trailing={<span style={{ color: 'var(--text-muted)', display: 'flex' }}><Icon.eye /></span>} />
+            <div style={{ marginTop: 9 }}><StrengthMeter level={3} /></div>
+          </div>
+          <Field label="Confirmer le mot de passe" value="••••••••••" mono
+                 trailing={<span style={{ color: 'var(--text-muted)', display: 'flex' }}><Icon.eye /></span>} />
+        </div>
+
+        {/* consent */}
+        <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+          <Checkbox checked />
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-sub)', lineHeight: 1.4 }}>
+            J'accepte les <a style={{ color: 'var(--accent)', fontWeight: 700, textDecoration: 'none' }}>conditions</a> et la <a style={{ color: 'var(--accent)', fontWeight: 700, textDecoration: 'none' }}>politique de confidentialité</a>.
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: 'var(--text-muted)' }}>
+          <Icon.lock />
+          <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.01em' }}>Vos données sont protégées au Québec (Loi 25).</span>
+        </div>
+
+        <Btn variant="primary" height={56}>Créer mon compte</Btn>
+
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, paddingBottom: 24 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-sub)' }}>Déjà un compte ?</span>
+          <a style={{ color: 'var(--accent)', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>Se connecter</a>
+        </div>
+      </div>
+    </Screen>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="signal" title="Signal — Dark mode" subtitle="Inscription · choix de rôle + champs (flux modal)">
+        <DCArtboard id="s-ath"   label="Rôle athlète sélectionné" width={390} height={1024}><Inscription theme="signal" role="athlete" /></DCArtboard>
+        <DCArtboard id="s-coach" label="Rôle coach sélectionné"   width={390} height={1024}><Inscription theme="signal" role="coach" /></DCArtboard>
+      </DCSection>
+      <DCSection id="pulse" title="Pulse — Light mode">
+        <DCArtboard id="p-ath"   label="Rôle athlète sélectionné" width={390} height={1024}><Inscription theme="pulse" role="athlete" /></DCArtboard>
+        <DCArtboard id="p-coach" label="Rôle coach sélectionné"   width={390} height={1024}><Inscription theme="pulse" role="coach" /></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

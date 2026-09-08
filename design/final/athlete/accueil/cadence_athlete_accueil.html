@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cadence — Accueil athlète</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>body{margin:0;background:#1a1a1a;}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="../../design-canvas.jsx"></script>
+<script type="text/babel" src="../../cadence-kit.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+function WeekDots() {
+  const days = [['L', 'done'], ['M', 'done'], ['M', 'done'], ['J', 'done'], ['V', 'today'], ['S', 'rest'], ['D', 'future']];
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      {days.map(([d, st], i) => {
+        const base = { width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 };
+        const sty = st === 'done' ? { background: 'var(--accent)', color: 'var(--btn-primary-text)' }
+          : st === 'today' ? { border: '2px solid var(--accent)', color: 'var(--accent)' }
+          : st === 'rest' ? { border: '1px dashed var(--border)', color: 'var(--text-muted)' }
+          : { border: '1px solid var(--border)', color: 'var(--text-muted)' };
+        return <div key={i} style={{ ...base, ...sty }}>{st === 'done' ? <Icon.check width={16} /> : d}</div>;
+      })}
+    </div>
+  );
+}
+function PRRow({ ex, gap, last }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderBottom: last ? 'none' : '1px solid var(--border)' }}>
+      <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--accent-dim)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}><Icon.up /></span>
+      <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{ex}</span>
+      <span className="mono" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-sub)' }}>{gap}</span>
+    </div>
+  );
+}
+
+function Accueil({ theme }) {
+  return (
+    <Screen theme={theme} height={1040} scroll>
+      <StatusBar />
+      <div style={{ padding: `8px ${PX}px 100px`, display: 'flex', flexDirection: 'column', gap: 22 }}>
+        {/* greeting */}
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em' }}>Bonjour, Félix</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-sub)', marginTop: 3, textTransform: 'capitalize' }}>Lundi 6 mai</div>
+        </div>
+
+        {/* today's session */}
+        <Card stripe pad={18}>
+          <div style={{ paddingLeft: 6 }}>
+            <SectionLabel style={{ color: 'var(--accent)' }}>Aujourd'hui</SectionLabel>
+            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginTop: 8 }}>Force — Haut du corps</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 12 }}>
+              <Pill>6 exercices</Pill><Pill>~55 min</Pill><Pill>Coach Alex</Pill>
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <Btn variant="primary" height={50} icon={<Icon.arrow />}>Commencer la séance</Btn>
+            </div>
+          </div>
+        </Card>
+
+        {/* week */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
+            <SectionLabel>Ta semaine</SectionLabel>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-sub)' }}><span className="mono" style={{ color: 'var(--text)' }}>4/6</span> séances complétées</span>
+          </div>
+          <WeekDots />
+          <div style={{ marginTop: 16 }}><LinearProgress value={67} /></div>
+        </div>
+
+        {/* last session */}
+        <div>
+          <SectionLabel style={{ marginBottom: 10 }}>Dernière séance</SectionLabel>
+          <Card>
+            <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Vendredi — Force · Bas du corps</div>
+            <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-sub)' }}><span className="mono" style={{ color: 'var(--text)' }}>8</span> exercices</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-sub)' }}><span className="mono" style={{ color: 'var(--text)' }}>52</span> min</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}><span className="mono">2</span> PRs</span>
+            </div>
+          </Card>
+        </div>
+
+        {/* upcoming PRs */}
+        <div>
+          <SectionLabel style={{ marginBottom: 10 }}>Prochains PRs potentiels</SectionLabel>
+          <Card pad={0}>
+            <PRRow ex="Squat" gap="à 2,5 kg du record" />
+            <PRRow ex="Développé couché" gap="à 5 kg du record" />
+            <PRRow ex="Soulevé de terre" gap="à 2 reps du record" last />
+          </Card>
+        </div>
+      </div>
+      <NavBar role="athlete" active="Accueil" />
+    </Screen>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="signal" title="Signal — Dark mode" subtitle="Accueil athlète · bottom nav · Accueil actif">
+        <DCArtboard id="s" label="Accueil" width={390} height={1040}><Accueil theme="signal" /></DCArtboard>
+      </DCSection>
+      <DCSection id="pulse" title="Pulse — Light mode">
+        <DCArtboard id="p" label="Accueil" width={390} height={1040}><Accueil theme="pulse" /></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

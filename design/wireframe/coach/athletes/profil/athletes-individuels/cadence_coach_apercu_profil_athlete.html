@@ -1,0 +1,208 @@
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 16px; font-family: var(--font-sans);">
+<div style="max-width: 320px; margin: 0 auto; background: var(--color-background-primary); border-radius: 24px; border: 0.5px solid var(--color-border-secondary); overflow: hidden;">
+
+  <!-- Status bar -->
+  <div style="padding: 10px 20px 4px; display: flex; justify-content: space-between;">
+    <span style="font-size: 11px; font-weight: 500; color: var(--color-text-primary);">9:41</span>
+    <span style="font-size: 11px; color: var(--color-text-secondary);">●●●</span>
+  </div>
+
+  <!-- Header athlète -->
+  <div style="padding: 8px 16px 12px; border-bottom: 0.5px solid var(--color-border-tertiary);">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 40px; height: 40px; border-radius: 50%; background: #EEEDFE; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: #534AB7; flex-shrink: 0;">ML</div>
+      <div style="flex: 1; min-width: 0;">
+        <p style="font-size: 15px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Marie-Luce D.</p>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 2px 0 0;">Sprint & piste · Élite</p>
+      </div>
+      <div style="background: #EAF3DE; color: #3B6D11; font-size: 10px; padding: 3px 10px; border-radius: var(--border-radius-md);">Active</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div style="display: flex; border-bottom: 0.5px solid var(--color-border-tertiary); overflow-x: auto;">
+    <div style="flex-shrink: 0; padding: 8px 14px; font-size: 12px; font-weight: 500; color: var(--color-text-primary); border-bottom: 1.5px solid var(--color-text-primary);">Aperçu</div>
+    <div style="flex-shrink: 0; padding: 8px 14px; font-size: 12px; color: var(--color-text-tertiary);">Historique</div>
+    <div style="flex-shrink: 0; padding: 8px 14px; font-size: 12px; color: var(--color-text-tertiary);">Programme</div>
+    <div style="flex-shrink: 0; padding: 8px 14px; font-size: 12px; color: var(--color-text-tertiary);">Notes</div>
+  </div>
+
+  <!-- Contenu aperçu -->
+  <div style="padding: 12px 16px 20px;">
+
+    <!-- Stats rapides -->
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-bottom: 14px;">
+      <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px;">
+        <p style="font-size: 10px; color: var(--color-text-tertiary); margin: 0 0 2px;">Séances (30j)</p>
+        <p style="font-size: 22px; font-weight: 500; margin: 0; color: var(--color-text-primary);">12</p>
+        <p style="font-size: 10px; color: var(--color-text-secondary); margin: 2px 0 0;"><i class="ti ti-arrow-up" style="font-size:10px; color: #3B6D11;" aria-hidden="true"></i> +2 vs mois passé</p>
+      </div>
+      <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px;">
+        <p style="font-size: 10px; color: var(--color-text-tertiary); margin: 0 0 2px;">Compliance</p>
+        <p style="font-size: 22px; font-weight: 500; margin: 0; color: var(--color-text-primary);">92%</p>
+        <p style="font-size: 10px; color: var(--color-text-secondary); margin: 2px 0 0;"><i class="ti ti-arrow-up" style="font-size:10px; color: #3B6D11;" aria-hidden="true"></i> +5% vs mois passé</p>
+      </div>
+    </div>
+
+    <!-- Graphique charge d'entraînement -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 6px;">Charge hebdomadaire (min)</p>
+    <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 10px 6px; margin-bottom: 14px;">
+      <div style="position: relative; width: 100%; height: 90px;">
+        <canvas id="chargeChart" role="img" aria-label="Charge d'entraînement hebdomadaire sur 6 semaines en minutes">S1:180, S2:220, S3:195, S4:260, S5:240, S6:275</canvas>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0 2px; margin-top: 2px;">
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S1</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S2</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S3</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S4</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S5</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S6</span>
+      </div>
+    </div>
+
+    <!-- Graphique splits 400m -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 6px;">Meilleur split 400m (secondes)</p>
+    <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 10px 6px; margin-bottom: 14px;">
+      <div style="position: relative; width: 100%; height: 90px;">
+        <canvas id="splitChart" role="img" aria-label="Évolution du meilleur split 400m sur 6 séances en secondes">54.2, 53.8, 53.1, 52.7, 52.4, 51.9</canvas>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0 2px; margin-top: 2px;">
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S1</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S2</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S3</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S4</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S5</span>
+        <span style="font-size: 9px; color: var(--color-text-tertiary);">S6</span>
+      </div>
+    </div>
+
+    <!-- Compliance par type de séance -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 6px;">Compliance par type</p>
+    <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; margin-bottom: 14px;">
+      <div style="margin-bottom: 7px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+          <span style="font-size: 11px; color: var(--color-text-secondary);">Intervalles</span>
+          <span style="font-size: 11px; font-weight: 500; color: var(--color-text-primary);">100%</span>
+        </div>
+        <div style="height: 5px; background: var(--color-background-primary); border-radius: 3px; overflow: hidden;">
+          <div style="width: 100%; height: 100%; background: #534AB7; border-radius: 3px;"></div>
+        </div>
+      </div>
+      <div style="margin-bottom: 7px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+          <span style="font-size: 11px; color: var(--color-text-secondary);">Musculation</span>
+          <span style="font-size: 11px; font-weight: 500; color: var(--color-text-primary);">88%</span>
+        </div>
+        <div style="height: 5px; background: var(--color-background-primary); border-radius: 3px; overflow: hidden;">
+          <div style="width: 88%; height: 100%; background: #534AB7; border-radius: 3px;"></div>
+        </div>
+      </div>
+      <div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+          <span style="font-size: 11px; color: var(--color-text-secondary);">Mobilité</span>
+          <span style="font-size: 11px; font-weight: 500; color: var(--color-text-primary);">75%</span>
+        </div>
+        <div style="height: 5px; background: var(--color-background-primary); border-radius: 3px; overflow: hidden;">
+          <div style="width: 75%; height: 100%; background: #AFA9EC; border-radius: 3px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dernière séance -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 6px;">Dernière séance</p>
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 10px 12px; margin-bottom: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <span style="font-size: 13px; font-weight: 500; color: var(--color-text-primary);">Intervalles 200m ×8</span>
+        <span style="font-size: 11px; color: var(--color-text-tertiary);">Hier</span>
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <span style="font-size: 11px; color: var(--color-text-secondary);"><i class="ti ti-clock" style="font-size: 11px;" aria-hidden="true"></i> 24.3s</span>
+        <span style="font-size: 11px; color: var(--color-text-secondary);"><i class="ti ti-heart" style="font-size: 11px;" aria-hidden="true"></i> 178 bpm</span>
+        <span style="font-size: 11px; color: var(--color-text-secondary);"><i class="ti ti-clock" style="font-size: 11px;" aria-hidden="true"></i> 52 min</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px;">
+      <button style="padding: 9px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; font-size: 12px; color: var(--color-text-primary); cursor: pointer;">
+        <i class="ti ti-notes" style="font-size: 13px; vertical-align: -2px;" aria-hidden="true"></i> Ajouter note
+      </button>
+      <button style="padding: 9px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; font-size: 12px; color: var(--color-text-primary); cursor: pointer;">
+        <i class="ti ti-player-play" style="font-size: 13px; vertical-align: -2px;" aria-hidden="true"></i> Lancer live
+      </button>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+const textColor = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)';
+
+new Chart(document.getElementById('chargeChart'), {
+  type: 'bar',
+  data: {
+    labels: ['S1','S2','S3','S4','S5','S6'],
+    datasets: [{
+      data: [180, 220, 195, 260, 240, 275],
+      backgroundColor: ['#AFA9EC','#AFA9EC','#AFA9EC','#AFA9EC','#AFA9EC','#534AB7'],
+      borderRadius: 4,
+      borderSkipped: false
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    scales: {
+      x: { display: false },
+      y: {
+        display: true,
+        grid: { color: gridColor },
+        ticks: { color: textColor, font: { size: 9 }, maxTicksLimit: 3 },
+        border: { display: false }
+      }
+    }
+  }
+});
+
+new Chart(document.getElementById('splitChart'), {
+  type: 'line',
+  data: {
+    labels: ['S1','S2','S3','S4','S5','S6'],
+    datasets: [{
+      data: [54.2, 53.8, 53.1, 52.7, 52.4, 51.9],
+      borderColor: '#534AB7',
+      backgroundColor: 'rgba(83,74,183,0.08)',
+      borderWidth: 2,
+      pointBackgroundColor: '#534AB7',
+      pointRadius: 3,
+      fill: true,
+      tension: 0.3
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    scales: {
+      x: { display: false },
+      y: {
+        display: true,
+        reverse: true,
+        grid: { color: gridColor },
+        ticks: { color: textColor, font: { size: 9 }, maxTicksLimit: 3 },
+        border: { display: false },
+        min: 51,
+        max: 55
+      }
+    }
+  }
+});
+</script>
