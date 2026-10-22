@@ -74,8 +74,10 @@ export function useWorkoutSession(args: {
     const unsubscribe = queue.subscribe((q) => {
       if (mounted.current) setPending([...q]);
     });
-    // Anything left from a previous run goes out as soon as the screen opens.
-    void queue.drain();
+    // Read what a previous run left on disk, then send it. Until restore() has
+    // run, the queue never writes to disk (to avoid erasing the previous run's
+    // sets), so skipping it would make the queue memory-only.
+    void queue.restore();
     return unsubscribe;
   }, [queue]);
 
@@ -92,7 +94,7 @@ export function useWorkoutSession(args: {
         return;
       }
 
-      const loaded = await loadInProgressSession();
+      const loaded = await loadInProgressSession({ athleteId });
       if (cancelled || !mounted.current) return;
 
       if (loaded.ok && loaded.sessionLogId !== null) {
@@ -159,6 +161,14 @@ export function useWorkoutSession(args: {
       setStatus({ status: "finishing" });
       await queue.drain();
 
+      if (queue.rejected.length > 0) {
+        setStatus({
+          status: "error",
+          message: `${queue.rejected.length} série(s) refusée(s) par le serveur. Corrige-les ou retire-les avant de terminer.`,
+        });
+        return false;
+      }
+
       if (queue.pending.length > 0) {
         setStatus({
           status: "error",
@@ -204,14 +214,17 @@ export function useWorkoutSession(args: {
       state: state as WorkoutState,
       status,
       /** Sets still waiting to reach the server. Drives the "hors ligne" hint. */
-      pendingCount: pending.length,
+      pendingCount: pending.filter((q) => q.rejected !== true).length,
+      /** Sets the server refused for good: shown as an error, never dropped silently. */
+      rejectedCount: pending.filter((q) => q.rejected === true).length,
+      discardRejected: () => queue.discardRejected(),
       startedAt,
       dispatch: act,
       validateSet,
       finish,
       retryPending: () => void queue.drain(),
     }),
-    [state, status, pending.length, startedAt, act, validateSet, finish, queue],
+    [state, status, pending, startedAt, act, validateSet, finish, queue],
   );
 }
 

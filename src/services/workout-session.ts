@@ -43,9 +43,14 @@ export async function startSession(args: {
 }): Promise<StartSessionResult> {
   const client = await resolveClient(args.client);
 
+  // Filtered on the athlete explicitly: RLS also lets a coach read the logs of
+  // the athletes they follow, and resuming one of those would write sets into
+  // somebody else's session.
   const existing = await client
     .from("session_logs")
     .select("id, session_id")
+    .eq("athlete_id", args.athleteId)
+    .eq("is_deleted", false)
     .eq("status", "in_progress")
     .limit(1)
     .maybeSingle();
@@ -179,16 +184,19 @@ export type LoadSessionResult =
  * This is what makes an interrupted session recoverable: the sets that reached
  * the server are the ones that count, and the queue holds the rest.
  */
-export async function loadInProgressSession(args?: {
+export async function loadInProgressSession(args: {
+  athleteId: string;
   client?: Client;
 }): Promise<LoadSessionResult> {
-  const client = await resolveClient(args?.client);
+  const client = await resolveClient(args.client);
 
   const { data, error } = await client
     .from("session_logs")
     .select(
       "id, started_at, exercise_logs ( exercise_id, session_exercise_id, set_number, reps_completed, weight_kg, rpe, created_at )",
     )
+    .eq("athlete_id", args.athleteId)
+    .eq("is_deleted", false)
     .eq("status", "in_progress")
     .limit(1)
     .maybeSingle();
