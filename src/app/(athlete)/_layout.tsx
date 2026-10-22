@@ -52,6 +52,12 @@ export default function AthleteLayout() {
         prefers a push from Aujourd'hui, drop this entry and add the link there.
       */}
       <Tabs.Screen name="plan" options={{ title: "Plan" }} />
+      {/*
+        The live session is pushed, not a tab: it runs for the duration of a
+        workout and is dismissed when it ends. href: null keeps it out of the
+        tab bar while leaving the route navigable.
+      */}
+      <Tabs.Screen name="session" options={{ href: null }} />
       <Tabs.Screen name="history" options={{ title: "Historique" }} />
       <Tabs.Screen name="profile" options={{ title: "Profil" }} />
     </Tabs>
