@@ -40,7 +40,10 @@ docker run -d --name "$CONTAINER" \
   "$IMAGE" >/dev/null
 
 for _ in $(seq 1 60); do
-  if docker exec "$CONTAINER" pg_isready -U postgres -d cadence >/dev/null 2>&1; then break; fi
+  # Over TCP on purpose: during initdb the image runs a TEMPORARY server that
+  # listens on the Unix socket only, so a socket check can pass just before that
+  # server stops and the real one starts (seen in CI on 2026-10-22).
+  if docker exec "$CONTAINER" pg_isready -h 127.0.0.1 -U postgres -d cadence >/dev/null 2>&1; then break; fi
   sleep 1
 done
 
