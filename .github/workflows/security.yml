@@ -19,15 +19,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v4
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -36,7 +36,7 @@ jobs:
       # Audit for known vulnerabilities
       - name: Run pnpm audit
         run: pnpm audit --audit-level=high
-        # Sprint 2: Don't block PRs, become strict at Sprint 5+
+        # Non bloquant pour l'instant : les failles des dépendances Expo se traitent avec la montée de version (récit 0.6)
         continue-on-error: true
 
   security-lint:
@@ -44,15 +44,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v4
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -61,15 +61,13 @@ jobs:
       # ESLint with security plugin
       - name: Run ESLint security rules
         run: pnpm lint:security
-        # Sprint 2: Don't block PRs
-        continue-on-error: true
 
   secrets-scan:
     name: Secrets Detection
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Full history to scan all commits
           fetch-depth: 0
@@ -79,5 +77,3 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           extra_args: --only-verified
-        # Sprint 2: Warning only
-        continue-on-error: true
