@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
+import { usePalette } from "@/theme/tokens";
 import { useRestTimer } from "@/hooks/use-rest-timer";
 import { useTodaySession } from "@/hooks/use-today-session";
 import { useWorkoutSession } from "@/hooks/use-workout-session";
@@ -58,7 +59,7 @@ export function LiveSessionScreen() {
   );
 
   if (today.status === "loading") {
-    return <Centered><ActivityIndicator size="large" color="#3b82f6" /></Centered>;
+    return <Centered><Spinner /></Centered>;
   }
 
   if (today.status === "error") {
@@ -165,7 +166,7 @@ function ActiveWorkout({
   };
 
   if (status.status === "starting") {
-    return <Centered><ActivityIndicator size="large" color="#3b82f6" /></Centered>;
+    return <Centered><Spinner /></Centered>;
   }
 
   if (status.status === "finished") {
@@ -185,14 +186,14 @@ function ActiveWorkout({
 
   return (
     <ScrollView
-      className="flex-1 bg-gray-50 dark:bg-gray-900"
+      className="flex-1 bg-bg"
       contentContainerClassName="pb-10"
     >
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 pt-4">
         <View>
           <Text variant="caption" className="uppercase">{sessionName}</Text>
-          <Text variant="body" className="font-semibold">
+          <Text variant="body" weight="semibold">
             Exercice {state.currentIndex + 1} / {state.exercises.length}
             {elapsed === null ? "" : ` · ${formatDurationFr(elapsed)}`}
           </Text>
@@ -201,17 +202,17 @@ function ActiveWorkout({
           accessibilityRole="button"
           accessibilityLabel="Quitter la séance"
           onPress={() => router.back()}
-          className="rounded-full bg-gray-200 px-4 py-2 dark:bg-gray-700"
+          className="rounded-full bg-surface2 px-4 py-2"
         >
-          <Text variant="caption" className="font-semibold">Quitter</Text>
+          <Text variant="caption" weight="semibold">Quitter</Text>
         </Pressable>
       </View>
 
       {/* Unsent sets. Shown as reassurance, not as an error: the sets are safe
           on disk and will go out on their own. */}
       {pendingCount > 0 ? (
-        <Pressable onPress={retryPending} className="mx-4 mt-3 rounded-xl bg-amber-100 p-3 dark:bg-amber-900/40">
-          <Text variant="caption" className="text-amber-900 dark:text-amber-100">
+        <Pressable onPress={retryPending} className="mx-4 mt-3 rounded-input bg-surface2 p-3">
+          <Text variant="caption" className="text-warning">
             {pendingCount} série{pendingCount === 1 ? "" : "s"} en attente d&apos;envoi. Elles sont
             enregistrées sur ton appareil — touche pour réessayer maintenant.
           </Text>
@@ -235,8 +236,8 @@ function ActiveWorkout({
       ) : null}
 
       {status.status === "error" ? (
-        <View className="mx-4 mt-3 rounded-xl bg-red-100 p-3 dark:bg-red-900/40">
-          <Text variant="caption" className="text-red-900 dark:text-red-100">{status.message}</Text>
+        <View className="mx-4 mt-3 rounded-input bg-surface2 p-3">
+          <Text variant="caption" className="text-error">{status.message}</Text>
         </View>
       ) : null}
 
@@ -266,7 +267,7 @@ function ActiveWorkout({
               <View
                 key={i}
                 className={`h-2 flex-1 rounded-full ${
-                  i < done.length ? "bg-blue-500" : "bg-gray-200 dark:bg-gray-700"
+                  i < done.length ? "bg-accent" : "bg-surface2"
                 }`}
               />
             ))}
@@ -284,9 +285,9 @@ function ActiveWorkout({
         </View>
 
         {/* Weight */}
-        <View className="mt-2 flex-row items-center gap-3 rounded-full border border-gray-300 px-3 py-2 dark:border-gray-700">
+        <View className="mt-2 flex-row items-center gap-3 rounded-full border border-border px-3 py-2">
           <StepButton small label="Moins de poids" onPress={() => dispatch({ type: "adjust-weight", delta: -WEIGHT_STEP_KG })} symbol="−" />
-          <Text variant="body" className="min-w-[80px] text-center font-semibold">
+          <Text variant="body" weight="semibold" className="min-w-[80px] text-center">
             {state.draft.weightKg === null ? "—" : `${state.draft.weightKg} kg`}
           </Text>
           <StepButton small label="Plus de poids" onPress={() => dispatch({ type: "adjust-weight", delta: WEIGHT_STEP_KG })} symbol="+" />
@@ -303,15 +304,15 @@ function ActiveWorkout({
       {done.length > 0 ? (
         <View className="gap-2 px-4 pt-6">
           {done.map((s) => (
-            <View key={s.setNumber} className="flex-row items-center justify-between rounded-xl bg-white px-4 py-2 dark:bg-gray-800">
+            <View key={s.setNumber} className="flex-row items-center justify-between rounded-input bg-surface px-4 py-2">
               <Text variant="caption">Série {s.setNumber}</Text>
-              <Text variant="body" className="font-semibold">
+              <Text variant="body" weight="semibold">
                 {s.repsCompleted} reps{s.weightKg === null ? "" : ` · ${s.weightKg} kg`}
               </Text>
             </View>
           ))}
           <Pressable accessibilityRole="button" onPress={() => dispatch({ type: "undo-last-set" })} className="self-end py-2">
-            <Text variant="caption" className="font-semibold text-blue-600 dark:text-blue-400">
+            <Text variant="caption" weight="semibold" className="text-accent">
               Annuler la dernière série
             </Text>
           </Pressable>
@@ -391,9 +392,9 @@ function StepButton({
   // holding a barbell.
   const size = small ? "h-8 w-8" : "h-[52px] w-[52px]";
   const background = primary
-    ? "bg-blue-600 dark:bg-blue-500"
-    : "bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-700";
-  const colour = primary ? "text-white" : "text-gray-900 dark:text-white";
+    ? "bg-btn-primary-bg"
+    : "bg-surface border border-border";
+  const colour = primary ? "text-btn-primary-text" : "text-text";
 
   return (
     <Pressable
@@ -402,7 +403,7 @@ function StepButton({
       onPress={onPress}
       className={`${size} ${background} items-center justify-center rounded-full active:opacity-70`}
     >
-      <Text variant="body" className={`${colour} ${small ? "text-base" : "text-2xl"} font-bold`}>
+      <Text variant="body" className={`${colour} ${small ? "text-base" : "text-2xl"}`} weight="bold">
         {symbol}
       </Text>
     </Pressable>
@@ -434,7 +435,7 @@ function RestBar({
   return (
     <View
       className={`mx-4 mt-3 gap-2 rounded-2xl p-4 ${
-        finished ? "bg-green-100 dark:bg-green-900/40" : "bg-blue-50 dark:bg-blue-950"
+        finished ? "bg-accent-dim" : "bg-surface2"
       }`}
     >
       <View className="flex-row items-center justify-between">
@@ -446,9 +447,9 @@ function RestBar({
         </Text>
       </View>
 
-      <View className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+      <View className="h-1.5 overflow-hidden rounded-full bg-surface2">
         <View
-          className={`h-full rounded-full ${finished ? "bg-green-500" : "bg-blue-500"}`}
+          className={`h-full rounded-full ${finished ? "bg-success" : "bg-accent"}`}
           style={{ width: `${Math.round(progress * 100)}%` }}
         />
       </View>
@@ -474,18 +475,23 @@ function RestChip({ label, onPress }: { label: string; onPress: () => void }) {
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      className="flex-1 rounded-full bg-white px-3 py-2 active:opacity-70 dark:bg-gray-800"
+      className="flex-1 rounded-full bg-surface px-3 py-2 active:opacity-70"
     >
-      <Text variant="caption" className="text-center font-semibold">
+      <Text variant="caption" weight="semibold" className="text-center">
         {label}
       </Text>
     </Pressable>
   );
 }
 
+function Spinner() {
+  const palette = usePalette();
+  return <ActivityIndicator size="large" color={palette.accent} />;
+}
+
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <View className="flex-1 items-center justify-center gap-4 bg-gray-50 px-8 dark:bg-gray-900">
+    <View className="flex-1 items-center justify-center gap-4 bg-bg px-8">
       {children}
     </View>
   );

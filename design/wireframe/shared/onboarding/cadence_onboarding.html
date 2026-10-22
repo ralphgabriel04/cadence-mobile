@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cadence — Onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>body{margin:0;background:#1a1a1a;}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="../../design-canvas.jsx"></script>
+<script type="text/babel" src="../../cadence-kit.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const AC = 'var(--accent)', MU = 'var(--text-muted)', BD = 'var(--border)';
+
+// --- geometric illustrations (arcs / rings — no AI blobs) ---
+function IllWelcome() {
+  return (
+    <svg width="260" height="260" viewBox="0 0 260 260" fill="none">
+      {[40,72,104,136].map((r,i)=>(<circle key={i} cx="130" cy="130" r={r} stroke={i<2?AC:BD} strokeWidth="1.5" opacity={1-i*0.22}/>))}
+      <g transform="translate(98,98) scale(1)">
+        {[8,15,22].map((r,i)=>(<path key={'l'+i} d={`M${24},${32-r} A${r},${r} 0 0 1 ${24},${32+r}`} stroke={AC} strokeWidth="2.4" strokeLinecap="round" opacity={1-i*0.18}/>))}
+        {[8,15,22].map((r,i)=>(<path key={'r'+i} d={`M${40},${32+r} A${r},${r} 0 0 1 ${40},${32-r}`} stroke={AC} strokeWidth="2.4" strokeLinecap="round" opacity={1-i*0.18}/>))}
+      </g>
+    </svg>
+  );
+}
+function IllTrack() {
+  return (
+    <svg width="260" height="260" viewBox="0 0 260 260" fill="none">
+      <circle cx="130" cy="130" r="92" stroke={BD} strokeWidth="10"/>
+      <circle cx="130" cy="130" r="92" stroke={AC} strokeWidth="10" strokeLinecap="round"
+              strokeDasharray="578" strokeDashoffset="200" transform="rotate(-90 130 130)"/>
+      <path d="M86 130h20l10-26 18 52 12-34 8 18h22" stroke={AC} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+function IllConnect() {
+  return (
+    <svg width="260" height="260" viewBox="0 0 260 260" fill="none">
+      <circle cx="78" cy="130" r="30" stroke={AC} strokeWidth="2"/><circle cx="78" cy="130" r="30" fill="var(--accent-dim)"/>
+      <circle cx="182" cy="130" r="30" stroke={BD} strokeWidth="2"/>
+      {[14,26,38].map((r,i)=>(<path key={'l'+i} d={`M${108},${130-r} A${r},${r} 0 0 1 ${108},${130+r}`} stroke={AC} strokeWidth="2" strokeLinecap="round" opacity={1-i*0.22}/>))}
+      {[14,26,38].map((r,i)=>(<path key={'r'+i} d={`M${152},${130+r} A${r},${r} 0 0 1 ${152},${130-r}`} stroke={AC} strokeWidth="2" strokeLinecap="round" opacity={1-i*0.22}/>))}
+      <text x="78" y="137" textAnchor="middle" fill={AC} fontSize="18" fontWeight="700" fontFamily="DM Sans">FL</text>
+      <text x="182" y="137" textAnchor="middle" fill={MU} fontSize="18" fontWeight="700" fontFamily="DM Sans">AX</text>
+    </svg>
+  );
+}
+
+function Dots({ n = 4, active }) {
+  return (
+    <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+      {Array.from({ length: n }).map((_, i) => (
+        <div key={i} style={{ height: 7, borderRadius: 999, transition: 'all .2s',
+          width: i === active ? 22 : 7, background: i === active ? 'var(--accent)' : 'var(--border)' }} />
+      ))}
+    </div>
+  );
+}
+
+function PermRow({ icon, title, sub }) {
+  return (
+    <div style={{ display: 'flex', gap: 13, alignItems: 'flex-start', padding: '14px 16px',
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)' }}>
+      <span style={{ color: 'var(--accent)', display: 'flex', marginTop: 1 }}>{icon}</span>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>{title}</div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-sub)', marginTop: 3, lineHeight: 1.4, textWrap: 'pretty' }}>{sub}</div>
+      </div>
+    </div>
+  );
+}
+
+function Slide({ theme, index }) {
+  const last = index === 3;
+  const content = [
+    { ill: <IllWelcome />, title: 'Bienvenue dans Cadence', body: 'Entraîne ton rythme. Coaching de force, fitness et endurance, pensé pour le Québec.' },
+    { ill: <IllTrack />,   title: 'Suis chaque séance en temps réel', body: 'Séries, charges, distances et zones — tout se note d\u2019un geste, pendant que tu t\u2019entraînes.' },
+    { ill: <IllConnect />, title: 'Reste connecté à ton coach', body: 'Ton coach bâtit tes programmes et suit ta progression. La résonance va dans les deux sens.' },
+  ][index];
+
+  return (
+    <Screen theme={theme} height={844}>
+      <StatusBar />
+      <div style={{ padding: `0 ${PX}px`, display: 'flex', flexDirection: 'column', height: 797 }}>
+        {/* skip */}
+        <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          {!last && <a style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-sub)', textDecoration: 'none' }}>Passer</a>}
+        </div>
+
+        {!last ? (
+          <>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <div style={{ marginBottom: 24 }}>{content.ill}</div>
+              <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em', textAlign: 'center', lineHeight: 1.12, textWrap: 'balance' }}>{content.title}</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-sub)', textAlign: 'center', lineHeight: 1.5, maxWidth: 300, textWrap: 'pretty' }}>{content.body}</div>
+            </div>
+          </>
+        ) : (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 18 }}>
+            <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.12, textWrap: 'balance' }}>Active les permissions</div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-sub)', lineHeight: 1.5, marginTop: -6, textWrap: 'pretty' }}>Deux accès optionnels pour tirer le maximum de Cadence.</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
+              <PermRow icon={<Icon.bell />} title="Notifications" sub="Rappels de séance et messages de ton coach, au bon moment." />
+              <PermRow icon={<Icon.heart />} title="Santé & fréquence cardiaque" sub="Connecte ta montre ou ta ceinture pour suivre tes zones d’effort." />
+            </div>
+          </div>
+        )}
+
+        {/* footer */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 28, gap: 16 }}>
+          <Dots n={4} active={index} />
+          <div style={{ flex: 1 }}>
+            <Btn variant="primary" height={52}>{last ? 'Commencer' : 'Suivant'}</Btn>
+          </div>
+        </div>
+      </div>
+    </Screen>
+  );
+}
+
+function App() {
+  const labels = ['1 · Bienvenue', '2 · Suivi en direct', '3 · Lien au coach', '4 · Permissions'];
+  return (
+    <DesignCanvas>
+      <DCSection id="signal" title="Signal — Dark mode" subtitle="Onboarding · carrousel 4 slides (athlète montré · coach = slide 3 « Suis tes athlètes en direct »)">
+        {labels.map((l,i)=>(<DCArtboard key={i} id={'s'+i} label={l} width={390} height={844}><Slide theme="signal" index={i} /></DCArtboard>))}
+      </DCSection>
+      <DCSection id="pulse" title="Pulse — Light mode">
+        {labels.map((l,i)=>(<DCArtboard key={i} id={'p'+i} label={l} width={390} height={844}><Slide theme="pulse" index={i} /></DCArtboard>))}
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -3,14 +3,15 @@ import {
   View,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
-  TouchableOpacity,
 } from "react-native";
 import { Link } from "expo-router";
 import { useAuth } from "@/providers/auth-provider";
 import { maskEmail } from "@/utils/mask-email";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Pill } from "@/components/ui/pill";
 import { Text } from "@/components/ui/text";
 
 function validateEmail(email: string) {
@@ -24,6 +25,10 @@ function validatePassword(password: string) {
   return null;
 }
 
+type Role = "coach" | "athlete";
+
+const ROLE_LABEL: Record<Role, string> = { athlete: "Athlète", coach: "Coach" };
+
 export function RegisterScreen() {
   const { signUp } = useAuth();
   const [firstName, setFirstName] = useState("");
@@ -31,7 +36,7 @@ export function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<"coach" | "athlete">("athlete");
+  const [role, setRole] = useState<Role>("athlete");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -81,16 +86,16 @@ export function RegisterScreen() {
 
   if (success) {
     return (
-      <View className="flex-1 items-center justify-center px-6 bg-white dark:bg-gray-900">
-        <Text variant="heading" className="text-center mb-4">
+      <View className="flex-1 items-center justify-center bg-bg px-5">
+        <Text variant="heading" className="mb-4 text-center">
           Vérifiez votre courriel
         </Text>
-        <Text variant="body" className="text-center mb-8">
+        <Text className="mb-8 text-center leading-5">
           Un lien de confirmation a été envoyé à {maskEmail(email)}. Cliquez dessus pour
           activer votre compte.
         </Text>
         <Link href="/(auth)/login">
-          <Text variant="body" className="text-blue-600 dark:text-blue-400 font-semibold">
+          <Text weight="bold" className="text-accent">
             Retour à la connexion
           </Text>
         </Link>
@@ -100,22 +105,22 @@ export function RegisterScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white dark:bg-gray-900"
+      className="flex-1 bg-bg"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="flex-1 justify-center px-6 py-12">
-          <Text variant="heading" className="text-center mb-2">
+        <View className="flex-1 justify-center px-5 py-12">
+          <Text variant="heading" className="mb-2 text-center">
             Créer un compte
           </Text>
-          <Text variant="caption" className="text-center mb-8">
+          <Text variant="caption" className="mb-8 text-center text-[13px]">
             Rejoignez Cadence
           </Text>
 
-          <View className="gap-4">
+          <View className="gap-3.5">
             <View className="flex-row gap-3">
               <View className="flex-1">
                 <Input
@@ -166,62 +171,42 @@ export function RegisterScreen() {
               error={confirmError}
             />
 
-            <View>
-              <Text className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <View className="gap-2">
+              <Text weight="bold" className="text-[10px] uppercase tracking-[0.8px] text-text-sub">
                 Je suis
               </Text>
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  className={`flex-1 rounded-xl py-3 items-center border ${
-                    role === "coach"
-                      ? "bg-blue-600 border-blue-600"
-                      : "border-gray-300 dark:border-gray-600"
-                  }`}
-                  onPress={() => setRole("coach")}
-                >
-                  <Text
-                    className={`font-semibold ${
-                      role === "coach" ? "text-white" : "text-gray-700 dark:text-gray-300"
-                    }`}
+              <View className="flex-row gap-2">
+                {(["athlete", "coach"] as const).map((r) => (
+                  <Pressable
+                    key={r}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: role === r }}
+                    onPress={() => setRole(r)}
                   >
-                    Coach
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className={`flex-1 rounded-xl py-3 items-center border ${
-                    role === "athlete"
-                      ? "bg-blue-600 border-blue-600"
-                      : "border-gray-300 dark:border-gray-600"
-                  }`}
-                  onPress={() => setRole("athlete")}
-                >
-                  <Text
-                    className={`font-semibold ${
-                      role === "athlete" ? "text-white" : "text-gray-700 dark:text-gray-300"
-                    }`}
-                  >
-                    Athlète
-                  </Text>
-                </TouchableOpacity>
+                    {/* eslint-disable-next-line security/detect-object-injection -- r is a typed literal, not user input */}
+                    <Pill label={ROLE_LABEL[r]} variant={role === r ? "active" : "default"} />
+                  </Pressable>
+                ))}
               </View>
             </View>
 
             {error ? <Text variant="error">{error}</Text> : null}
 
             <Button
-              title="S'inscrire"
+              title="Créer mon compte"
               onPress={handleRegister}
               loading={loading}
+              className="mt-2"
             />
           </View>
 
-          <View className="mt-6 items-center">
+          <View className="mt-8 flex-row items-center justify-center gap-1.5">
+            <Text variant="caption" weight="medium" className="text-[13px]">
+              Déjà un compte ?
+            </Text>
             <Link href="/(auth)/login">
-              <Text variant="caption">
-                Déjà un compte?{" "}
-                <Text variant="caption" className="text-blue-600 dark:text-blue-400 font-semibold">
-                  Se connecter
-                </Text>
+              <Text variant="caption" weight="bold" className="text-[13px] text-accent">
+                Se connecter
               </Text>
             </Link>
           </View>

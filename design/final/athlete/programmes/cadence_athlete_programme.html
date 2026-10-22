@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cadence — Programme athlète</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>body{margin:0;background:#1a1a1a;}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="../../design-canvas.jsx"></script>
+<script type="text/babel" src="../../cadence-kit.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+function WeekStrip({ active = 0 }) {
+  const days = [['Lun', 6], ['Mar', 7], ['Mer', 8], ['Jeu', 9], ['Ven', 10], ['Sam', 11], ['Dim', 12]];
+  return (
+    <div style={{ display: 'flex', gap: 6 }}>
+      {days.map(([d, n], i) => {
+        const on = i === active;
+        return (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '8px 0',
+            borderRadius: 12, background: on ? 'var(--accent)' : 'var(--surface)', border: '1px solid ' + (on ? 'var(--accent)' : 'var(--border)') }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', color: on ? 'var(--btn-primary-text)' : 'var(--text-muted)' }}>{d}</span>
+            <span className="mono" style={{ fontSize: 15, fontWeight: 500, color: on ? 'var(--btn-primary-text)' : 'var(--text)' }}>{n}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StatusTag({ status }) {
+  const map = {
+    done:   { label: 'Complétée', bg: 'color-mix(in oklch, var(--success) 16%, transparent)', fg: 'var(--success)', icon: <Icon.check width={13} /> },
+    today:  { label: 'Aujourd\u2019hui', bg: 'var(--accent-dim)', fg: 'var(--accent)', icon: null },
+    soon:   { label: 'À venir', bg: 'var(--pill-bg)', fg: 'var(--pill-text)', icon: null },
+    rest:   { label: 'Repos', bg: 'transparent', fg: 'var(--text-muted)', icon: null },
+  }[status];
+  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 24, padding: '0 10px', borderRadius: 999,
+    fontSize: 11, fontWeight: 700, background: map.bg, color: map.fg, border: status === 'rest' ? '1px dashed var(--border)' : 'none' }}>{map.icon}{map.label}</span>;
+}
+
+function SessionRow({ day, title, meta, status }) {
+  const muted = status === 'rest';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+      background: status === 'today' ? 'var(--surface)' : 'transparent',
+      borderLeft: status === 'today' ? 'var(--stripe) solid var(--accent)' : 'var(--stripe) solid transparent',
+      borderBottom: '1px solid var(--border)' }}>
+      <div style={{ flex: 1, opacity: muted ? 0.6 : 1 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{day}</div>
+        <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3 }}>{title}</div>
+        {meta && <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-sub)', marginTop: 3 }}>{meta}</div>}
+      </div>
+      <StatusTag status={status} />
+    </div>
+  );
+}
+
+function Liste({ theme }) {
+  return (
+    <Screen theme={theme} height={1000} scroll>
+      <StatusBar />
+      <div style={{ padding: `8px ${PX}px 16px` }}>
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em' }}>Ton programme</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-sub)', marginTop: 3 }}>Force — Bloc hypertrophie · Coach Alex</div>
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1 }}><LinearProgress value={42} /></div>
+          <span className="mono" style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-sub)' }}>Sem. 3/8</span>
+        </div>
+      </div>
+      <div style={{ padding: `0 ${PX}px 14px` }}><WeekStrip active={0} /></div>
+      <div style={{ borderTop: '1px solid var(--border)' }}>
+        <SessionRow day="Lundi" title="Force — Haut du corps" meta="6 exercices · ~55 min" status="today" />
+        <SessionRow day="Mardi" title="Course — Endurance Z2" meta="45 min · zone 2" status="soon" />
+        <SessionRow day="Mercredi" title="Repos" status="rest" />
+        <SessionRow day="Jeudi" title="Force — Bas du corps" meta="7 exercices · ~60 min" status="soon" />
+        <SessionRow day="Vendredi" title="Intervalles — Piste" meta="8 × 400 m" status="soon" />
+        <SessionRow day="Samedi" title="Force — Tirage & gainage" meta="5 exercices · ~40 min" status="soon" />
+        <SessionRow day="Dimanche" title="Repos" status="rest" />
+      </div>
+      <NavBar role="athlete" active="Programme" />
+    </Screen>
+  );
+}
+
+function ExLine({ name, detail, last }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: last ? 'none' : '1px solid var(--border)' }}>
+      <span style={{ fontSize: 14, fontWeight: 600 }}>{name}</span>
+      <span className="mono" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-sub)' }}>{detail}</span>
+    </div>
+  );
+}
+
+function Apercu({ theme }) {
+  return (
+    <Screen theme={theme} height={1000} scroll>
+      <StatusBar />
+      <TopBar title="Séance" />
+      <div style={{ padding: `4px ${PX}px 120px` }}>
+        <SectionLabel style={{ color: 'var(--accent)' }}>Lundi · Aujourd'hui</SectionLabel>
+        <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 8 }}>Force — Haut du corps</div>
+        <div style={{ display: 'flex', gap: 7, marginTop: 12, flexWrap: 'wrap' }}>
+          <Pill>6 exercices</Pill><Pill>~55 min</Pill><Pill>Coach Alex</Pill>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <SectionLabel style={{ marginBottom: 10 }}>Bloc A · Force</SectionLabel>
+          <Card>
+            <ExLine name="Développé couché" detail="4 × 6 · 85 kg" />
+            <ExLine name="Tirage barre" detail="4 × 8 · 70 kg" last />
+          </Card>
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <SectionLabel style={{ marginBottom: 10 }}>Bloc B · Accessoires</SectionLabel>
+          <Card>
+            <ExLine name="Presse militaire" detail="3 × 10 · 40 kg" />
+            <ExLine name="Élévations latérales" detail="3 × 12 · 10 kg" />
+            <ExLine name="Curl haltères" detail="3 × 12 · 14 kg" />
+            <ExLine name="Gainage" detail="3 × 45 s" last />
+          </Card>
+        </div>
+      </div>
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: `14px ${PX}px 28px`,
+        background: 'color-mix(in oklch, var(--bg) 90%, transparent)', backdropFilter: 'blur(12px)', borderTop: '1px solid var(--border)' }}>
+        <Btn variant="primary" height={56} icon={<Icon.arrow />}>Commencer la séance</Btn>
+      </div>
+    </Screen>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="signal" title="Signal — Dark mode" subtitle="Programme athlète · lecture seule · bottom nav · Programme actif">
+        <DCArtboard id="s-list" label="Semaine"       width={390} height={1000}><Liste theme="signal" /></DCArtboard>
+        <DCArtboard id="s-det"  label="Aperçu séance" width={390} height={1000}><Apercu theme="signal" /></DCArtboard>
+      </DCSection>
+      <DCSection id="pulse" title="Pulse — Light mode">
+        <DCArtboard id="p-list" label="Semaine"       width={390} height={1000}><Liste theme="pulse" /></DCArtboard>
+        <DCArtboard id="p-det"  label="Aperçu séance" width={390} height={1000}><Apercu theme="pulse" /></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -1,9 +1,12 @@
+import type { ReactNode } from "react";
 import {
   TouchableOpacity,
-  Text,
   ActivityIndicator,
   type TouchableOpacityProps,
 } from "react-native";
+
+import { usePalette } from "@/theme/tokens";
+import { Text } from "./text";
 
 type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger";
 
@@ -11,22 +14,24 @@ type ButtonProps = TouchableOpacityProps & {
   title: string;
   variant?: Variant;
   loading?: boolean;
+  /** Rendered before the title, e.g. an Ionicons element. */
+  icon?: ReactNode;
 };
 
 const variantStyles: Record<Variant, string> = {
-  primary: "bg-blue-600 dark:bg-blue-500",
-  secondary: "bg-gray-200 dark:bg-gray-700",
-  outline: "border border-gray-300 dark:border-gray-600",
+  primary: "bg-btn-primary-bg",
+  secondary: "bg-surface2 border border-border",
+  outline: "border border-border",
   ghost: "",
-  danger: "bg-red-600 dark:bg-red-500",
+  danger: "",
 };
 
 const textStyles: Record<Variant, string> = {
-  primary: "text-white font-semibold",
-  secondary: "text-gray-900 dark:text-white font-semibold",
-  outline: "text-gray-900 dark:text-white font-semibold",
-  ghost: "text-blue-600 dark:text-blue-400",
-  danger: "text-white font-semibold",
+  primary: "text-btn-primary-text",
+  secondary: "text-text",
+  outline: "text-text",
+  ghost: "text-accent",
+  danger: "text-error",
 };
 
 export function Button({
@@ -34,26 +39,33 @@ export function Button({
   variant = "primary",
   loading = false,
   disabled,
+  icon,
   className = "",
   ...props
 }: ButtonProps) {
+  const palette = usePalette();
   const isDisabled = disabled || loading;
 
   return (
     <TouchableOpacity
       // eslint-disable-next-line security/detect-object-injection -- variant is a typed enum, not user input
-      className={`rounded-xl px-6 py-4 items-center justify-center ${variantStyles[variant]} ${isDisabled ? "opacity-50" : ""} ${className}`}
+      className={`h-[52px] flex-row items-center justify-center gap-2 rounded-pill px-6 ${variantStyles[variant]} ${isDisabled ? "opacity-50" : ""} ${className}`}
       disabled={isDisabled}
       activeOpacity={0.7}
       {...props}
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === "primary" || variant === "danger" ? "#fff" : "#3b82f6"}
+          color={variant === "primary" ? palette.btnPrimaryText : palette.accent}
         />
       ) : (
-        // eslint-disable-next-line security/detect-object-injection -- variant is a typed enum, not user input
-        <Text className={`text-base ${textStyles[variant]}`}>{title}</Text>
+        <>
+          {icon}
+          {/* eslint-disable-next-line security/detect-object-injection -- variant is a typed enum, not user input */}
+          <Text weight="bold" className={`text-[15px] ${textStyles[variant]}`}>
+            {title}
+          </Text>
+        </>
       )}
     </TouchableOpacity>
   );

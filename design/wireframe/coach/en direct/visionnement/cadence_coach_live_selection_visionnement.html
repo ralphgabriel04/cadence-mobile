@@ -1,0 +1,142 @@
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 16px; font-family: var(--font-sans);">
+<div style="max-width: 320px; margin: 0 auto; position: relative;">
+
+  <!-- Page Live en arrière plan -->
+  <div style="background: var(--color-background-primary); border-radius: 24px; border: 0.5px solid var(--color-border-secondary); overflow: hidden; filter: blur(1.5px); opacity: 0.45; pointer-events: none; user-select: none;">
+
+    <div style="padding: 10px 20px 4px; display: flex; justify-content: space-between;">
+      <span style="font-size: 11px; font-weight: 500; color: var(--color-text-primary);">9:41</span>
+      <span style="font-size: 11px; color: var(--color-text-secondary);">●●●</span>
+    </div>
+
+    <div style="padding: 8px 16px 12px; border-bottom: 0.5px solid var(--color-border-tertiary);">
+      <p style="font-size: 18px; font-weight: 500; margin: 0 0 2px; color: var(--color-text-primary);">Animer</p>
+      <p style="font-size: 12px; color: var(--color-text-secondary); margin: 0;">Lancer et animer une séance avec vos athlètes</p>
+    </div>
+
+    <div style="padding: 14px 16px;">
+      <!-- Alerte athlètes actifs -->
+      <div style="background: #EAF3DE; border: 0.5px solid #7BC67E; border-radius: var(--border-radius-lg); padding: 11px 13px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px;">
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: #3B6D11; flex-shrink: 0;"></div>
+        <div style="flex: 1;">
+          <p style="font-size: 12px; font-weight: 500; color: #3B6D11; margin: 0;">3 athlètes en entraînement</p>
+          <p style="font-size: 11px; color: #3B6D11; margin: 2px 0 0; opacity: 0.8;">ML, KD, SA · en ce moment</p>
+        </div>
+        <button style="background: #3B6D11; border: none; border-radius: var(--border-radius-md); padding: 5px 12px; font-size: 11px; font-weight: 500; color: #EAF3DE; cursor: pointer; flex-shrink: 0;">Voir</button>
+      </div>
+
+      <div style="height: 40px; background: var(--color-background-secondary); border-radius: 8px; margin-bottom: 10px;"></div>
+      <div style="display: flex; gap: 3px; margin-bottom: 10px;">
+        <div style="flex: 1; height: 36px; background: #534AB7; border-radius: 8px;"></div>
+        <div style="flex: 1; height: 36px; background: var(--color-background-secondary); border-radius: 8px;"></div>
+      </div>
+      <div style="height: 70px; background: var(--color-background-secondary); border-radius: 12px; margin-bottom: 8px;"></div>
+      <div style="height: 70px; background: var(--color-background-secondary); border-radius: 12px;"></div>
+    </div>
+  </div>
+
+  <!-- Overlay -->
+  <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.3); border-radius: 24px;"></div>
+
+  <!-- Bottom sheet -->
+  <div style="position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-background-primary); border-radius: 20px 20px 24px 24px; padding: 0 0 20px; box-shadow: 0 -4px 24px rgba(0,0,0,0.15);">
+
+    <div style="display: flex; justify-content: center; padding: 10px 0 4px;">
+      <div style="width: 36px; height: 4px; background: var(--color-border-secondary); border-radius: 2px;"></div>
+    </div>
+
+    <div style="padding: 6px 20px 0;">
+      <p style="font-size: 15px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 2px;">Entraînements en cours</p>
+      <p style="font-size: 12px; color: var(--color-text-secondary); margin: 0 0 16px;">3 athlètes actifs — lequel veux-tu rejoindre ?</p>
+
+      <!-- Athlète 1 -->
+      <div style="border: 1.5px solid #534AB7; border-radius: var(--border-radius-lg); padding: 12px 13px; margin-bottom: 8px; background: #EEEDFE; cursor: pointer;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <div style="width: 34px; height: 34px; border-radius: 50%; background: #CECBF6; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #3C3489; flex-shrink: 0;">ML</div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="font-size: 13px; font-weight: 500; margin: 0; color: #3C3489;">Marie-Luce D.</p>
+            <p style="font-size: 11px; color: #534AB7; margin: 1px 0 0;">Intervalles 400m ×6 · débuté 9h05</p>
+          </div>
+          <div style="width: 7px; height: 7px; border-radius: 50%; background: #A32D2D; flex-shrink: 0;"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px;">
+          <div style="background: var(--color-background-primary); border-radius: var(--border-radius-md); padding: 5px 6px; text-align: center;">
+            <p style="font-size: 10px; color: #534AB7; margin: 0;">FC</p>
+            <p style="font-size: 13px; font-weight: 500; color: #3C3489; margin: 1px 0 0;">174</p>
+          </div>
+          <div style="background: var(--color-background-primary); border-radius: var(--border-radius-md); padding: 5px 6px; text-align: center;">
+            <p style="font-size: 10px; color: #534AB7; margin: 0;">Pace</p>
+            <p style="font-size: 13px; font-weight: 500; color: #3C3489; margin: 1px 0 0;">1:42</p>
+          </div>
+          <div style="background: var(--color-background-primary); border-radius: var(--border-radius-md); padding: 5px 6px; text-align: center;">
+            <p style="font-size: 10px; color: #534AB7; margin: 0;">Durée</p>
+            <p style="font-size: 13px; font-weight: 500; color: #3C3489; margin: 1px 0 0;">18 min</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Athlète 2 — alerte FC -->
+      <div style="border: 0.5px solid #F09595; border-radius: var(--border-radius-lg); padding: 12px 13px; margin-bottom: 8px; background: #FCEBEB; cursor: pointer;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <div style="width: 34px; height: 34px; border-radius: 50%; background: #F7C1C1; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #791F1F; flex-shrink: 0;">KD</div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="font-size: 13px; font-weight: 500; margin: 0; color: #791F1F;">Kevin D.</p>
+            <p style="font-size: 11px; color: #A32D2D; margin: 1px 0 0;">Intervalles 400m ×6 · débuté 9h02</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+            <i class="ti ti-alert-triangle" style="font-size: 13px; color: #A32D2D;" aria-hidden="true"></i>
+            <span style="font-size: 10px; color: #A32D2D;">FC élevée</span>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px;">
+          <div style="background: #F7C1C1; border-radius: var(--border-radius-md); padding: 5px 6px; text-align: center;">
+            <p style="font-size: 10px; color: #A32D2D; margin: 0;">FC</p>
+            <p style="font-size: 13px; font-weight: 500; color: #791F1F; margin: 1px 0 0;">194 ⚠</p>
+          </div>
+          <div style="background: #F7C1C1; border-radius: var(--border-radius-md); padding: 5px 6px; text-align: center;">
+            <p style="font-size: 10px; color: #A32D2D; margin: 0;">Pace</p>
+            <p style="font-size: 13px; font-weight: 500; color: #791F1F; margin: 1px 0 0;">1:38</p>
+          </div>
+          <div style="background: #F7C1C1; border-radius: var(--border-radius-md); padding: 5px 6px; text-align: center;">
+            <p style="font-size: 10px; color: #A32D2D; margin: 0;">Durée</p>
+            <p style="font-size: 13px; font-weight: 500; color: #791F1F; margin: 1px 0 0;">21 min</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Athlète 3 -->
+      <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 12px 13px; margin-bottom: 14px; cursor: pointer;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <div style="width: 34px; height: 34px; border-radius: 50%; background: #FAEEDA; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #854F0B; flex-shrink: 0;">SA</div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="font-size: 13px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Sara A.</p>
+            <p style="font-size: 11px; color: var(--color-text-secondary); margin: 1px 0 0;">Full body A · débuté 8h45</p>
+          </div>
+          <div style="width: 7px; height: 7px; border-radius: 50%; background: #A32D2D; flex-shrink: 0;"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px;">
+          <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 5px 6px; text-align: center;">
+            <p style="font-size: 10px; color: var(--color-text-tertiary); margin: 0;">FC</p>
+            <p style="font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin: 1px 0 0;">142</p>
+          </div>
+          <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 5px 6px; text-align: center;">
+            <p style="font-size: 10px; color: var(--color-text-tertiary); margin: 0;">Pace</p>
+            <p style="font-size: 13px; font-weight: 500; color: var(--color-text-tertiary); margin: 1px 0 0;">—</p>
+          </div>
+          <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 5px 6px; text-align: center;">
+            <p style="font-size: 10px; color: var(--color-text-tertiary); margin: 0;">Durée</p>
+            <p style="font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin: 1px 0 0;">32 min</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Annuler -->
+      <button style="width: 100%; padding: 10px; border: none; background: transparent; font-size: 13px; color: var(--color-text-secondary); cursor: pointer;">Annuler</button>
+    </div>
+  </div>
+
+</div>
+</div>

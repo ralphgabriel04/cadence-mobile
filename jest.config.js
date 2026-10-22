@@ -1,25 +1,13 @@
 /** @type {import('jest').Config} */
 module.exports = {
-  // Use node environment for utility function tests
-  testEnvironment: "node",
+  // jest-expo supplies the React Native transform (via babel.config.js, so
+  // NativeWind's jsxImportSource applies) and the transformIgnorePatterns for
+  // expo, @expo, @expo-google-fonts, react-native and friends.
+  preset: "jest-expo",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
-  transform: {
-    "^.+\\.(ts|tsx)$": [
-      "babel-jest",
-      {
-        presets: [
-          ["@babel/preset-env", { targets: { node: "current" } }],
-          "@babel/preset-typescript",
-        ],
-      },
-    ],
-  },
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
-  transformIgnorePatterns: [
-    "node_modules/(?!(react-native|@react-native|expo|@expo|nativewind)/)",
-  ],
   collectCoverageFrom: [
     "src/**/*.{ts,tsx}",
     "!src/**/*.d.ts",
@@ -35,7 +23,7 @@ module.exports = {
     global: {
       // Start low for MVP (Sprint 2), increase progressively
       branches: 20,
-      functions: 10, // TEMPORAIRE (récit 0.3) : remis à 15 dans la PR #172, une fois toute la pile intégrée
+      functions: 15,
       lines: 20,
       statements: 20,
     },

@@ -60,22 +60,22 @@ export function ResetPasswordScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white dark:bg-gray-900"
+      className="flex-1 bg-bg"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="flex-1 justify-center px-6 py-12">
-          <Text variant="heading" className="text-center mb-2">
+        <View className="flex-1 justify-center px-5 py-12">
+          <Text variant="heading" className="mb-2 text-center">
             Nouveau mot de passe
           </Text>
-          <Text variant="caption" className="text-center mb-8">
+          <Text variant="caption" className="mb-8 text-center text-[13px]">
             Choisissez un nouveau mot de passe sécurisé
           </Text>
 
-          <View className="gap-4">
+          <View className="gap-3.5">
             <Input
               label="Nouveau mot de passe"
               placeholder="Minimum 8 caractères"
@@ -101,6 +101,7 @@ export function ResetPasswordScreen() {
               title="Mettre à jour"
               onPress={handleUpdate}
               loading={loading}
+              className="mt-2"
             />
           </View>
         </View>

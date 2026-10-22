@@ -1,28 +1,46 @@
-import { View, TextInput, Text, type TextInputProps } from "react-native";
+import { useState } from "react";
+import { View, TextInput, type TextInputProps } from "react-native";
+
+import { usePalette } from "@/theme/tokens";
+import { Text } from "./text";
 
 type InputProps = TextInputProps & {
   label: string;
   error?: string;
 };
 
-export function Input({ label, error, className = "", ...props }: InputProps) {
+export function Input({
+  label,
+  error,
+  className = "",
+  onFocus,
+  onBlur,
+  ...props
+}: InputProps) {
+  const palette = usePalette();
+  const [focused, setFocused] = useState(false);
+
+  const border = error ? "border-error" : focused ? "border-accent" : "border-border";
+
   return (
-    <View className="w-full">
-      <Text className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+    <View className="w-full gap-1.5">
+      <Text weight="bold" className="text-[10px] uppercase tracking-[0.8px] text-text-sub">
         {label}
       </Text>
       <TextInput
-        className={`w-full rounded-xl border px-4 py-3 text-base text-gray-900 dark:text-white bg-white dark:bg-gray-800 ${
-          error
-            ? "border-red-500"
-            : "border-gray-300 dark:border-gray-600"
-        } ${className}`}
-        placeholderTextColor="#9ca3af"
+        className={`h-[50px] w-full rounded-input border bg-surface px-3.5 font-sans-medium text-sm text-text ${border} ${className}`}
+        placeholderTextColor={palette.textMuted}
+        onFocus={(e) => {
+          setFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          onBlur?.(e);
+        }}
         {...props}
       />
-      {error ? (
-        <Text className="text-sm text-red-500 mt-1">{error}</Text>
-      ) : null}
+      {error ? <Text variant="error">{error}</Text> : null}
     </View>
   );
 }

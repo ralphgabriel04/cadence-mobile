@@ -4,9 +4,11 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
+    "start:tunnel": "expo start --tunnel",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "design": "npx serve design",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "lint:security": "eslint src",
@@ -25,10 +27,13 @@
     "audit:fix": "pnpm audit --fix"
   },
   "dependencies": {
+    "@expo-google-fonts/dm-mono": "^0.4.2",
+    "@expo-google-fonts/dm-sans": "^0.4.2",
     "@supabase/supabase-js": "^2.101.0",
     "expo": "~54.0.33",
     "expo-constants": "~18.0.13",
     "expo-file-system": "~19.0.21",
+    "expo-font": "~14.0.12",
     "expo-haptics": "~15.0.8",
     "expo-linking": "~8.0.11",
     "expo-notifications": "~0.32.17",
@@ -42,9 +47,11 @@
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-safe-area-context": "~5.6.0",
-    "react-native-screens": "~4.16.0"
+    "react-native-screens": "~4.16.0",
+    "react-native-svg": "15.12.1"
   },
   "devDependencies": {
+    "@expo/ngrok": "^4.1.3",
     "@babel/preset-env": "^7.29.2",
     "@babel/preset-typescript": "^7.28.5",
     "@testing-library/react-native": "^13.3.3",
@@ -58,9 +65,9 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-security": "^4.0.0",
     "jest": "^30.3.0",
-    "jest-expo": "^55.0.15",
+    "jest-expo": "^54.0.18",
     "prettier": "^3.8.2",
-    "react-test-renderer": "^19.2.5",
+    "react-test-renderer": "^19.1.0",
     "tailwindcss": "3.4.19",
     "typescript": "~5.9.2"
   },

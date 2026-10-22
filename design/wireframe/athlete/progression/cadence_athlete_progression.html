@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cadence — Progression athlète</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>body{margin:0;background:#1a1a1a;}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="../../design-canvas.jsx"></script>
+<script type="text/babel" src="../../cadence-kit.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const AC = 'var(--accent)';
+
+function MetricCard({ value, label, accent }) {
+  return (
+    <Card pad={14} style={{ flex: 1 }}>
+      <div className="mono" style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: accent ? AC : 'var(--text)' }}>{value}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-sub)', marginTop: 4 }}>{label}</div>
+    </Card>
+  );
+}
+
+function BarChart() {
+  const data = [['S14', 9800], ['S15', 10400], ['S16', 11100], ['S17', 10600], ['S18', 11800], ['S19', 12100], ['S20', 12450], ['S21', 11600]];
+  const max = 13800, W = 350, H = 150, n = data.length, bw = 26, gap = (W - n * bw) / (n - 1);
+  const current = 6;
+  return (
+    <svg width="100%" viewBox={`0 -32 ${W} ${H + 58}`} fill="none">
+      {data.map(([lbl, v], i) => {
+        const h = (v / max) * H, x = i * (bw + gap), y = H - h, on = i === current;
+        return (
+          <g key={i}>
+            <rect x={x} y={y} width={bw} height={h} rx="5" fill={on ? AC : 'var(--surface2)'} />
+            <text x={x + bw / 2} y={H + 18} textAnchor="middle" fontSize="9.5" fontWeight="600" fill="var(--text-muted)" fontFamily="DM Mono">{lbl}</text>
+          </g>
+        );
+      })}
+      {/* tooltip on S20 */}
+      <g transform={`translate(${6 * (bw + gap) + bw / 2}, ${H - (12450 / max) * H - 10})`}>
+        <rect x="-44" y="-26" width="88" height="24" rx="6" fill="var(--text)" />
+        <text x="0" y="-10" textAnchor="middle" fontSize="10.5" fontWeight="700" fill="var(--bg)" fontFamily="DM Mono">S20 · 12 450 kg</text>
+      </g>
+    </svg>
+  );
+}
+
+function LineChart() {
+  const W = 350, H = 150, pad = 6;
+  const series = [
+    { name: 'Squat', color: AC, pts: [120, 128, 138, 145] },
+    { name: 'Soulevé de terre', color: 'var(--text-sub)', pts: [150, 162, 172, 180] },
+    { name: 'Développé couché', color: 'var(--success)', pts: [88, 92, 98, 102] },
+  ];
+  const min = 80, max = 190, n = 4;
+  const xs = i => pad + (i / (n - 1)) * (W - pad * 2);
+  const ys = v => H - pad - ((v - min) / (max - min)) * (H - pad * 2);
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H + 24}`} fill="none">
+      {[0,1,2,3].map(i => <line key={i} x1={xs(i)} y1={pad} x2={xs(i)} y2={H - pad} stroke="var(--border)" strokeWidth="1" strokeDasharray="2 4" />)}
+      {series.map((s, si) => (
+        <g key={si}>
+          <path d={s.pts.map((v, i) => `${i ? 'L' : 'M'}${xs(i)},${ys(v)}`).join(' ')} stroke={s.color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          {s.pts.map((v, i) => <circle key={i} cx={xs(i)} cy={ys(v)} r="3" fill="var(--surface)" stroke={s.color} strokeWidth="2" />)}
+        </g>
+      ))}
+      {['Fév', 'Mar', 'Avr', 'Mai'].map((m, i) => <text key={i} x={xs(i)} y={H + 16} textAnchor="middle" fontSize="9.5" fontWeight="600" fill="var(--text-muted)" fontFamily="DM Sans">{m}</text>)}
+    </svg>
+  );
+}
+
+function PRItem({ date, ex, weight, last }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderBottom: last ? 'none' : '1px solid var(--border)' }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>{ex}</div>
+        <div className="mono" style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', marginTop: 2 }}>{date}</div>
+      </div>
+      <span className="mono" style={{ fontSize: 15, fontWeight: 500, color: AC }}>{weight}</span>
+      <Pill accent>PR</Pill>
+    </div>
+  );
+}
+
+function Legend({ items }) {
+  return (
+    <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+      {items.map((it, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 14, height: 3, borderRadius: 2, background: it.color }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-sub)' }}>{it.name}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Progression({ theme }) {
+  const periods = ['7 j', '30 j', '3 mois', '1 an'];
+  return (
+    <Screen theme={theme} height={1200} scroll>
+      <StatusBar />
+      <div style={{ padding: `8px ${PX}px 100px`, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em' }}>Statistiques</div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          {periods.map((p, i) => <Pill key={i} active={i === 1}>{p}</Pill>)}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <MetricCard value="83 %" label="Compliance" accent />
+          <MetricCard value="14" label="Séances" />
+          <MetricCard value="5" label="PRs" accent />
+        </div>
+
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+            <SectionLabel>Volume hebdomadaire</SectionLabel>
+            <span className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>kg soulevés</span>
+          </div>
+          <Card><BarChart /></Card>
+        </div>
+
+        <div>
+          <SectionLabel style={{ marginBottom: 12 }}>Progression — exercices clés</SectionLabel>
+          <Card>
+            <div style={{ marginBottom: 12 }}>
+              <Legend items={[{ name: 'Squat', color: AC }, { name: 'Soulevé de terre', color: 'var(--text-sub)' }, { name: 'Développé couché', color: 'var(--success)' }]} />
+            </div>
+            <LineChart />
+          </Card>
+        </div>
+
+        <div>
+          <SectionLabel style={{ marginBottom: 10 }}>Records personnels récents</SectionLabel>
+          <Card pad={0}>
+            <PRItem date="24 mai 2026" ex="Soulevé de terre" weight="180 kg" />
+            <PRItem date="17 mai 2026" ex="Squat" weight="145 kg" />
+            <PRItem date="9 mai 2026" ex="Développé couché" weight="102,5 kg" />
+            <PRItem date="2 mai 2026" ex="Tirage barre" weight="82,5 kg" />
+            <PRItem date="26 avr. 2026" ex="Presse militaire" weight="57,5 kg" last />
+          </Card>
+        </div>
+      </div>
+      <NavBar role="athlete" active="Progression" />
+    </Screen>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="signal" title="Signal — Dark mode" subtitle="Progression athlète · bottom nav · Progression actif">
+        <DCArtboard id="s" label="Statistiques" width={390} height={1200}><Progression theme="signal" /></DCArtboard>
+      </DCSection>
+      <DCSection id="pulse" title="Pulse — Light mode">
+        <DCArtboard id="p" label="Statistiques" width={390} height={1200}><Progression theme="pulse" /></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

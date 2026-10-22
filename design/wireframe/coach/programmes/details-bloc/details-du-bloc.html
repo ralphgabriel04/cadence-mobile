@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cadence — Détails du bloc (Template)</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #1a1a1a; font-family: 'DM Sans', sans-serif; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ─── THEMES ──────────────────────────────────────────────────── */
+const T = {
+  signal: {
+    bg:"#0C0C0F", surface:"#16161C", surface2:"#1E1E28", border:"#2A2A36",
+    text:"#EEEEF5", textSub:"#9090A8", textMuted:"#50506A",
+    accent:"oklch(0.62 0.22 22)", accentDim:"oklch(0.18 0.06 22)",
+    pill:"#252534", pillText:"#BBBBCC",
+    btnPrimary:"oklch(0.62 0.22 22)", btnPrimaryText:"#fff",
+    input:"#1E1E28", inputBorder:"#2A2A36",
+    segActive:"#2E2E3E", segActiveBorder:"#5A5A7A",
+    stripeW:4, dark:true,
+  },
+  pulse: {
+    bg:"#F6F6F8", surface:"#FFFFFF", surface2:"#F0F0F4", border:"#E4E4EC",
+    text:"#111118", textSub:"#707088", textMuted:"#A0A0B4",
+    accent:"oklch(0.52 0.22 22)", accentDim:"oklch(0.95 0.06 22)",
+    pill:"#EBEBF2", pillText:"#404058",
+    btnPrimary:"#111118", btnPrimaryText:"#fff",
+    input:"#F0F0F4", inputBorder:"#E4E4EC",
+    segActive:"#FFFFFF", segActiveBorder:"#E4E4EC",
+    stripeW:6, dark:false,
+  },
+};
+
+/* ─── PRIMITIVES ──────────────────────────────────────────────── */
+function StatusBar({ t }) {
+  return (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 20px 6px", height:44 }}>
+      <span style={{ fontFamily:"DM Mono", fontSize:13, fontWeight:500, color:t.text, letterSpacing:"0.02em" }}>9:41</span>
+      <div style={{ width:110, height:14, background:t.dark?"#2A2A3A":"#D8D8E0", borderRadius:7 }} />
+      <div style={{ display:"flex", gap:5, alignItems:"center" }}>
+        <svg width="15" height="11" viewBox="0 0 15 11" fill={t.textMuted}>
+          <rect x="0" y="5" width="2.5" height="6" rx="1"/><rect x="3.5" y="3" width="2.5" height="8" rx="1"/>
+          <rect x="7" y="1" width="2.5" height="10" rx="1"/><rect x="10.5" y="0" width="2.5" height="11" rx="1"/>
+        </svg>
+        <svg width="17" height="11" viewBox="0 0 20 11" fill="none">
+          <rect x="0.5" y="0.5" width="17" height="10" rx="3" stroke={t.textMuted} strokeWidth="1"/>
+          <rect x="2" y="2" width="12" height="7" rx="2" fill={t.textMuted}/>
+          <rect x="18" y="3.5" width="2" height="4" rx="1" fill={t.textMuted}/>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function BackButton({ t, label="Retour" }) {
+  return (
+    <div style={{ display:"inline-flex", alignItems:"center", gap:6, cursor:"pointer", padding:"6px 20px" }}>
+      <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
+        <path d="M7 1L1 7l6 6" stroke={t.textSub} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      <span style={{ fontFamily:"DM Sans", fontSize:13, fontWeight:500, color:t.textSub }}>{label}</span>
+    </div>
+  );
+}
+
+/* ─── FIELD LABEL ─────────────────────────────────────────────── */
+function FieldLabel({ t, label, optional }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
+      <span style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase" }}>{label}</span>
+      {optional && <span style={{ fontFamily:"DM Sans", fontSize:10, color:t.textMuted, opacity:0.6, fontStyle:"italic" }}>facultatif</span>}
+    </div>
+  );
+}
+
+/* ─── SECTION DIVIDER ─────────────────────────────────────────── */
+function SectionDivider({ t, label }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:10, margin:"22px 0 16px" }}>
+      <div style={{ flex:1, height:1, background:t.border }} />
+      {label && <span style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.10em", textTransform:"uppercase", whiteSpace:"nowrap" }}>{label}</span>}
+      {label && <div style={{ flex:1, height:1, background:t.border }} />}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INPUT TYPES — each is a self-contained field component
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 1. NUMERIC + UNIT — e.g. "10.5 km", "148 bpm", "4:30 /km" */
+function FieldNumericUnit({ t, label, value, unit, placeholder, optional }) {
+  return (
+    <div style={{ marginBottom:16 }}>
+      <FieldLabel t={t} label={label} optional={optional} />
+      <div style={{ background:t.input, border:`1px solid ${t.inputBorder}`, borderRadius:14, display:"flex", alignItems:"center", overflow:"hidden" }}>
+        <div style={{ flex:1, padding:"13px 16px" }}>
+          <span style={{ fontFamily:"DM Mono", fontSize:18, fontWeight:500, color: value ? t.text : t.textMuted, letterSpacing:"-0.02em" }}>
+            {value || placeholder || "—"}
+          </span>
+        </div>
+        <div style={{ padding:"0 16px", borderLeft:`1px solid ${t.inputBorder}`, height:50, display:"flex", alignItems:"center" }}>
+          <span style={{ fontFamily:"DM Mono", fontSize:13, fontWeight:500, color:t.textMuted, whiteSpace:"nowrap" }}>{unit}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* 2. STEPPER — e.g. "Séries : 4", "Répétitions : 10" */
+function FieldStepper({ t, label, value, optional }) {
+  return (
+    <div style={{ marginBottom:16 }}>
+      <FieldLabel t={t} label={label} optional={optional} />
+      <div style={{ background:t.input, border:`1px solid ${t.inputBorder}`, borderRadius:14, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 8px 6px 16px" }}>
+        <span style={{ fontFamily:"DM Mono", fontSize:20, fontWeight:500, color:t.text }}>{value}</span>
+        <div style={{ display:"flex", gap:4 }}>
+          <button style={{ width:38, height:38, borderRadius:10, background:t.surface2, border:`1px solid ${t.border}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <svg width="12" height="2" viewBox="0 0 12 2" fill="none"><path d="M1 1h10" stroke={t.textSub} strokeWidth="2" strokeLinecap="round"/></svg>
+          </button>
+          <button style={{ width:38, height:38, borderRadius:10, background:t.btnPrimary, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke={t.btnPrimaryText} strokeWidth="2" strokeLinecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* 3. ZONE SELECTOR — e.g. Zone 1–5 segmented control */
+const zones = ["Z1","Z2","Z3","Z4","Z5"];
+function FieldZoneSelector({ t, label, selected=3, optional }) {
+  return (
+    <div style={{ marginBottom:16 }}>
+      <FieldLabel t={t} label={label} optional={optional} />
+      <div style={{ background:t.input, border:`1px solid ${t.inputBorder}`, borderRadius:14, display:"flex", padding:4, gap:3 }}>
+        {zones.map((z, i) => {
+          const active = i === selected - 1;
+          return (
+            <button key={i} style={{
+              flex:1, height:42, borderRadius:10, border:"none",
+              background: active ? t.btnPrimary : "transparent",
+              cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:1,
+            }}>
+              <span style={{ fontFamily:"DM Mono", fontSize:13, fontWeight:500, color: active ? t.btnPrimaryText : t.textMuted }}>{z}</span>
+            </button>
+          );
+        })}
+      </div>
+      {/* Zone descriptions */}
+      <div style={{ marginTop:8, padding:"8px 12px", background:t.accentDim, borderRadius:10, border:`1px solid ${t.accent}` }}>
+        <span style={{ fontFamily:"DM Sans", fontSize:11, color:t.accent }}>Zone {selected} · {["Récupération active","Endurance fondamentale","Tempo aérobie","Seuil lactique","VO₂max"][selected-1]}</span>
+      </div>
+    </div>
+  );
+}
+
+/* 4. DURATION PICKER — mm:ss or hh:mm */
+function FieldDuration({ t, label, hours, minutes, seconds, optional }) {
+  const showHours = hours !== undefined;
+  return (
+    <div style={{ marginBottom:16 }}>
+      <FieldLabel t={t} label={label} optional={optional} />
+      <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+        {showHours && <>
+          <div style={{ flex:1, background:t.input, border:`1px solid ${t.inputBorder}`, borderRadius:14, padding:"13px 0", textAlign:"center" }}>
+            <span style={{ fontFamily:"DM Mono", fontSize:20, fontWeight:500, color:t.text }}>{String(hours).padStart(2,"0")}</span>
+          </div>
+          <span style={{ fontFamily:"DM Mono", fontSize:18, color:t.textMuted }}>:</span>
+        </>}
+        <div style={{ flex:1, background:t.input, border:`1px solid ${t.inputBorder}`, borderRadius:14, padding:"13px 0", textAlign:"center" }}>
+          <span style={{ fontFamily:"DM Mono", fontSize:20, fontWeight:500, color:t.text }}>{String(minutes).padStart(2,"0")}</span>
+        </div>
+        <span style={{ fontFamily:"DM Mono", fontSize:18, color:t.textMuted }}>:</span>
+        <div style={{ flex:1, background:t.input, border:`1px solid ${t.inputBorder}`, borderRadius:14, padding:"13px 0", textAlign:"center" }}>
+          <span style={{ fontFamily:"DM Mono", fontSize:20, fontWeight:500, color: seconds > 0 ? t.text : t.textMuted }}>{String(seconds).padStart(2,"0")}</span>
+        </div>
+        <div style={{ padding:"0 10px" }}>
+          <span style={{ fontFamily:"DM Sans", fontSize:11, color:t.textMuted }}>{showHours ? "h    min   sec" : "min    sec"}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* 5. SEGMENTED (text options) — e.g. Effort perçu, type de récupération */
+function FieldSegmented({ t, label, options, selected=0, optional }) {
+  return (
+    <div style={{ marginBottom:16 }}>
+      <FieldLabel t={t} label={label} optional={optional} />
+      <div style={{ background:t.input, border:`1px solid ${t.inputBorder}`, borderRadius:14, display:"flex", padding:4, gap:3 }}>
+        {options.map((opt, i) => {
+          const active = i === selected;
+          return (
+            <button key={i} style={{
+              flex:1, height:38, borderRadius:10, border:"none",
+              background: active ? t.btnPrimary : "transparent",
+              cursor:"pointer",
+            }}>
+              <span style={{ fontFamily:"DM Sans", fontSize:12, fontWeight:700, color: active ? t.btnPrimaryText : t.textMuted }}>{opt}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* 6. TOGGLE — e.g. "Inclure la récupération", "Répéter le bloc" */
+function FieldToggle({ t, label, sublabel, enabled=false, optional }) {
+  return (
+    <div style={{ marginBottom:16 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:t.input, border:`1px solid ${t.inputBorder}`, borderRadius:14, padding:"13px 16px" }}>
+        <div>
+          <div style={{ fontFamily:"DM Sans", fontSize:14, fontWeight:600, color:t.text }}>{label}</div>
+          {sublabel && <div style={{ fontFamily:"DM Sans", fontSize:11, color:t.textMuted, marginTop:2 }}>{sublabel}</div>}
+        </div>
+        {/* Toggle pill */}
+        <div style={{ width:46, height:26, borderRadius:13, background: enabled ? t.btnPrimary : t.border, position:"relative", flexShrink:0, cursor:"pointer", transition:"background 0.2s" }}>
+          <div style={{ position:"absolute", top:3, left: enabled ? 22 : 3, width:20, height:20, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* 7. INLINE PAIR — two narrow fields side by side (e.g. min/max BPM) */
+function FieldPair({ t, labelA, labelB, valueA, valueB, unitA, unitB, optional }) {
+  return (
+    <div style={{ marginBottom:16 }}>
+      <FieldLabel t={t} label={`${labelA} / ${labelB}`} optional={optional} />
+      <div style={{ display:"flex", gap:8 }}>
+        {[{label:labelA, value:valueA, unit:unitA},{label:labelB, value:valueB, unit:unitB}].map((f,i) => (
+          <div key={i} style={{ flex:1, background:t.input, border:`1px solid ${t.inputBorder}`, borderRadius:14, display:"flex", alignItems:"center", overflow:"hidden" }}>
+            <div style={{ flex:1, padding:"12px 14px" }}>
+              <div style={{ fontFamily:"DM Mono", fontSize:16, fontWeight:500, color: f.value ? t.text : t.textMuted }}>{f.value || "—"}</div>
+            </div>
+            <div style={{ padding:"0 10px", borderLeft:`1px solid ${t.inputBorder}`, height:46, display:"flex", alignItems:"center" }}>
+              <span style={{ fontFamily:"DM Mono", fontSize:11, color:t.textMuted }}>{f.unit}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* 8. REPETITIONS BLOCK (count × rest) — stepper pair */
+function FieldRepetitions({ t, label, reps, rest, optional }) {
+  return (
+    <div style={{ marginBottom:16 }}>
+      <FieldLabel t={t} label={label} optional={optional} />
+      <div style={{ background:t.input, border:`1px solid ${t.inputBorder}`, borderRadius:14, overflow:"hidden" }}>
+        {/* Reps row */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 12px 10px 16px", borderBottom:`1px solid ${t.border}` }}>
+          <div>
+            <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:600, color:t.textMuted, letterSpacing:"0.05em", textTransform:"uppercase", marginBottom:2 }}>Répétitions</div>
+            <span style={{ fontFamily:"DM Mono", fontSize:18, fontWeight:500, color:t.text }}>{reps}×</span>
+          </div>
+          <div style={{ display:"flex", gap:4 }}>
+            <button style={{ width:34, height:34, borderRadius:9, background:t.surface2, border:`1px solid ${t.border}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="10" height="2" viewBox="0 0 10 2" fill="none"><path d="M1 1h8" stroke={t.textSub} strokeWidth="2" strokeLinecap="round"/></svg>
+            </button>
+            <button style={{ width:34, height:34, borderRadius:9, background:t.btnPrimary, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke={t.btnPrimaryText} strokeWidth="2" strokeLinecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+        {/* Rest row */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 12px 10px 16px" }}>
+          <div>
+            <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:600, color:t.textMuted, letterSpacing:"0.05em", textTransform:"uppercase", marginBottom:2 }}>Repos entre répétitions</div>
+            <span style={{ fontFamily:"DM Mono", fontSize:18, fontWeight:500, color:t.text }}>{rest}</span>
+          </div>
+          <div style={{ display:"flex", gap:4 }}>
+            <button style={{ width:34, height:34, borderRadius:9, background:t.surface2, border:`1px solid ${t.border}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="10" height="2" viewBox="0 0 10 2" fill="none"><path d="M1 1h8" stroke={t.textSub} strokeWidth="2" strokeLinecap="round"/></svg>
+            </button>
+            <button style={{ width:34, height:34, borderRadius:9, background:t.btnPrimary, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke={t.btnPrimaryText} strokeWidth="2" strokeLinecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── BLOCK HEADER ────────────────────────────────────────────── */
+function BlockHeader({ t, name, zone, sport }) {
+  return (
+    <div style={{ margin:"14px 20px 20px", background:t.surface, borderRadius:16, border:`1px solid ${t.border}`, overflow:"hidden", display:"flex" }}>
+      <div style={{ width:t.stripeW, background:t.accent, flexShrink:0 }} />
+      <div style={{ padding:"14px 16px" }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:17, fontWeight:700, color:t.text, letterSpacing:"-0.02em", marginBottom:6 }}>{name}</div>
+        <div style={{ display:"flex", gap:6 }}>
+          <span style={{ background:t.pill, color:t.pillText, borderRadius:20, padding:"2px 9px", fontSize:10, fontWeight:600 }}>{sport}</span>
+          {zone && (
+            <span style={{ background:t.accentDim, color:t.accent, borderRadius:20, padding:"2px 9px", fontSize:10, fontWeight:600, border:`1px solid ${t.accent}` }}>{zone}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── FULL TEMPLATE SCREEN ────────────────────────────────────── */
+function BlocDetailTemplate({ t, sport="Course à pied", blocName="Intervalle intensif", zone="Zone 4" }) {
+  return (
+    <div style={{ width:390, minHeight:844, background:t.bg, display:"flex", flexDirection:"column" }}>
+      <StatusBar t={t} />
+      <BackButton t={t} label="Ajouter un bloc" />
+
+      {/* Block identity header */}
+      <BlockHeader t={t} name={blocName} zone={zone} sport={sport} />
+
+      {/* Scrollable fields */}
+      <div style={{ flex:1, padding:"0 20px", overflowY:"auto" }}>
+
+        {/* ── SECTION: Durée & Répétitions ── */}
+        <SectionDivider t={t} label="Durée &amp; Répétitions" />
+
+        <FieldDuration t={t} label="Durée du bloc" minutes={5} seconds={0} />
+        <FieldRepetitions t={t} label="Répétitions" reps={6} rest="2:00 min" />
+        <FieldToggle t={t} label="Récupération active" sublabel="Jogging léger entre les répétitions" enabled={true} />
+
+        {/* ── SECTION: Cibles physiologiques ── */}
+        <SectionDivider t={t} label="Cibles physiologiques" />
+
+        <FieldZoneSelector t={t} label="Zone cardiaque cible" selected={4} />
+        <FieldPair t={t} labelA="FC min" labelB="FC max" valueA="162" valueB="175" unitA="bpm" unitB="bpm" />
+        <FieldNumericUnit t={t} label="Allure cible" value="4:15" unit="/km" />
+        <FieldNumericUnit t={t} label="Puissance cible" unit="W" optional />
+
+        {/* ── SECTION: Distance & Charge ── */}
+        <SectionDivider t={t} label="Distance &amp; Charge" />
+
+        <FieldNumericUnit t={t} label="Distance cible" value="1.5" unit="km" />
+        <FieldSegmented t={t} label="Effort perçu (RPE)" options={["1–3","4–5","6–7","8–9","10"]} selected={3} optional />
+
+        <div style={{ height:24 }} />
+      </div>
+
+      {/* Save CTA */}
+      <div style={{ padding:"12px 20px 32px", borderTop:`1px solid ${t.border}` }}>
+        <button style={{ width:"100%", height:50, background:t.btnPrimary, border:"none", borderRadius:40, cursor:"pointer" }}>
+          <span style={{ fontFamily:"DM Sans", fontSize:14, fontWeight:700, color:t.btnPrimaryText }}>Ajouter le bloc</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── ANNOTATION CARD (for the designer) ─────────────────────── */
+function AnnotationCard({ title, desc, fieldTypes }) {
+  return (
+    <div style={{ width:300, background:"#FEFCE8", borderRadius:14, padding:"16px 18px", border:"1px solid #FDE68A", fontFamily:"DM Sans" }}>
+      <div style={{ fontSize:13, fontWeight:700, color:"#92400E", marginBottom:6 }}>{title}</div>
+      <div style={{ fontSize:12, color:"#78350F", lineHeight:1.5, marginBottom:10 }}>{desc}</div>
+      <div style={{ borderTop:"1px solid #FDE68A", paddingTop:10 }}>
+        <div style={{ fontSize:10, fontWeight:700, color:"#B45309", letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:6 }}>Types de champs disponibles</div>
+        {fieldTypes.map((f,i) => (
+          <div key={i} style={{ fontSize:11, color:"#78350F", marginBottom:3, display:"flex", gap:6 }}>
+            <span style={{ fontWeight:700, minWidth:14 }}>→</span>
+            <span><b>{f.name}</b> — {f.use}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── APP ─────────────────────────────────────────────────────── */
+const fieldTypes = [
+  { name:"Numérique + unité", use:"Distance, allure, puissance, poids" },
+  { name:"Paire min/max", use:"FC min/max, plage de vitesse" },
+  { name:"Stepper", use:"Séries, nombre de répétitions" },
+  { name:"Répétitions + repos", use:"Blocs avec récupération intégrée" },
+  { name:"Durée mm:ss / hh:mm", use:"Durée du bloc, temps de récup" },
+  { name:"Zone cardiaque (Z1–Z5)", use:"Sélecteur de zone d'intensité" },
+  { name:"Segmenté (texte)", use:"RPE, type de récup, niveau" },
+  { name:"Toggle", use:"Options on/off (récup active, etc.)" },
+];
+
+function App() {
+  return (
+    <DesignCanvas title="Cadence — Détails du bloc (Template)">
+      <DCSection id="signal" title="Signal — Dark mode">
+        <DCArtboard id="signal-template" label="Template complet" width={390} height={900}>
+          <BlocDetailTemplate t={T.signal} />
+        </DCArtboard>
+        <DCArtboard id="signal-note" label="Guide des champs" width={320} height={520}>
+          <div style={{ padding:20, background:"#0C0C0F", height:"100%", display:"flex", flexDirection:"column", gap:0 }}>
+            <AnnotationCard
+              title="Template — Détails du bloc"
+              desc="Tous les types de champs disponibles sont affichés dans cet écran. Pour chaque sport, conserve uniquement les champs pertinents et supprime les autres."
+              fieldTypes={fieldTypes}
+            />
+          </div>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="pulse" title="Pulse — Light mode">
+        <DCArtboard id="pulse-template" label="Template complet" width={390} height={900}>
+          <BlocDetailTemplate t={T.pulse} />
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -4,6 +4,8 @@ const expoConfig = require("eslint-config-expo/flat");
 const securityPlugin = require("eslint-plugin-security");
 
 module.exports = defineConfig([
+  // Design wireframes are browser JSX loaded by Babel standalone, not app code.
+  { ignores: ["design/**"] },
   expoConfig,
   {
     // TypeScript and React rules MUST stay scoped to TS/TSX.

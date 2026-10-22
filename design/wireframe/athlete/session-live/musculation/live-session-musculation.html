@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cadence — Live Session · Musculation</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #1a1a1a; font-family: 'DM Sans', sans-serif; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ─── THEMES ──────────────────────────────────────────────────── */
+const T = {
+  signal: {
+    bg:"#0C0C0F", surface:"#16161C", surface2:"#1E1E28", border:"#2A2A36",
+    text:"#EEEEF5", textSub:"#9090A8", textMuted:"#50506A",
+    accent:"oklch(0.62 0.22 22)", accentDim:"oklch(0.18 0.06 22)",
+    pill:"#252534", pillText:"#BBBBCC",
+    btnPrimary:"oklch(0.62 0.22 22)", btnPrimaryText:"#fff",
+    btnGhost:"#1E1E28", btnGhostText:"#9090A8",
+    stripeW:4, dark:true,
+  },
+  pulse: {
+    bg:"#F6F6F8", surface:"#FFFFFF", surface2:"#F0F0F4", border:"#E4E4EC",
+    text:"#111118", textSub:"#707088", textMuted:"#A0A0B4",
+    accent:"oklch(0.52 0.22 22)", accentDim:"oklch(0.95 0.06 22)",
+    pill:"#EBEBF2", pillText:"#404058",
+    btnPrimary:"#111118", btnPrimaryText:"#fff",
+    btnGhost:"#EBEBF2", btnGhostText:"#707088",
+    stripeW:6, dark:false,
+  },
+};
+
+/* ─── PRIMITIVES ──────────────────────────────────────────────── */
+function StatusBar({ t }) {
+  return (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 20px 6px", height:44 }}>
+      <span style={{ fontFamily:"DM Mono", fontSize:13, fontWeight:500, color:t.text, letterSpacing:"0.02em" }}>9:41</span>
+      <div style={{ width:110, height:14, background:t.dark?"#2A2A3A":"#D8D8E0", borderRadius:7 }} />
+      <div style={{ display:"flex", gap:5, alignItems:"center" }}>
+        <svg width="15" height="11" viewBox="0 0 15 11" fill={t.textMuted}>
+          <rect x="0" y="5" width="2.5" height="6" rx="1"/><rect x="3.5" y="3" width="2.5" height="8" rx="1"/>
+          <rect x="7" y="1" width="2.5" height="10" rx="1"/><rect x="10.5" y="0" width="2.5" height="11" rx="1"/>
+        </svg>
+        <svg width="17" height="11" viewBox="0 0 20 11" fill="none">
+          <rect x="0.5" y="0.5" width="17" height="10" rx="3" stroke={t.textMuted} strokeWidth="1"/>
+          <rect x="2" y="2" width="12" height="7" rx="2" fill={t.textMuted}/>
+          <rect x="18" y="3.5" width="2" height="4" rx="1" fill={t.textMuted}/>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function TopBar({ t, elapsed }) {
+  return (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 20px 0" }}>
+      <button style={{ width:38, height:38, borderRadius:12, background:t.surface, border:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1.5" fill={t.textMuted}/></svg>
+      </button>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontFamily:"DM Mono", fontSize:20, fontWeight:500, color:t.text, letterSpacing:"0.02em" }}>{elapsed}</div>
+        <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.08em", textTransform:"uppercase" }}>En cours</div>
+      </div>
+      <button style={{ width:38, height:38, borderRadius:12, background:t.surface, border:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+        <svg width="10" height="12" viewBox="0 0 10 12" fill="none">
+          <rect x="0" y="0" width="3.5" height="12" rx="1.5" fill={t.textSub}/>
+          <rect x="6.5" y="0" width="3.5" height="12" rx="1.5" fill={t.textSub}/>
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function ExerciseCard({ t, name, muscles, weight, showStripe=true }) {
+  return (
+    <div style={{ margin:"14px 20px 0", background:t.surface, borderRadius:18, border:`1px solid ${t.border}`, overflow:"hidden", display:"flex", boxShadow: t.dark?"none":"0 1px 4px rgba(0,0,0,0.06)" }}>
+      {showStripe && <div style={{ width:t.stripeW, background:t.accent, flexShrink:0 }} />}
+      <div style={{ flex:1, padding:"14px 16px" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+          <div>
+            <div style={{ fontFamily:"DM Sans", fontSize:17, fontWeight:700, color:t.text, letterSpacing:"-0.02em", marginBottom:7 }}>{name}</div>
+            <div style={{ display:"flex", gap:6 }}>
+              <span style={{ background:t.pill, color:t.pillText, borderRadius:20, padding:"2px 9px", fontSize:10, fontWeight:600 }}>{muscles}</span>
+              {weight && <span style={{ background:t.accentDim, color:t.accent, border:`1px solid ${t.accent}`, borderRadius:20, padding:"2px 9px", fontSize:10, fontWeight:600 }}>{weight}</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkoutProgress({ t, current, total }) {
+  return (
+    <div style={{ padding:"10px 20px 0" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+        <span style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase" }}>Progression séance</span>
+        <span style={{ fontFamily:"DM Mono", fontSize:11, color:t.textMuted }}>{current}/{total} exercices</span>
+      </div>
+      <div style={{ height:3, background:t.border, borderRadius:2, overflow:"hidden" }}>
+        <div style={{ height:"100%", width:`${(current/total)*100}%`, background:t.accent, borderRadius:2 }} />
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 1 — ACTIVE SET
+   ═══════════════════════════════════════════════════════════════ */
+function ScreenActiveSet({ t }) {
+  const sets = [true, true, false, false];
+  return (
+    <div style={{ width:390, height:844, background:t.bg, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <StatusBar t={t} />
+      <TopBar t={t} elapsed="18:42" />
+      <WorkoutProgress t={t} current={2} total={3} />
+      <ExerciseCard t={t} name="Squat barre" muscles="Quadriceps · Fessiers" weight="80 kg" />
+
+      {/* Set dots */}
+      <div style={{ padding:"16px 20px 0", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <span style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase" }}>Série 3 / 4</span>
+        <div style={{ display:"flex", gap:7 }}>
+          {sets.map((done, i) => (
+            <div key={i} style={{ width: done ? 26 : i===2 ? 26 : 10, height:8, borderRadius:4, background: done ? t.accent : i===2 ? t.accent : t.border, opacity: done ? 1 : i===2 ? 1 : 0.4, border: i===2 && !done ? `1.5px solid ${t.accent}` : "none", transition:"width 0.3s" }} />
+          ))}
+        </div>
+      </div>
+
+      {/* ── BIG REP COUNTER ── */}
+      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.10em", textTransform:"uppercase", marginBottom:14 }}>Répétitions</div>
+
+        {/* Counter row */}
+        <div style={{ display:"flex", alignItems:"center", gap:28, marginBottom:16 }}>
+          <button style={{ width:52, height:52, borderRadius:"50%", background:t.surface, border:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+            <svg width="16" height="2" viewBox="0 0 16 2" fill="none"><path d="M1 1h14" stroke={t.textSub} strokeWidth="2.5" strokeLinecap="round"/></svg>
+          </button>
+          <div style={{ textAlign:"center", minWidth:90 }}>
+            <span style={{ fontFamily:"DM Mono", fontSize:88, fontWeight:600, color:t.text, letterSpacing:"-0.04em", lineHeight:1 }}>8</span>
+            <div style={{ fontFamily:"DM Mono", fontSize:13, color:t.textMuted, marginTop:6 }}>/ 8–10 cible</div>
+          </div>
+          <button style={{ width:52, height:52, borderRadius:"50%", background:t.accent, border:"none", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2v14M2 9h14" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/></svg>
+          </button>
+        </div>
+
+        {/* Weight adjust */}
+        <div style={{ display:"flex", alignItems:"center", gap:8, background:t.surface, border:`1px solid ${t.border}`, borderRadius:40, padding:"8px 12px", marginBottom:0 }}>
+          <button style={{ width:28, height:28, borderRadius:"50%", background:t.surface2, border:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+            <svg width="10" height="2" viewBox="0 0 10 2" fill="none"><path d="M1 1h8" stroke={t.textSub} strokeWidth="2" strokeLinecap="round"/></svg>
+          </button>
+          <div style={{ textAlign:"center", minWidth:80 }}>
+            <span style={{ fontFamily:"DM Mono", fontSize:20, fontWeight:500, color:t.text }}>80 </span>
+            <span style={{ fontFamily:"DM Mono", fontSize:13, color:t.textMuted }}>kg</span>
+          </div>
+          <button style={{ width:28, height:28, borderRadius:"50%", background:t.surface2, border:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke={t.textSub} strokeWidth="2" strokeLinecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Last perf hint */}
+      <div style={{ margin:"0 20px 14px", display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:t.surface, border:`1px solid ${t.border}`, borderRadius:12 }}>
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke={t.textMuted} strokeWidth="1.2"/><path d="M6.5 4v3.5l2 1.5" stroke={t.textMuted} strokeWidth="1.2" strokeLinecap="round"/></svg>
+        <span style={{ fontFamily:"DM Sans", fontSize:12, color:t.textMuted }}>Dernière perf : <span style={{ fontFamily:"DM Mono", color:t.textSub }}>4×8 à 75 kg</span></span>
+      </div>
+
+      {/* CTA */}
+      <div style={{ padding:"0 20px 32px" }}>
+        <button style={{ width:"100%", height:56, background:t.btnPrimary, border:"none", borderRadius:40, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+          <svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M1 7l6 6L17 1" stroke={t.btnPrimaryText} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <span style={{ fontFamily:"DM Sans", fontSize:15, fontWeight:700, color:t.btnPrimaryText }}>Série terminée</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 2 — REST TIMER
+   ═══════════════════════════════════════════════════════════════ */
+function CircArc({ t, pct, size, stroke, color }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - pct);
+  return (
+    <svg width={size} height={size} style={{ position:"absolute", top:0, left:0, transform:"rotate(-90deg)" }}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={t.dark ? "#2A2A3A" : "#E8E8F0"} strokeWidth={stroke}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+        strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function ScreenRest({ t }) {
+  const restLeft = 54;
+  const restTotal = 90;
+  const pct = restLeft / restTotal;
+  const size = 200;
+  return (
+    <div style={{ width:390, height:844, background:t.bg, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <StatusBar t={t} />
+      <TopBar t={t} elapsed="19:08" />
+      <WorkoutProgress t={t} current={2} total={3} />
+
+      {/* Label */}
+      <div style={{ textAlign:"center", padding:"26px 20px 0" }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.10em", textTransform:"uppercase", marginBottom:4 }}>Repos</div>
+        <div style={{ fontFamily:"DM Sans", fontSize:16, fontWeight:600, color:t.textSub }}>Série 3 terminée · 1 restante</div>
+      </div>
+
+      {/* ── CIRCULAR COUNTDOWN ── */}
+      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ position:"relative", width:size, height:size }}>
+          <CircArc t={t} pct={pct} size={size} stroke={10} color={t.accent} />
+          <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+            <span style={{ fontFamily:"DM Mono", fontSize:62, fontWeight:600, color:t.text, letterSpacing:"-0.04em", lineHeight:1 }}>{restLeft}</span>
+            <span style={{ fontFamily:"DM Mono", fontSize:16, color:t.textMuted, marginTop:4 }}>secondes</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Next exercise preview */}
+      <div style={{ margin:"0 20px 14px", background:t.surface, borderRadius:16, border:`1px solid ${t.border}`, overflow:"hidden", display:"flex" }}>
+        <div style={{ width:t.stripeW, background:t.border, flexShrink:0 }} />
+        <div style={{ flex:1, padding:"12px 16px" }}>
+          <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:4 }}>Prochaine série</div>
+          <div style={{ fontFamily:"DM Sans", fontSize:14, fontWeight:700, color:t.text, marginBottom:3 }}>Squat barre · Série 4 / 4</div>
+          <div style={{ fontFamily:"DM Mono", fontSize:12, color:t.textMuted }}>8–10 rép · 80 kg</div>
+        </div>
+      </div>
+
+      {/* Buttons */}
+      <div style={{ padding:"0 20px 32px", display:"flex", flexDirection:"column", gap:10 }}>
+        <button style={{ width:"100%", height:56, background:t.btnPrimary, border:"none", borderRadius:40, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7h12M8 2l5 5-5 5" stroke={t.btnPrimaryText} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <span style={{ fontFamily:"DM Sans", fontSize:15, fontWeight:700, color:t.btnPrimaryText }}>Reprendre maintenant</span>
+        </button>
+        <button style={{ width:"100%", height:44, background:t.btnGhost, border:"none", borderRadius:40, cursor:"pointer" }}>
+          <span style={{ fontFamily:"DM Sans", fontSize:13, fontWeight:600, color:t.btnGhostText }}>+30 s</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 3 — EXERCISE SUMMARY (between exercises)
+   ═══════════════════════════════════════════════════════════════ */
+function SetSummaryRow({ t, set, reps, weight, target }) {
+  const done = reps >= target;
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:t.surface, border:`1px solid ${t.border}`, borderRadius:12, marginBottom:8 }}>
+      <div style={{ width:28, height:28, borderRadius:"50%", background: done ? t.accentDim : t.surface2, border:`1px solid ${done ? t.accent : t.border}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+        {done
+          ? <svg width="12" height="10" viewBox="0 0 12 10" fill="none"><path d="M1 5l4 4L11 1" stroke={t.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          : <span style={{ fontFamily:"DM Mono", fontSize:11, color:t.textMuted }}>{set}</span>}
+      </div>
+      <div style={{ flex:1 }}>
+        <span style={{ fontFamily:"DM Sans", fontSize:13, fontWeight:600, color: done ? t.text : t.textSub }}>Série {set}</span>
+        <span style={{ fontFamily:"DM Mono", fontSize:12, color:t.textMuted, marginLeft:8 }}>{reps} reps · {weight} kg</span>
+      </div>
+      {done
+        ? <span style={{ background:t.accentDim, color:t.accent, border:`1px solid ${t.accent}`, borderRadius:20, padding:"2px 8px", fontSize:10, fontWeight:700 }}>✓</span>
+        : <span style={{ background:t.surface2, color:t.textMuted, borderRadius:20, padding:"2px 8px", fontSize:10 }}>–</span>}
+    </div>
+  );
+}
+
+function ScreenExerciseSummary({ t }) {
+  const sets = [
+    { set:1, reps:10, weight:80, target:8 },
+    { set:2, reps:9, weight:80, target:8 },
+    { set:3, reps:8, weight:80, target:8 },
+    { set:4, reps:7, weight:80, target:8 },
+  ];
+  return (
+    <div style={{ width:390, height:844, background:t.bg, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <StatusBar t={t} />
+      <TopBar t={t} elapsed="28:15" />
+      <WorkoutProgress t={t} current={2} total={3} />
+
+      {/* Summary header */}
+      <div style={{ padding:"20px 20px 0", display:"flex", alignItems:"center", gap:12 }}>
+        <div style={{ width:40, height:40, borderRadius:12, background:t.accentDim, border:`1px solid ${t.accent}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M1 7l6 6L17 1" stroke={t.accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
+        <div>
+          <div style={{ fontFamily:"DM Sans", fontSize:17, fontWeight:700, color:t.text, letterSpacing:"-0.01em" }}>Squat barre</div>
+          <div style={{ fontFamily:"DM Sans", fontSize:12, color:t.textMuted, marginTop:2 }}>4 séries terminées</div>
+        </div>
+      </div>
+
+      {/* Volume stat */}
+      <div style={{ margin:"16px 20px 0", display:"flex", gap:10 }}>
+        {[{label:"Volume total",value:"1 680 kg",sub:"+7% vs dernière"},{label:"Rep. moyen",value:"8.5 reps",sub:"cible : 8–10"}].map((m,i) => (
+          <div key={i} style={{ flex:1, background:t.surface, borderRadius:14, border:`1px solid ${t.border}`, padding:"12px 14px" }}>
+            <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:4 }}>{m.label}</div>
+            <div style={{ fontFamily:"DM Mono", fontSize:18, fontWeight:500, color:t.text, letterSpacing:"-0.01em", marginBottom:2 }}>{m.value}</div>
+            <div style={{ fontFamily:"DM Sans", fontSize:10, color:t.textMuted }}>{m.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Per-set breakdown */}
+      <div style={{ padding:"18px 20px 0", flex:1 }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:12 }}>Détail des séries</div>
+        {sets.map(s => <SetSummaryRow key={s.set} t={t} {...s} />)}
+      </div>
+
+      {/* Next exercise */}
+      <div style={{ margin:"4px 20px 14px", background:t.surface, borderRadius:16, border:`1px solid ${t.border}`, overflow:"hidden", display:"flex" }}>
+        <div style={{ width:t.stripeW, background:t.border, flexShrink:0 }} />
+        <div style={{ flex:1, padding:"12px 16px" }}>
+          <div style={{ fontFamily:"DM Sans", fontSize:10, fontWeight:700, color:t.textMuted, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:4 }}>Prochain exercice</div>
+          <div style={{ fontFamily:"DM Sans", fontSize:14, fontWeight:700, color:t.text }}>Soulevé de terre</div>
+          <div style={{ fontFamily:"DM Mono", fontSize:11, color:t.textMuted, marginTop:2 }}>3 séries · 6–8 rép · 100 kg</div>
+        </div>
+        <div style={{ padding:"0 14px", display:"flex", alignItems:"center" }}>
+          <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke={t.textMuted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
+      </div>
+
+      <div style={{ padding:"0 20px 32px" }}>
+        <button style={{ width:"100%", height:56, background:t.btnPrimary, border:"none", borderRadius:40, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+          <span style={{ fontFamily:"DM Sans", fontSize:15, fontWeight:700, color:t.btnPrimaryText }}>Exercice suivant →</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 4 — SESSION RECAP
+   ═══════════════════════════════════════════════════════════════ */
+function RecapStat({ t, label, value, sub }) {
+  return (
+    <div style={{ flex:1, textAlign:"center" }}>
+      <div style={{ fontFamily:"DM Mono", fontSize:26, fontWeight:600, color:t.text, letterSpacing:"-0.03em", lineHeight:1, marginBottom:4 }}>{value}</div>
+      <div style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.04em", textTransform:"uppercase" }}>{label}</div>
+      {sub && <div style={{ fontFamily:"DM Sans", fontSize:10, color:t.textMuted, marginTop:2 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function ScreenRecap({ t }) {
+  const exercises = [
+    { name:"Squat barre", sets:4, volume:"1 680 kg", rpe:7 },
+    { name:"Soulevé de terre", sets:3, volume:"1 185 kg", rpe:8 },
+    { name:"Hip thrust", sets:3, volume:"1 080 kg", rpe:6 },
+  ];
+  return (
+    <div style={{ width:390, height:844, background:t.bg, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <StatusBar t={t} />
+
+      {/* Celebration header */}
+      <div style={{ padding:"20px 20px 0", textAlign:"center" }}>
+        <div style={{ fontFamily:"DM Mono", fontSize:32, color:t.accent, marginBottom:8 }}>✓</div>
+        <h1 style={{ fontFamily:"DM Sans", fontSize:24, fontWeight:700, color:t.text, letterSpacing:"-0.03em", marginBottom:4 }}>Séance terminée</h1>
+        <p style={{ fontFamily:"DM Sans", fontSize:13, color:t.textMuted }}>Musculation · Force · 3 exercices</p>
+      </div>
+
+      {/* Stats strip */}
+      <div style={{ margin:"20px 20px 0", background:t.surface, border:`1px solid ${t.border}`, borderRadius:18, padding:"16px 0" }}>
+        <div style={{ display:"flex" }}>
+          <RecapStat t={t} label="Durée" value="38:12" sub="" />
+          <div style={{ width:1, background:t.border, margin:"0 4px" }} />
+          <RecapStat t={t} label="Séries" value="10" sub="sur 10" />
+          <div style={{ width:1, background:t.border, margin:"0 4px" }} />
+          <RecapStat t={t} label="Volume" value="3 945" sub="kg total" />
+        </div>
+      </div>
+
+      {/* Per-exercise recap */}
+      <div style={{ padding:"18px 20px 0", flex:1 }}>
+        <div style={{ fontFamily:"DM Sans", fontSize:11, fontWeight:700, color:t.textMuted, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:12 }}>Résumé par exercice</div>
+        {exercises.map((ex, i) => (
+          <div key={i} style={{ display:"flex", background:t.surface, border:`1px solid ${t.border}`, borderRadius:14, overflow:"hidden", marginBottom:8 }}>
+            <div style={{ width:t.stripeW, background:t.accent, flexShrink:0 }} />
+            <div style={{ flex:1, padding:"12px 14px" }}>
+              <div style={{ fontFamily:"DM Sans", fontSize:14, fontWeight:700, color:t.text, marginBottom:6 }}>{ex.name}</div>
+              <div style={{ display:"flex", gap:8 }}>
+                <span style={{ background:t.pill, color:t.pillText, borderRadius:20, padding:"2px 9px", fontSize:10, fontWeight:600 }}>{ex.sets} séries</span>
+                <span style={{ fontFamily:"DM Mono", fontSize:10, color:t.textMuted, display:"flex", alignItems:"center" }}>{ex.volume}</span>
+                <span style={{ fontFamily:"DM Sans", fontSize:10, color:t.textMuted, display:"flex", alignItems:"center" }}>RPE {ex.rpe}/10</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Coach message hint */}
+      <div style={{ margin:"0 20px 14px", padding:"12px 14px", background:t.accentDim, border:`1px solid ${t.accent}`, borderRadius:14, display:"flex", alignItems:"center", gap:10 }}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 3V4a1 1 0 0 1 1-1z" stroke={t.accent} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <span style={{ fontFamily:"DM Sans", fontSize:12, color:t.accent, fontWeight:500 }}>Envoyer un résumé à ton coach</span>
+        <svg width="7" height="12" viewBox="0 0 7 12" fill="none" style={{ marginLeft:"auto" }}><path d="M1 1l5 5-5 5" stroke={t.accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      </div>
+
+      <div style={{ padding:"0 20px 32px" }}>
+        <button style={{ width:"100%", height:56, background:t.btnPrimary, border:"none", borderRadius:40, cursor:"pointer" }}>
+          <span style={{ fontFamily:"DM Sans", fontSize:15, fontWeight:700, color:t.btnPrimaryText }}>Enregistrer la séance</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── APP ─────────────────────────────────────────────────────── */
+const screens = [
+  { id:"s1", label:"1. Série en cours", comp: ScreenActiveSet },
+  { id:"s2", label:"2. Repos inter-série", comp: ScreenRest },
+  { id:"s3", label:"3. Résumé exercice", comp: ScreenExerciseSummary },
+  { id:"s4", label:"4. Récap séance", comp: ScreenRecap },
+];
+
+function App() {
+  return (
+    <DesignCanvas title="Cadence — Live Session · Musculation">
+      <DCSection id="signal" title="Signal — Dark mode">
+        {screens.map(s => (
+          <DCArtboard key={s.id} id={`signal-${s.id}`} label={s.label} width={390} height={860}>
+            <s.comp t={T.signal} />
+          </DCArtboard>
+        ))}
+      </DCSection>
+      <DCSection id="pulse" title="Pulse — Light mode">
+        {screens.map(s => (
+          <DCArtboard key={s.id} id={`pulse-${s.id}`} label={s.label} width={390} height={860}>
+            <s.comp t={T.pulse} />
+          </DCArtboard>
+        ))}
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

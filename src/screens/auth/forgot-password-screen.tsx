@@ -60,22 +60,22 @@ export function ForgotPasswordScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white dark:bg-gray-900"
+      className="flex-1 bg-bg"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="flex-1 justify-center px-6 py-12">
-          <Text variant="heading" className="text-center mb-2">
+        <View className="flex-1 justify-center px-5 py-12">
+          <Text variant="heading" className="mb-2 text-center">
             Mot de passe oublié
           </Text>
-          <Text variant="caption" className="text-center mb-8">
+          <Text variant="caption" className="mb-8 text-center text-[13px]">
             Entrez votre courriel pour recevoir un lien de réinitialisation
           </Text>
 
-          <View className="gap-4">
+          <View className="gap-3.5">
             <Input
               label="Courriel"
               placeholder="nom@exemple.com"
@@ -89,7 +89,7 @@ export function ForgotPasswordScreen() {
             {error ? <Text variant="error">{error}</Text> : null}
 
             {sent ? (
-              <Text variant="body" className="text-green-600 dark:text-green-400 text-center">
+              <Text weight="medium" className="text-center text-success">
                 Courriel envoyé! Vérifiez votre boîte de réception.
               </Text>
             ) : null}
@@ -105,12 +105,13 @@ export function ForgotPasswordScreen() {
               onPress={handleReset}
               loading={loading}
               disabled={cooldown > 0}
+              className="mt-2"
             />
           </View>
 
-          <View className="mt-6 items-center">
+          <View className="mt-8 items-center">
             <Link href="/(auth)/login">
-              <Text variant="caption" className="text-blue-600 dark:text-blue-400">
+              <Text variant="caption" weight="bold" className="text-[13px] text-accent">
                 Retour à la connexion
               </Text>
             </Link>

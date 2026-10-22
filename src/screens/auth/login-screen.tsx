@@ -9,6 +9,7 @@ import { Link } from "expo-router";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Logo } from "@/components/ui/logo";
 import { Text } from "@/components/ui/text";
 
 export function LoginScreen() {
@@ -36,22 +37,25 @@ export function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white dark:bg-gray-900"
+      className="flex-1 bg-bg"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="flex-1 justify-center px-6 py-12">
-          <Text variant="heading" className="text-center mb-2">
-            Cadence
-          </Text>
-          <Text variant="caption" className="text-center mb-10">
-            Connectez-vous pour continuer
-          </Text>
+        <View className="flex-1 justify-center px-5 py-12">
+          <View className="mb-10 items-center">
+            <Logo size={72} />
+            <Text weight="bold" className="mt-4 text-2xl tracking-[-0.7px]">
+              Cadence
+            </Text>
+            <Text variant="caption" className="mt-1 text-[13px] italic">
+              Entraîne ton rythme
+            </Text>
+          </View>
 
-          <View className="gap-4">
+          <View className="gap-3.5">
             <Input
               label="Courriel"
               placeholder="nom@exemple.com"
@@ -71,27 +75,29 @@ export function LoginScreen() {
               autoComplete="current-password"
             />
 
+            <Link href="/(auth)/forgot-password" className="self-end">
+              <Text variant="caption" weight="bold" className="text-[13px] text-accent">
+                Mot de passe oublié ?
+              </Text>
+            </Link>
+
             {error ? <Text variant="error">{error}</Text> : null}
 
             <Button
               title="Se connecter"
               onPress={handleLogin}
               loading={loading}
+              className="mt-2 h-14"
             />
           </View>
 
-          <View className="mt-6 items-center gap-3">
-            <Link href="/(auth)/forgot-password">
-              <Text variant="caption" className="text-blue-600 dark:text-blue-400">
-                Mot de passe oublié?
-              </Text>
-            </Link>
+          <View className="mt-8 flex-row items-center justify-center gap-1.5">
+            <Text variant="caption" weight="medium" className="text-[13px]">
+              Pas encore de compte ?
+            </Text>
             <Link href="/(auth)/register">
-              <Text variant="caption">
-                Pas encore de compte?{" "}
-                <Text variant="caption" className="text-blue-600 dark:text-blue-400 font-semibold">
-                  S{"'"}inscrire
-                </Text>
+              <Text variant="caption" weight="bold" className="text-[13px] text-accent">
+                Créer un compte
               </Text>
             </Link>
           </View>

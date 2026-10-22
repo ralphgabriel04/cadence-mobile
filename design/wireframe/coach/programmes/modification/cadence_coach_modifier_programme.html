@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cadence — Modifier le programme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>body{margin:0;background:#1a1a1a;}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="../../../design-canvas.jsx"></script>
+<script type="text/babel" src="../../../cadence-kit.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+function MetaChip({ label, value }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 700 }}>{value}</span>
+    </div>
+  );
+}
+
+function ActionIcon({ children }) {
+  return <button style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface2)',
+    color: 'var(--text-sub)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>{children}</button>;
+}
+
+function BlockRow({ title, meta, dim }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px', background: 'var(--surface)',
+      border: '1px solid var(--border)', borderRadius: 12, opacity: dim ? 0.5 : 1 }}>
+      <span style={{ color: 'var(--text-muted)', display: 'flex', cursor: 'grab', flex: '0 0 auto' }}><Icon.grip /></span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>{title}</div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-sub)', marginTop: 2 }}>{meta}</div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, flex: '0 0 auto' }}>
+        <ActionIcon><Icon.edit width={15} /></ActionIcon>
+        <ActionIcon><Icon.copy width={15} /></ActionIcon>
+        <ActionIcon><Icon.trash width={15} /></ActionIcon>
+      </div>
+    </div>
+  );
+}
+
+function GlobalAction({ icon, label, primary }) {
+  return (
+    <button style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', height: 48, padding: '0 16px',
+      borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em',
+      border: primary ? '1px dashed var(--accent)' : '1px solid var(--border)',
+      background: primary ? 'var(--accent-dim)' : 'var(--surface)', color: primary ? 'var(--accent)' : 'var(--text)' }}>
+      <span style={{ display: 'flex' }}>{icon}</span>{label}
+    </button>
+  );
+}
+
+function EditorBase({ dim }) {
+  return (
+    <div style={{ filter: dim ? 'brightness(0.5)' : 'none', pointerEvents: 'none' }}>
+      <StatusBar />
+      <TopBar title="Modifier le programme" right={<button style={{ height: 34, padding: '0 16px', borderRadius: 999, border: 'none', background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Enregistrer</button>} />
+      <div style={{ padding: `4px ${PX}px 40px`, display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {/* meta band */}
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em' }}>Bloc hypertrophie</div>
+            <span style={{ color: 'var(--text-sub)', display: 'flex' }}><Icon.edit width={16} /></span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
+            <MetaChip label="Sport" value="Force" />
+            <MetaChip label="Niveau" value="Intermédiaire" />
+            <MetaChip label="Durée" value="8 semaines" />
+          </div>
+        </Card>
+
+        {/* week selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ color: 'var(--text-sub)', display: 'flex' }}><Icon.back width={20} /></span>
+          <div style={{ flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 700 }}>Semaine 3 <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>/ 8</span></div>
+          <span style={{ color: 'var(--text-sub)', display: 'flex', transform: 'scaleX(-1)' }}><Icon.back width={20} /></span>
+        </div>
+
+        {/* sessions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <BlockRow title="Lundi · Force — Haut du corps" meta="6 exercices · 2 blocs" />
+          <BlockRow title="Mardi · Course — Endurance Z2" meta="45 min · zone 2" />
+          <BlockRow title="Jeudi · Force — Bas du corps" meta="7 exercices · 2 blocs" />
+          <BlockRow title="Vendredi · Intervalles" meta="8 × 400 m" />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+          <GlobalAction icon={<Icon.plus />} label="Ajouter une séance" primary />
+          <GlobalAction icon={<Icon.copy width={18} />} label="Dupliquer la semaine" />
+          <GlobalAction icon={<Icon.users width={20} />} label="Assigner à des athlètes / groupes" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Scrim({ children, align = 'flex-end' }) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex',
+      alignItems: align, justifyContent: 'center', padding: align === 'center' ? 20 : 0 }}>{children}</div>
+  );
+}
+function Sheet({ children }) {
+  return (
+    <div style={{ width: '100%', background: 'var(--surface)', borderRadius: '20px 20px 0 0', border: '1px solid var(--border)',
+      borderBottom: 'none', padding: '14px 20px 28px', maxHeight: '78%', overflow: 'hidden' }}>
+      <div style={{ width: 40, height: 4, borderRadius: 999, background: 'var(--border)', margin: '0 auto 16px' }} />
+      {children}
+    </div>
+  );
+}
+
+function SheetExLine({ name, detail }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid var(--border)' }}>
+      <span style={{ color: 'var(--text-muted)', display: 'flex' }}><Icon.grip /></span>
+      <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{name}</span>
+      <span className="mono" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-sub)' }}>{detail}</span>
+    </div>
+  );
+}
+
+/* ---- composed screens ---- */
+function Main({ theme }) {
+  return <Screen theme={theme} height={1000} scroll><EditorBase /></Screen>;
+}
+
+function EditBloc({ theme }) {
+  return (
+    <Screen theme={theme} height={1000}>
+      <EditorBase dim />
+      <Scrim>
+        <Sheet>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>Modifier la séance</div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-sub)' }}>Annuler</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <Field label="Nom de la séance" value="Force — Haut du corps" />
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ flex: 1 }}><Field label="Jour" value="Lundi" /></div>
+              <div style={{ flex: 1 }}><Field label="Durée est." value="55 min" mono /></div>
+            </div>
+            <div>
+              <SectionLabel style={{ marginBottom: 6 }}>Exercices</SectionLabel>
+              <SheetExLine name="Développé couché" detail="4 × 6 · 85 kg" />
+              <SheetExLine name="Tirage barre" detail="4 × 8 · 70 kg" />
+              <SheetExLine name="Presse militaire" detail="3 × 10 · 40 kg" />
+            </div>
+            <Btn variant="secondary" height={46} icon={<Icon.plus />}>Ajouter un exercice</Btn>
+            <Btn variant="primary" height={54}>Enregistrer la séance</Btn>
+          </div>
+        </Sheet>
+      </Scrim>
+    </Screen>
+  );
+}
+
+function ConfirmDelete({ theme }) {
+  return (
+    <Screen theme={theme} height={1000}>
+      <EditorBase dim />
+      <Scrim align="center">
+        <div style={{ width: 320, background: 'var(--surface)', borderRadius: 18, border: '1px solid var(--border)', padding: 22, textAlign: 'center' }}>
+          <div style={{ width: 52, height: 52, borderRadius: '50%', margin: '0 auto 14px', background: 'color-mix(in oklch, var(--error) 16%, transparent)', color: 'var(--error)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon.trash width={22} /></div>
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>Supprimer cette séance ?</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-sub)', marginTop: 8, lineHeight: 1.45 }}>« Vendredi · Intervalles » sera retirée de la semaine 3. Cette action est irréversible.</div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <div style={{ flex: 1 }}><Btn variant="secondary" height={48}>Annuler</Btn></div>
+            <div style={{ flex: 1 }}><Btn variant="primary" height={48} style={{ background: 'var(--error)', color: '#fff' }}>Supprimer</Btn></div>
+          </div>
+        </div>
+      </Scrim>
+    </Screen>
+  );
+}
+
+function AssignCheck({ label, sub, checked, group }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+      {group ? <span style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--accent-dim)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}><Icon.users width={18} /></span>
+             : <Avatar initials={label.split(' ').map(w => w[0]).join('').slice(0,2)} size={36} />}
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>{label}</div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-sub)', marginTop: 1 }}>{sub}</div>
+      </div>
+      <div style={{ width: 24, height: 24, borderRadius: 7, flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: checked ? 'var(--accent)' : 'transparent', border: '1.5px solid ' + (checked ? 'var(--accent)' : 'var(--border)'), color: 'var(--btn-primary-text)' }}>
+        {checked && <Icon.check width={14} />}
+      </div>
+    </div>
+  );
+}
+
+function Assign({ theme }) {
+  return (
+    <Screen theme={theme} height={1000}>
+      <EditorBase dim />
+      <Scrim>
+        <Sheet>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>Assigner le programme</div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-sub)' }}>Fermer</span>
+          </div>
+          <SectionLabel style={{ marginBottom: 4 }}>Groupes</SectionLabel>
+          <AssignCheck group label="Équipe d'aviron" sub="8 athlètes" checked />
+          <AssignCheck group label="Débutants force" sub="4 athlètes" />
+          <SectionLabel style={{ margin: '14px 0 4px' }}>Athlètes</SectionLabel>
+          <AssignCheck label="Félix Lavoie" sub="Aviron · Intermédiaire" checked />
+          <AssignCheck label="Maude Tremblay" sub="Course · Avancé" />
+          <AssignCheck label="Olivier Roy" sub="Force · Débutant" checked />
+          <div style={{ marginTop: 18 }}><Btn variant="primary" height={54}>Assigner à 5 athlètes</Btn></div>
+        </Sheet>
+      </Scrim>
+    </Screen>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="signal" title="Signal — Dark mode" subtitle="Modifier le programme · builder coach · états modaux">
+        <DCArtboard id="s-main"   label="Éditeur"               width={390} height={1000}><Main theme="signal" /></DCArtboard>
+        <DCArtboard id="s-edit"   label="Éditer un bloc"        width={390} height={1000}><EditBloc theme="signal" /></DCArtboard>
+        <DCArtboard id="s-del"    label="Confirmer suppression" width={390} height={1000}><ConfirmDelete theme="signal" /></DCArtboard>
+        <DCArtboard id="s-assign" label="Panneau d'assignation" width={390} height={1000}><Assign theme="signal" /></DCArtboard>
+      </DCSection>
+      <DCSection id="pulse" title="Pulse — Light mode">
+        <DCArtboard id="p-main"   label="Éditeur"               width={390} height={1000}><Main theme="pulse" /></DCArtboard>
+        <DCArtboard id="p-edit"   label="Éditer un bloc"        width={390} height={1000}><EditBloc theme="pulse" /></DCArtboard>
+        <DCArtboard id="p-del"    label="Confirmer suppression" width={390} height={1000}><ConfirmDelete theme="pulse" /></DCArtboard>
+        <DCArtboard id="p-assign" label="Panneau d'assignation" width={390} height={1000}><Assign theme="pulse" /></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

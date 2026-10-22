@@ -1,0 +1,128 @@
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 16px; font-family: var(--font-sans);">
+<div style="max-width: 320px; margin: 0 auto; background: var(--color-background-primary); border-radius: 24px; border: 0.5px solid var(--color-border-secondary); overflow: hidden;">
+
+  <!-- Status bar -->
+  <div style="padding: 10px 20px 4px; display: flex; justify-content: space-between;">
+    <span style="font-size: 11px; font-weight: 500; color: var(--color-text-primary);">9:41</span>
+    <span style="font-size: 11px; color: var(--color-text-secondary);">●●●</span>
+  </div>
+
+  <!-- Header -->
+  <div style="padding: 6px 16px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid var(--color-border-tertiary);">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <i class="ti ti-arrow-left" style="font-size: 18px; color: var(--color-text-primary);" aria-hidden="true"></i>
+      <p style="font-size: 14px; font-weight: 500; margin: 0; color: var(--color-text-primary);">Ajouter un athlète</p>
+    </div>
+  </div>
+
+  <div style="padding: 14px 16px 24px; max-height: 600px; overflow-y: auto;">
+
+    <!-- Méthode d'ajout -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px;">Méthode d'ajout</p>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-bottom: 20px;">
+
+      <!-- Option invitation — sélectionnée -->
+      <div style="border: 1.5px solid #534AB7; border-radius: var(--border-radius-lg); padding: 12px; background: #EEEDFE; cursor: pointer; text-align: center;">
+        <div style="width: 36px; height: 36px; border-radius: 50%; background: #CECBF6; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px;">
+          <i class="ti ti-mail" style="font-size: 18px; color: #3C3489;" aria-hidden="true"></i>
+        </div>
+        <p style="font-size: 12px; font-weight: 500; color: #3C3489; margin: 0 0 2px;">Invitation</p>
+        <p style="font-size: 10px; color: #534AB7; margin: 0;">Par courriel</p>
+      </div>
+
+      <!-- Option lien -->
+      <div style="border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-lg); padding: 12px; cursor: pointer; text-align: center;">
+        <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--color-background-secondary); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px;">
+          <i class="ti ti-link" style="font-size: 18px; color: var(--color-text-secondary);" aria-hidden="true"></i>
+        </div>
+        <p style="font-size: 12px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 2px;">Lien d'accès</p>
+        <p style="font-size: 10px; color: var(--color-text-secondary); margin: 0;">Partager un lien</p>
+      </div>
+
+    </div>
+
+    <!-- Formulaire invitation -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px;">Informations</p>
+
+    <!-- Prénom + Nom -->
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-bottom: 10px;">
+      <div>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0 0 4px;">Prénom</p>
+        <div style="border: 1.5px solid #534AB7; border-radius: var(--border-radius-md); padding: 8px 10px;">
+          <p style="font-size: 13px; color: var(--color-text-primary); margin: 0;">Thomas</p>
+        </div>
+      </div>
+      <div>
+        <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0 0 4px;">Nom</p>
+        <div style="border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 10px; background: var(--color-background-secondary);">
+          <p style="font-size: 13px; color: var(--color-text-tertiary); margin: 0;">Nom de famille</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Courriel -->
+    <div style="margin-bottom: 10px;">
+      <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0 0 4px;">Courriel</p>
+      <div style="border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 10px; background: var(--color-background-secondary); display: flex; justify-content: space-between; align-items: center;">
+        <p style="font-size: 13px; color: var(--color-text-tertiary); margin: 0;">courriel@exemple.com</p>
+        <i class="ti ti-mail" style="font-size: 14px; color: var(--color-text-tertiary);" aria-hidden="true"></i>
+      </div>
+    </div>
+
+    <!-- Sport -->
+    <div style="margin-bottom: 10px;">
+      <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0 0 4px;">Sport</p>
+      <div style="border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 10px; background: var(--color-background-secondary); display: flex; justify-content: space-between; align-items: center;">
+        <p style="font-size: 13px; color: var(--color-text-tertiary); margin: 0;">Sélectionner un sport</p>
+        <i class="ti ti-chevron-down" style="font-size: 14px; color: var(--color-text-tertiary);" aria-hidden="true"></i>
+      </div>
+    </div>
+
+    <!-- Niveau -->
+    <div style="margin-bottom: 20px;">
+      <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0 0 6px;">Niveau</p>
+      <div style="display: flex; gap: 6px;">
+        <div style="flex: 1; text-align: center; padding: 7px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); font-size: 11px; color: var(--color-text-secondary); cursor: pointer;">Débutant</div>
+        <div style="flex: 1; text-align: center; padding: 7px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); font-size: 11px; color: var(--color-text-secondary); cursor: pointer;">Intermédiaire</div>
+        <div style="flex: 1; text-align: center; padding: 7px; background: #534AB7; border-radius: var(--border-radius-md); font-size: 11px; font-weight: 500; color: #EEEDFE; cursor: pointer;">Élite</div>
+      </div>
+    </div>
+
+    <!-- Assigner à un groupe (optionnel) -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px;">Groupe <span style="font-size: 10px; color: var(--color-text-tertiary); text-transform: none; letter-spacing: 0; font-weight: 400;">— optionnel</span></p>
+
+    <div style="border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 10px; background: var(--color-background-secondary); display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <p style="font-size: 13px; color: var(--color-text-tertiary); margin: 0;">Assigner à un groupe existant</p>
+      <i class="ti ti-chevron-down" style="font-size: 14px; color: var(--color-text-tertiary);" aria-hidden="true"></i>
+    </div>
+
+    <p style="font-size: 11px; color: var(--color-text-tertiary); margin: 0 0 20px;">L'athlète pourra être assigné à un groupe plus tard depuis la page Athlètes.</p>
+
+    <!-- Assigner un programme (optionnel) -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px;">Programme <span style="font-size: 10px; color: var(--color-text-tertiary); text-transform: none; letter-spacing: 0; font-weight: 400;">— optionnel</span></p>
+
+    <div style="border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 10px; background: var(--color-background-secondary); display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <p style="font-size: 13px; color: var(--color-text-tertiary); margin: 0;">Assigner un programme existant</p>
+      <i class="ti ti-chevron-down" style="font-size: 14px; color: var(--color-text-tertiary);" aria-hidden="true"></i>
+    </div>
+
+    <p style="font-size: 11px; color: var(--color-text-tertiary); margin: 0 0 20px;">Un programme pourra être créé ou assigné plus tard depuis le profil de l'athlète.</p>
+
+    <!-- Message d'invitation personnalisé -->
+    <p style="font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px;">Message d'invitation <span style="font-size: 10px; color: var(--color-text-tertiary); text-transform: none; letter-spacing: 0; font-weight: 400;">— optionnel</span></p>
+    <div style="border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 10px; background: var(--color-background-secondary); min-height: 60px; margin-bottom: 20px;">
+      <p style="font-size: 12px; color: var(--color-text-tertiary); margin: 0; line-height: 1.5;">Ajouter un message personnalisé à l'invitation…</p>
+    </div>
+
+    <!-- Bouton envoyer -->
+    <button style="width: 100%; padding: 12px; background: #534AB7; border: none; border-radius: var(--border-radius-md); font-size: 13px; font-weight: 500; color: #EEEDFE; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      <i class="ti ti-mail-forward" style="font-size: 15px;" aria-hidden="true"></i> Envoyer l'invitation
+    </button>
+
+  </div>
+</div>
+</div>

@@ -1,11 +1,15 @@
 /**
  * Smoke tests to verify the app can be set up properly.
  * These tests ensure basic modules can be imported without crashing.
+ *
+ * Static import on purpose: babel-preset-expo keeps dynamic `import()` for
+ * Metro lazy loading, which Jest cannot run without --experimental-vm-modules.
  */
 
+import { maskEmail } from "../utils/mask-email";
+
 describe("Smoke Tests", () => {
-  it("should import the mask-email utility without errors", async () => {
-    const { maskEmail } = await import("../utils/mask-email");
+  it("should import the mask-email utility without errors", () => {
     expect(typeof maskEmail).toBe("function");
   });
 

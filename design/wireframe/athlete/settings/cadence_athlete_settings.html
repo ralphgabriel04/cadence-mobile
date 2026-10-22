@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cadence — Réglages athlète</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>body{margin:0;background:#1a1a1a;}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="../../design-canvas.jsx"></script>
+<script type="text/babel" src="../../cadence-kit.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+function Segmented({ options, active }) {
+  return (
+    <div style={{ display: 'flex', gap: 3, padding: 3, background: 'var(--surface2)', borderRadius: 10 }}>
+      {options.map((o, i) => (
+        <div key={i} style={{ padding: '5px 14px', borderRadius: 7, fontSize: 12, fontWeight: 700,
+          background: i === active ? 'var(--bg)' : 'transparent', color: i === active ? 'var(--text)' : 'var(--text-muted)',
+          boxShadow: i === active ? 'var(--shadow)' : 'none' }}>{o}</div>
+      ))}
+    </div>
+  );
+}
+
+function PrefRow({ icon, label, control, last }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 52, padding: '8px 16px', borderBottom: last ? 'none' : '1px solid var(--border)' }}>
+      {icon && <span style={{ color: 'var(--text-sub)', display: 'flex' }}>{icon}</span>}
+      <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{label}</span>
+      {control}
+    </div>
+  );
+}
+
+function ThemeSelector() {
+  const swatch = (vars, name, on) => (
+    <div style={{ flex: 1, borderRadius: 12, padding: 10, cursor: 'pointer',
+      border: '1.5px solid ' + (on ? 'var(--accent)' : 'var(--border)'), background: on ? 'var(--accent-dim)' : 'transparent' }}>
+      <div style={{ ...vars, height: 56, borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', gap: 5, justifyContent: 'center', background: vars['--bg'] }}>
+        <div style={{ height: 7, width: '70%', borderRadius: 3, background: vars['--text'] }} />
+        <div style={{ height: 7, width: '45%', borderRadius: 3, background: vars['--accent'] }} />
+        <div style={{ height: 7, width: '85%', borderRadius: 3, background: vars['--border'] }} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 700 }}>{name}</span>
+        {on && <span style={{ color: 'var(--accent)', display: 'flex' }}><Icon.check width={15} /></span>}
+      </div>
+    </div>
+  );
+  return (
+    <div style={{ display: 'flex', gap: 12, padding: 14 }}>
+      {swatch({ '--bg': '#0C0C0F', '--text': '#EEEEF5', '--accent': '#F0533F', '--border': '#2A2A36' }, 'Signal', true)}
+      {swatch({ '--bg': '#F6F6F8', '--text': '#111118', '--accent': '#D63A24', '--border': '#E4E4EC' }, 'Pulse', false)}
+    </div>
+  );
+}
+
+function Settings({ theme }) {
+  return (
+    <Screen theme={theme} height={1320} scroll>
+      <StatusBar />
+      <TopBar title="Réglages" />
+      <div style={{ padding: `4px ${PX}px 40px`, display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+        <div>
+          <SectionLabel style={{ marginBottom: 10 }}>Compte</SectionLabel>
+          <SettingsGroup>
+            <SettingsRow icon={<Icon.user width={20} />} label="Profil" value="Félix Lavoie" />
+            <SettingsRow icon={<Icon.mail width={20} />} label="Courriel" value="felix@exemple.com" />
+            <SettingsRow icon={<Icon.key width={20} />} label="Mot de passe" value="Modifier" last />
+          </SettingsGroup>
+        </div>
+
+        <div>
+          <SectionLabel style={{ marginBottom: 10 }}>Préférences</SectionLabel>
+          <SettingsGroup>
+            <PrefRow icon={<Icon.globe width={20} />} label="Langue" control={<Segmented options={['FR', 'EN']} active={0} />} />
+            <PrefRow label="Unités" control={<Segmented options={['kg', 'lb']} active={0} />} last />
+          </SettingsGroup>
+          <div style={{ marginTop: 10 }}>
+            <SettingsGroup>
+              <div style={{ fontSize: 14, fontWeight: 600, padding: '12px 16px 0' }}>Thème</div>
+              <ThemeSelector />
+            </SettingsGroup>
+          </div>
+        </div>
+
+        <div>
+          <SectionLabel style={{ marginBottom: 10 }}>Notifications</SectionLabel>
+          <SettingsGroup>
+            <PrefRow icon={<Icon.bell width={20} />} label="Rappels de séance" control={<Toggle on />} />
+            <PrefRow label="Messages du coach" control={<Toggle on />} />
+            <PrefRow label="Encouragements" control={<Toggle />} last />
+          </SettingsGroup>
+        </div>
+
+        <div>
+          <SectionLabel style={{ marginBottom: 10 }}>Appareils & capteurs</SectionLabel>
+          <SettingsGroup>
+            <SettingsRow icon={<Icon.watch width={20} />} label="Montre connectée" value="Garmin" />
+            <SettingsRow icon={<Icon.heart width={20} />} label="Ceinture FC" value="Non liée" last />
+          </SettingsGroup>
+        </div>
+
+        <div>
+          <SectionLabel style={{ marginBottom: 10 }}>Confidentialité</SectionLabel>
+          <SettingsGroup>
+            <SettingsRow icon={<Icon.shield width={20} />} label="Gestion des données (Loi 25)" />
+            <SettingsRow icon={<Icon.copy width={18} />} label="Exporter mes données" last />
+          </SettingsGroup>
+        </div>
+
+        <div>
+          <SectionLabel style={{ marginBottom: 10 }}>Coach</SectionLabel>
+          <SettingsGroup>
+            <SettingsRow icon={<Avatar initials="AX" size={26} />} label="Coach lié" value="Alexandre Côté" />
+            <SettingsRow label="Quitter mon coach" danger trailing={<span style={{ color: 'var(--text-muted)', display: 'flex' }}><Icon.chevron /></span>} last />
+          </SettingsGroup>
+        </div>
+
+        <div>
+          <SectionLabel style={{ marginBottom: 10 }}>Aide & à propos</SectionLabel>
+          <SettingsGroup>
+            <SettingsRow icon={<Icon.info width={20} />} label="Centre d'aide" />
+            <SettingsRow label="Conditions & confidentialité" />
+            <SettingsRow label="Version" value="1.0.0 (Québec)" last />
+          </SettingsGroup>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 4, alignItems: 'center' }}>
+          <Btn variant="ghost" height={52}>Se déconnecter</Btn>
+          <a style={{ fontSize: 13, fontWeight: 600, color: 'var(--error)', textDecoration: 'none' }}>Supprimer mon compte</a>
+        </div>
+      </div>
+    </Screen>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="signal" title="Signal — Dark mode" subtitle="Réglages athlète · sous-écran du profil (pas de bottom nav)">
+        <DCArtboard id="s" label="Réglages" width={390} height={1320}><Settings theme="signal" /></DCArtboard>
+      </DCSection>
+      <DCSection id="pulse" title="Pulse — Light mode">
+        <DCArtboard id="p" label="Réglages" width={390} height={1320}><Settings theme="pulse" /></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

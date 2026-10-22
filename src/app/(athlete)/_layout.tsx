@@ -1,8 +1,10 @@
 import { Redirect, Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 import { AuthSplash, ProfileRecovery } from "@/features/auth-routing/auth-gate";
 import { useAuth } from "@/providers/auth-provider";
 import { isResolving } from "@/providers/auth-state";
+import { fonts, usePalette } from "@/theme/tokens";
 
 /**
  * Athlete group guard.
@@ -13,6 +15,7 @@ import { isResolving } from "@/providers/auth-state";
  */
 export default function AthleteLayout() {
   const { state } = useAuth();
+  const palette = usePalette();
 
   if (isResolving(state)) {
     return <AuthSplash />;
@@ -36,30 +39,63 @@ export default function AthleteLayout() {
     return <Redirect href="/(coach)" />;
   }
 
+  // Tab names and icons follow the athlete NavBar of design/wireframe/cadence-kit.jsx:
+  // Accueil / Programme / Progression / Profil.
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#3b82f6",
+        tabBarActiveTintColor: palette.accent,
+        tabBarInactiveTintColor: palette.textMuted,
+        tabBarStyle: {
+          backgroundColor: palette.surface,
+          borderTopColor: palette.border,
+        },
+        tabBarLabelStyle: { fontFamily: fonts.sansBold, fontSize: 10 },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Aujourd'hui" }} />
-      {/*
-        The plan view (cm#23) is registered as a tab because nothing else links
-        to it yet: the home screen belongs to the design track, so a push
-        navigation from there cannot be added from here. A fourth tab is a
-        visible navigation change and should be reviewed by that track -- if it
-        prefers a push from Aujourd'hui, drop this entry and add the link there.
-      */}
-      <Tabs.Screen name="plan" options={{ title: "Plan" }} />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Accueil",
+          tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="plan"
+        options={{
+          title: "Programme",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={color} />
+          ),
+        }}
+      />
       {/*
         The live session is pushed, not a tab: it runs for the duration of a
         workout and is dismissed when it ends. href: null keeps it out of the
-        tab bar while leaving the route navigable.
+        tab bar while leaving the route navigable. Same for settings, a
+        sub-screen of the profile.
       */}
       <Tabs.Screen name="session" options={{ href: null }} />
-      <Tabs.Screen name="history" options={{ title: "Historique" }} />
-      <Tabs.Screen name="profile" options={{ title: "Profil" }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: "Progression",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="stats-chart-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profil",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

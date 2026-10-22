@@ -1,3 +1,43 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Design tokens — see design/wireframe/design-tokens.md and design/README.md.
+   Hex only: React Native does not parse oklch(). Light (Pulse) is the default
+   block, dark (Signal) overrides under prefers-color-scheme. */
+:root {
+  --bg: #f6f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f0f4;
+  --border: #e4e4ec;
+  --text: #111118;
+  --text-sub: #707088;
+  --text-muted: #a0a0b4;
+  --accent: #d63a24;
+  --accent-dim: #fbe4df;
+  --pill-bg: #ebebf2;
+  --pill-text: #404058;
+  --btn-primary-bg: #111118;
+  --btn-primary-text: #ffffff;
+  --success: #34d399;
+  --error: #ef4444;
+  --warning: #f59e0b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0c0f;
+    --surface: #16161c;
+    --surface2: #1e1e28;
+    --border: #2a2a36;
+    --text: #eeeef5;
+    --text-sub: #9090a8;
+    --text-muted: #50506a;
+    --accent: #f0533f;
+    --accent-dim: #2b1512;
+    --pill-bg: #252534;
+    --pill-text: #bbbbcc;
+    --btn-primary-bg: #f0533f;
+    --btn-primary-text: #0c0c0f;
+  }
+}
