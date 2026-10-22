@@ -337,3 +337,22 @@ BEGIN
               format('state=%s lastSession=%s', r->'today'->>'state',
                      r->'lastSession'));
 END $$;
+
+-- ── T47  a coach following Carol still only sees his own screen ─────────────
+-- Activated as the superuser, which is how an accepted invitation ends up.
+INSERT INTO coach_athletes (id, coach_id, athlete_id, status, accepted_at)
+VALUES ('ca000047-0000-0000-0000-000000000047',
+        '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333',
+        'active', NOW());
+DO $$
+DECLARE r JSONB;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('test.uid', '22222222-2222-2222-2222-222222222222', true);
+  r := get_today_screen(DATE '2026-08-19');
+  RESET ROLE;
+  PERFORM rec('T47 an active coach does not get his athlete''s logs on his own screen',
+              r->'lastSession' = 'null'::jsonb,
+              format('lastSession=%s', r->'lastSession'));
+END $$;
+DELETE FROM coach_athletes WHERE id = 'ca000047-0000-0000-0000-000000000047';

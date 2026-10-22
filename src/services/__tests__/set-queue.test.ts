@@ -259,19 +259,72 @@ describe("SetQueue", () => {
     expect(queue.pending[0]?.lastAttemptAt).not.toBeNull();
   });
 
-  it("drops a set the server will never accept, rather than blocking the queue", async () => {
+  it("keeps a set the server will never accept, marked as rejected, instead of dropping it", async () => {
     const storage = createMemoryStorage();
     const queue = new SetQueue(storage, async () => ({
       ok: false,
       message: "session no longer exists",
       retryable: false,
     }));
+    await queue.restore();
 
     queue.add(set());
     await queue.drain();
 
-    // Losing one set is bad; letting it block every later set behind it is
-    // worse, and the failure is surfaced either way.
+    expect(queue.pending).toHaveLength(1);
+    expect(queue.rejected).toHaveLength(1);
+    expect(queue.rejected[0]?.lastError).toBe("session no longer exists");
+    // Kept on disk too: a process kill must not lose it either.
+    expect(parseQueue(await storage.read())[0]?.rejected).toBe(true);
+  });
+
+  it("does not let a rejected set block the sets behind it", async () => {
+    const storage = createMemoryStorage();
+    const queue = new SetQueue(storage, async (entry) =>
+      entry.setNumber === 1
+        ? { ok: false, message: "check_violation", retryable: false }
+        : { ok: true },
+    );
+    await queue.restore();
+
+    queue.add(set({ clientId: "c1", setNumber: 1 }));
+    queue.add(set({ clientId: "c2", setNumber: 2 }));
+    await queue.drain();
+
+    expect(queue.pending.map((q) => q.clientId)).toEqual(["c1"]);
+  });
+
+  it("never retries a rejected set, and discards it only on request", async () => {
+    let calls = 0;
+    const queue = new SetQueue(createMemoryStorage(), async () => {
+      calls++;
+      return { ok: false, message: "denied", retryable: false };
+    });
+    await queue.restore();
+
+    queue.add(set());
+    await queue.drain();
+    await queue.drain();
+    expect(calls).toBe(1);
+
+    queue.discardRejected();
+    expect(queue.pending).toHaveLength(0);
+  });
+
+  it("replaces a rejected set when the athlete corrects the same slot", async () => {
+    let accept = false;
+    const queue = new SetQueue(createMemoryStorage(), async () =>
+      accept ? { ok: true } : { ok: false, message: "bad value", retryable: false },
+    );
+    await queue.restore();
+
+    queue.add(set({ clientId: "c1", weightKg: -5 }));
+    await queue.drain();
+    expect(queue.rejected).toHaveLength(1);
+
+    accept = true;
+    queue.add(set({ clientId: "c1-fixed", weightKg: 60 }));
+    await queue.drain();
     expect(queue.pending).toHaveLength(0);
   });
 

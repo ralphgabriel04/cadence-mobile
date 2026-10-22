@@ -133,8 +133,18 @@ function ActiveWorkout({
   exercises: WorkoutExercise[];
 }) {
   const router = useRouter();
-  const { state, status, pendingCount, startedAt, dispatch, validateSet, finish, retryPending } =
-    useWorkoutSession({ sessionId, athleteId, exercises });
+  const {
+    state,
+    status,
+    pendingCount,
+    rejectedCount,
+    discardRejected,
+    startedAt,
+    dispatch,
+    validateSet,
+    finish,
+    retryPending,
+  } = useWorkoutSession({ sessionId, athleteId, exercises });
 
   const rest = useRestTimer();
   const elapsed = useElapsedMinutes(startedAt);
@@ -204,6 +214,22 @@ function ActiveWorkout({
           <Text variant="caption" className="text-amber-900 dark:text-amber-100">
             {pendingCount} série{pendingCount === 1 ? "" : "s"} en attente d&apos;envoi. Elles sont
             enregistrées sur ton appareil — touche pour réessayer maintenant.
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {/* Refused sets: never dropped silently. The athlete corrects them (a new
+          value for the same set replaces it) or chooses to remove them. */}
+      {rejectedCount > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Retirer ${rejectedCount} série(s) refusée(s)`}
+          onPress={discardRejected}
+          className="mx-4 mt-3 rounded-xl bg-red-100 p-3 dark:bg-red-900/40"
+        >
+          <Text variant="caption" className="text-red-900 dark:text-red-100">
+            {rejectedCount} série{rejectedCount === 1 ? "" : "s"} refusée
+            {rejectedCount === 1 ? "" : "s"} par le serveur. Corrige-la ou touche ici pour la retirer.
           </Text>
         </Pressable>
       ) : null}

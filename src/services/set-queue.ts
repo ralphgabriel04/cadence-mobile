@@ -54,6 +54,14 @@ export type QueuedSet = {
   lastAttemptAt: string | null;
   attempts: number;
   lastError: string | null;
+  /**
+   * True once the server has refused this set for good (a check, a missing
+   * session, a denied write). A rejected set is NEVER silently dropped: it
+   * stays in the queue, is no longer retried, and is surfaced to the athlete,
+   * who can correct it (a new value for the same slot replaces it) or discard
+   * it. Optional so queues persisted before this field still parse.
+   */
+  rejected?: boolean;
 };
 
 /**
@@ -129,6 +137,20 @@ export function markFailed(
   );
 }
 
+/** Marks a set as refused for good: kept, not retried, shown to the athlete. */
+export function markRejected(
+  queue: readonly QueuedSet[],
+  clientId: string,
+  message: string,
+  at: string,
+): QueuedSet[] {
+  return queue.map((q) =>
+    q.clientId === clientId
+      ? { ...q, attempts: q.attempts + 1, lastError: message, lastAttemptAt: at, rejected: true }
+      : q,
+  );
+}
+
 /**
  * Backoff before the next attempt, in milliseconds.
  *
@@ -156,6 +178,8 @@ export function backoffMs(attempts: number): number {
 export function dueEntries(queue: readonly QueuedSet[], now: number): QueuedSet[] {
   return queue
     .filter((q) => {
+      // A refused set is waiting for the athlete, not for the network.
+      if (q.rejected === true) return false;
       if (q.attempts === 0) return true;
       const since = Date.parse(q.lastAttemptAt ?? q.queuedAt);
       if (Number.isNaN(since)) return true;
@@ -268,8 +292,20 @@ export class SetQueue {
     void this.drain();
   }
 
+  /** Every set not yet on the server, including the ones it refused. */
   get pending(): readonly QueuedSet[] {
     return this.queue;
+  }
+
+  /** Sets the server refused for good. They stay until corrected or discarded. */
+  get rejected(): readonly QueuedSet[] {
+    return this.queue.filter((q) => q.rejected === true);
+  }
+
+  /** Removes the refused sets, once the athlete has chosen to let them go. */
+  discardRejected(): void {
+    this.queue = this.queue.filter((q) => q.rejected !== true);
+    this.persist();
   }
 
   subscribe(listener: (queue: readonly QueuedSet[]) => void): () => void {
@@ -344,9 +380,14 @@ export class SetQueue {
       } else {
         // A rejection the server will never accept -- a malformed value, or a
         // session that no longer exists. Retrying forever would block every
-        // set behind it, so it is dropped. Losing it is bad; blocking the
-        // whole queue on it is worse, and it is reported either way.
-        this.queue = removeById(this.queue, current.clientId);
+        // set behind it, so it stops being retried; but it is KEPT and marked,
+        // never dropped, so the athlete is told and decides what happens to it.
+        this.queue = markRejected(
+          this.queue,
+          current.clientId,
+          result.message,
+          new Date(this.now()).toISOString(),
+        );
       }
       this.persist();
     }
