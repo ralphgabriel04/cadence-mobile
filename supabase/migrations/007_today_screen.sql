@@ -28,7 +28,10 @@
 -- SECURITY
 -- SECURITY INVOKER (the default). Every table read below is subject to its own
 -- RLS policies, so this function cannot return anything the caller could not
--- read with a plain query. In particular session_logs and exercise_logs are
+-- read with a plain query. Every session_logs read is ALSO filtered on
+-- athlete_id = auth.uid(): RLS alone would let a coach see the logs of the
+-- athletes they follow, and this screen must only ever show the caller's own.
+-- In particular session_logs and exercise_logs are
 -- restricted to the caller's own rows, which is why the queries never mention
 -- athlete_id for them -- RLS is the filter.
 --
@@ -109,7 +112,8 @@ BEGIN
     INTO v_last_session
     FROM session_logs sl
     JOIN sessions s ON s.id = sl.session_id
-   WHERE sl.status = 'completed'
+   WHERE sl.athlete_id = v_athlete
+     AND sl.status = 'completed'
      AND sl.completed_at IS NOT NULL
      AND NOT sl.is_deleted
    ORDER BY sl.completed_at DESC
@@ -188,6 +192,7 @@ BEGIN
                      FROM sessions s2
                      JOIN session_logs sl ON sl.session_id = s2.id
                     WHERE s2.program_id = v_assignment.program_id
+                      AND sl.athlete_id = v_athlete
                       AND NOT s2.is_deleted
                       AND s2.day_of_week = dow
                       AND (s2.week_number = v_week OR s2.week_number IS NULL)
@@ -295,6 +300,7 @@ BEGIN
                 FROM exercise_logs el
                 JOIN session_logs sl ON sl.id = el.session_log_id
                WHERE el.exercise_id = se.exercise_id
+                 AND sl.athlete_id = v_athlete
                  AND sl.completed_at IS NOT NULL
                  AND NOT el.is_deleted
                  AND NOT sl.is_deleted
@@ -316,6 +322,7 @@ BEGIN
     INTO v_log
     FROM session_logs sl
    WHERE sl.session_id = v_session.id
+     AND sl.athlete_id = v_athlete
      AND NOT sl.is_deleted
      AND (sl.status = 'in_progress'
           OR COALESCE(sl.completed_at, sl.started_at)::date = p_on_date)
