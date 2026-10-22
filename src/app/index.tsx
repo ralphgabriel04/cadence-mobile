@@ -1,25 +1,24 @@
-import { ActivityIndicator, View } from "react-native";
 import { Redirect } from "expo-router";
+
+import { AuthSplash } from "@/features/auth-routing/auth-gate";
 import { useAuth } from "@/providers/auth-provider";
+import { homeRouteFor } from "@/providers/auth-state";
 
+/**
+ * Routing entry point. Holds no policy of its own: `homeRouteFor` is the single
+ * place that decides where an authenticated user belongs, so this file and every
+ * group layout cannot disagree the way they previously did.
+ *
+ * A null route means the answer is not known yet -- render the splash rather
+ * than guessing.
+ */
 export default function Index() {
-  const { session, profile, loading } = useAuth();
+  const { state } = useAuth();
+  const route = homeRouteFor(state);
 
-  if (loading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-gray-900">
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
+  if (!route) {
+    return <AuthSplash />;
   }
 
-  if (!session) {
-    return <Redirect href="/(auth)/login" />;
-  }
-
-  if (profile?.role === "coach") {
-    return <Redirect href="/(coach)" />;
-  }
-
-  return <Redirect href="/(athlete)" />;
+  return <Redirect href={route} />;
 }

@@ -1,49 +1,39 @@
-import { Redirect, Tabs } from "expo-router";
+import { Redirect, Stack } from "expo-router";
+
+import { AuthSplash, ProfileRecovery } from "@/features/auth-routing/auth-gate";
 import { useAuth } from "@/providers/auth-provider";
-import { ActivityIndicator, View } from "react-native";
+import { isResolving } from "@/providers/auth-state";
 
+/**
+ * Coach group guard.
+ *
+ * Renders a Stack rather than Tabs: the 2026 release has no coach features, so
+ * the group holds a single reachable screen (the 2027 notice, in index.tsx). The
+ * dashboard, programs and athletes routes stay on disk for the 2027 work but are
+ * not navigable, since nothing links to them.
+ */
 export default function CoachLayout() {
-  const { session, profile, loading } = useAuth();
+  const { state } = useAuth();
 
-  if (loading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-gray-900">
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
+  if (isResolving(state)) {
+    return <AuthSplash />;
   }
 
-  if (!session) {
+  if (state.status === "signed-out") {
     return <Redirect href="/(auth)/login" />;
   }
 
-  if (profile?.role !== "coach") {
+  if (state.status === "profile-missing") {
+    return <ProfileRecovery reason="missing" />;
+  }
+
+  if (state.status === "error") {
+    return <ProfileRecovery reason="error" message={state.message} />;
+  }
+
+  if (state.profile.role !== "coach") {
     return <Redirect href="/(athlete)" />;
   }
 
-  return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: "#3b82f6",
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{ title: "Accueil" }}
-      />
-      <Tabs.Screen
-        name="programs"
-        options={{ title: "Programmes" }}
-      />
-      <Tabs.Screen
-        name="athletes"
-        options={{ title: "Athlètes" }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{ title: "Profil" }}
-      />
-    </Tabs>
-  );
+  return <Stack screenOptions={{ headerShown: false }} />;
 }

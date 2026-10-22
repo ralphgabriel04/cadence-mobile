@@ -6,9 +6,20 @@ const securityPlugin = require("eslint-plugin-security");
 module.exports = defineConfig([
   expoConfig,
   {
-    plugins: {
-      security: securityPlugin,
-    },
+    // TypeScript and React rules MUST stay scoped to TS/TSX.
+    //
+    // These were previously declared in an unscoped config object, so they
+    // applied to every linted file. ESLint 9 flat config ignores the `--ext`
+    // flag in the lint script, which means any .js or .mjs file added anywhere
+    // in the repo entered scope and hit
+    //
+    //   A configuration object specifies rule "@typescript-eslint/no-explicit-any",
+    //   but could not find plugin "@typescript-eslint".
+    //
+    // eslint-config-expo registers the @typescript-eslint and react plugins for
+    // TS files only, which is correct -- it is the rule declaration that has to
+    // be scoped to match.
+    files: ["**/*.ts", "**/*.tsx"],
     rules: {
       // TypeScript strict rules - zero tolerance for `any`
       "@typescript-eslint/no-explicit-any": "error",
@@ -28,7 +39,13 @@ module.exports = defineConfig([
       // React Hooks rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
-
+    },
+  },
+  {
+    plugins: {
+      security: securityPlugin,
+    },
+    rules: {
       // Console usage - warn except for error/warn
       "no-console": ["warn", { allow: ["error", "warn"] }],
 
