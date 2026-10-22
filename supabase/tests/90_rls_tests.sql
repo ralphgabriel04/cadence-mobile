@@ -377,6 +377,99 @@ BEGIN
               w1 = 1 AND w2 = 1 AND w3 = 2, format('%s/%s/%s', w1, w2, w3));
 END $$;
 
+-- ── S1-S6  coach_athletes and SECURITY DEFINER hardening (006a) ─────────────
+-- Bob (any signed-in account) tries to become Alice's active coach.
+
+-- S1  a coach cannot create an ACTIVE relationship by himself
+DO $$
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('test.uid', '22222222-2222-2222-2222-222222222222', true);
+  INSERT INTO coach_athletes (coach_id, athlete_id, status)
+  VALUES ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'active');
+  RESET ROLE;
+  PERFORM rec('S1 a coach cannot self-activate a relationship', FALSE, 'accepted');
+EXCEPTION WHEN others THEN
+  RESET ROLE;
+  PERFORM rec('S1 a coach cannot self-activate a relationship', SQLSTATE = '42501', SQLSTATE || ' ' || SQLERRM);
+END $$;
+
+-- S2  a coach can still invite (pending)
+DO $$
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('test.uid', '22222222-2222-2222-2222-222222222222', true);
+  INSERT INTO coach_athletes (id, coach_id, athlete_id, status)
+  VALUES ('ca000001-0000-0000-0000-000000000001',
+          '22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'pending');
+  RESET ROLE;
+  PERFORM rec('S2 a coach can send a pending invitation', TRUE);
+EXCEPTION WHEN others THEN
+  RESET ROLE;
+  PERFORM rec('S2 a coach can send a pending invitation', FALSE, SQLERRM);
+END $$;
+
+-- S3  the coach cannot flip his own invitation to active
+DO $$
+DECLARE s TEXT;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('test.uid', '22222222-2222-2222-2222-222222222222', true);
+  UPDATE coach_athletes SET status = 'active' WHERE id = 'ca000001-0000-0000-0000-000000000001';
+  RESET ROLE;
+  SELECT status::text INTO s FROM coach_athletes WHERE id = 'ca000001-0000-0000-0000-000000000001';
+  PERFORM rec('S3 a coach cannot accept his own invitation', s = 'pending', 'status=' || s);
+EXCEPTION WHEN others THEN
+  RESET ROLE;
+  PERFORM rec('S3 a coach cannot accept his own invitation', SQLSTATE = '42501', SQLSTATE || ' ' || SQLERRM);
+END $$;
+
+-- S4  while pending, the coach sees none of the athlete's session logs
+DO $$
+DECLARE c INT;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('test.uid', '22222222-2222-2222-2222-222222222222', true);
+  SELECT count(*) INTO c FROM session_logs WHERE athlete_id = '11111111-1111-1111-1111-111111111111';
+  RESET ROLE;
+  PERFORM rec('S4 a pending coach sees no athlete session log', c = 0, 'visible=' || c);
+END $$;
+
+-- S5  the athlete accepts: status active and accepted_at filled
+DO $$
+DECLARE s TEXT; a TIMESTAMPTZ;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('test.uid', '11111111-1111-1111-1111-111111111111', true);
+  UPDATE coach_athletes SET status = 'active' WHERE id = 'ca000001-0000-0000-0000-000000000001';
+  RESET ROLE;
+  SELECT status::text, accepted_at INTO s, a FROM coach_athletes WHERE id = 'ca000001-0000-0000-0000-000000000001';
+  PERFORM rec('S5 the athlete can accept the invitation', s = 'active' AND a IS NOT NULL, 'status=' || COALESCE(s,'NULL'));
+EXCEPTION WHEN others THEN
+  RESET ROLE;
+  PERFORM rec('S5 the athlete can accept the invitation', FALSE, SQLERRM);
+END $$;
+
+-- S6  recompute_exercise_pr() is not callable by a signed-in user
+DO $$
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('test.uid', '22222222-2222-2222-2222-222222222222', true);
+  PERFORM recompute_exercise_pr('11111111-1111-1111-1111-111111111111', 'aaaa0001-0000-0000-0000-000000000001');
+  RESET ROLE;
+  PERFORM rec('S6 recompute_exercise_pr is not a public RPC', FALSE, 'callable');
+EXCEPTION WHEN insufficient_privilege THEN
+  RESET ROLE;
+  PERFORM rec('S6 recompute_exercise_pr is not a public RPC', TRUE);
+WHEN others THEN
+  RESET ROLE;
+  PERFORM rec('S6 recompute_exercise_pr is not a public RPC', FALSE, SQLERRM);
+END $$;
+
+-- clean up so later tests see the original fixtures
+DELETE FROM coach_athletes WHERE id = 'ca000001-0000-0000-0000-000000000001';
+
+
 -- ── T23  ownership CHECK rejects a fully orphan program ──────────────────
 DO $$
 BEGIN
