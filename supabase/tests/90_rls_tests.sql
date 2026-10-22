@@ -482,13 +482,5 @@ WHEN others THEN
   PERFORM rec('T23 a program with no owner at all is refused', FALSE, SQLERRM);
 END $$;
 
--- ── Report ───────────────────────────────────────────────────────────────
-SELECT CASE WHEN passed THEN 'PASS' ELSE 'FAIL' END AS r,
-       name,
-       CASE WHEN passed THEN '' ELSE detail END AS detail
-  FROM test_results ORDER BY n;
-
-SELECT count(*) FILTER (WHERE passed) AS passed,
-       count(*) FILTER (WHERE NOT passed) AS failed,
-       count(*) AS total
-  FROM test_results;
+-- The consolidated report is printed by run.sh once every 9*.sql file has run,
+-- so this file deliberately prints nothing itself.

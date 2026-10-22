@@ -17,6 +17,9 @@ export type Json =
   | Json[];
 
 export type Database = {
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5";
+  };
   public: {
     Tables: {
       coach_athletes: {
@@ -59,6 +62,22 @@ export type Database = {
           is_deleted?: boolean;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "coach_athletes_athlete_id_fkey";
+            columns: ["athlete_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "coach_athletes_coach_id_fkey";
+            columns: ["coach_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       coach_notes: {
         Row: {
@@ -97,6 +116,29 @@ export type Database = {
           is_deleted?: boolean;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "coach_notes_athlete_id_fkey";
+            columns: ["athlete_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "coach_notes_coach_id_fkey";
+            columns: ["coach_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "coach_notes_session_log_id_fkey";
+            columns: ["session_log_id"];
+            isOneToOne: false;
+            referencedRelation: "session_logs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       conversations: {
         Row: {
@@ -129,6 +171,22 @@ export type Database = {
           is_deleted?: boolean;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "conversations_athlete_id_fkey";
+            columns: ["athlete_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_coach_id_fkey";
+            columns: ["coach_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       exercise_logs: {
         Row: {
@@ -185,6 +243,29 @@ export type Database = {
           is_deleted?: boolean;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "exercise_logs_exercise_id_fkey";
+            columns: ["exercise_id"];
+            isOneToOne: false;
+            referencedRelation: "exercises";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "exercise_logs_session_exercise_id_fkey";
+            columns: ["session_exercise_id"];
+            isOneToOne: false;
+            referencedRelation: "session_exercises";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "exercise_logs_session_log_id_fkey";
+            columns: ["session_log_id"];
+            isOneToOne: false;
+            referencedRelation: "session_logs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       exercises: {
         Row: {
@@ -238,6 +319,22 @@ export type Database = {
           created_by?: string | null;
           is_public?: boolean;
         };
+        Relationships: [
+          {
+            foreignKeyName: "exercises_coach_id_fkey";
+            columns: ["coach_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "exercises_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       messages: {
         Row: {
@@ -279,6 +376,29 @@ export type Database = {
           is_deleted?: boolean;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "messages_related_session_log_id_fkey";
+            columns: ["related_session_log_id"];
+            isOneToOne: false;
+            referencedRelation: "session_logs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey";
+            columns: ["sender_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       profiles: {
         Row: {
@@ -335,6 +455,15 @@ export type Database = {
           is_deleted?: boolean;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey";
+            columns: ["id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       program_assignments: {
         Row: {
@@ -376,6 +505,29 @@ export type Database = {
           is_deleted?: boolean;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "program_assignments_athlete_id_fkey";
+            columns: ["athlete_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "program_assignments_coach_id_fkey";
+            columns: ["coach_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "program_assignments_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       programs: {
         Row: {
@@ -429,6 +581,22 @@ export type Database = {
           created_by?: string | null;
           is_public?: boolean;
         };
+        Relationships: [
+          {
+            foreignKeyName: "programs_coach_id_fkey";
+            columns: ["coach_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "programs_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       readiness_logs: {
         Row: {
@@ -477,6 +645,15 @@ export type Database = {
           is_deleted?: boolean;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "readiness_logs_athlete_id_fkey";
+            columns: ["athlete_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       session_exercises: {
         Row: {
@@ -530,6 +707,22 @@ export type Database = {
           is_deleted?: boolean;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "session_exercises_exercise_id_fkey";
+            columns: ["exercise_id"];
+            isOneToOne: false;
+            referencedRelation: "exercises";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "session_exercises_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       session_images: {
         Row: {
@@ -565,6 +758,22 @@ export type Database = {
           is_deleted?: boolean;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "session_images_athlete_id_fkey";
+            columns: ["athlete_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "session_images_session_log_id_fkey";
+            columns: ["session_log_id"];
+            isOneToOne: false;
+            referencedRelation: "session_logs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       session_logs: {
         Row: {
@@ -621,6 +830,29 @@ export type Database = {
           paused_at?: string | null;
           total_paused_seconds?: number;
         };
+        Relationships: [
+          {
+            foreignKeyName: "session_logs_athlete_id_fkey";
+            columns: ["athlete_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "session_logs_program_assignment_id_fkey";
+            columns: ["program_assignment_id"];
+            isOneToOne: false;
+            referencedRelation: "program_assignments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "session_logs_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       sessions: {
         Row: {
@@ -665,6 +897,15 @@ export type Database = {
           is_deleted?: boolean;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "sessions_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       waitlist_subscribers: {
         Row: {
@@ -691,6 +932,7 @@ export type Database = {
           created_at?: string;
           confirmed?: boolean | null;
         };
+        Relationships: [];
       };
     };
     Views: Record<string, never>;
@@ -733,6 +975,10 @@ export type Database = {
           reps_completed: number | null;
           achieved_at: string | null;
         }[];
+      };
+      get_today_screen: {
+        Args: { p_on_date: string };
+        Returns: Json;
       };
       get_waitlist_count: {
         Args: Record<string, never>;

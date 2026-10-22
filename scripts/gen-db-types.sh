@@ -64,6 +64,40 @@ SELECT 'FUNCTION|' || p.proname
   JOIN pg_namespace n ON n.oid = p.pronamespace
  WHERE n.nspname = 'public'
  ORDER BY p.proname;
+
+-- Foreign keys, for the Relationships field of each table.
+--
+-- Not decoration: postgrest-js declares GenericTable.Relationships as REQUIRED,
+-- so a table type without it fails the GenericSchema constraint, the client's
+-- Schema degrades, and every typed rpc() call stops compiling. Embedded selects
+-- need it too.
+--
+-- isOneToOne is true when the referencing columns are themselves unique, which
+-- is what makes PostgREST return an object rather than an array for the embed.
+SELECT 'FK|' || con.conname
+       || '|' || src.relname
+       || '|' || (SELECT string_agg(a.attname, ',' ORDER BY k.ord)
+                    FROM unnest(con.conkey) WITH ORDINALITY AS k(attnum, ord)
+                    JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum)
+       || '|' || tgt.relname
+       || '|' || (SELECT string_agg(a.attname, ',' ORDER BY k.ord)
+                    FROM unnest(con.confkey) WITH ORDINALITY AS k(attnum, ord)
+                    JOIN pg_attribute a ON a.attrelid = con.confrelid AND a.attnum = k.attnum)
+       || '|' || CASE WHEN EXISTS (
+                        SELECT 1 FROM pg_index i
+                         WHERE i.indrelid = con.conrelid
+                           AND i.indisunique
+                           AND i.indpred IS NULL
+                           AND (SELECT array_agg(x ORDER BY x) FROM unnest(i.indkey::int[]) x)
+                             = (SELECT array_agg(y ORDER BY y) FROM unnest(con.conkey::int[]) y)
+                      ) THEN 't' ELSE 'f' END
+  FROM pg_constraint con
+  JOIN pg_class src ON src.oid = con.conrelid
+  JOIN pg_class tgt ON tgt.oid = con.confrelid
+  JOIN pg_namespace n ON n.oid = src.relnamespace
+ WHERE con.contype = 'f'
+   AND n.nspname = 'public'
+ ORDER BY src.relname, con.conname;
 SQL
 )
 
