@@ -1,0 +1,11 @@
+# Décisions explicites sur les scripts de build des dépendances (pnpm >= 11).
+# Sans une entrée ici, pnpm interrompt toute commande avec ERR_PNPM_IGNORED_BUILDS
+# et attend un `pnpm approve-builds` interactif — ce qui casse la CI et les
+# postes de dev. Chaque paquet doit donc avoir une valeur true/false versionnée.
+allowBuilds:
+  # postinstall = `napi-postinstall unrs-resolver 1.11.1 check`, une simple
+  # vérification de binding. Les 19 binaires de plateforme sont déjà épinglés
+  # dans pnpm-lock.yaml en optionalDependencies, donc le script n'apporte rien.
+  # Refusé : aucun script exécuté à l'installation, comportement identique
+  # sur Windows, macOS et les runners Linux.
+  unrs-resolver: false
