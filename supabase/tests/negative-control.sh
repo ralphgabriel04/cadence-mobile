@@ -31,6 +31,10 @@ add "remove the trigger that freezes assignment keys (forged-assignment read lea
   'DROP TRIGGER program_assignments_freeze_keys ON program_assignments;'
 add "restore the old coach FOR ALL policy on program_assignments (any coach_id accepted)" \
   'CREATE POLICY old_coach ON program_assignments FOR ALL TO authenticated USING (auth.uid() = coach_id) WITH CHECK (auth.uid() = coach_id);'
+add "restore the old session_images policy (image on someone else's workout)" \
+  'CREATE POLICY old_img ON session_images FOR ALL TO authenticated USING (auth.uid() = athlete_id) WITH CHECK (auth.uid() = athlete_id);'
+add "restore the old programs creator policy (publish to library)" \
+  'CREATE POLICY old_pub ON programs FOR ALL TO authenticated USING (auth.uid() = created_by) WITH CHECK (auth.uid() = created_by);'
 
 missed=0
 for i in "${!NAMES[@]}"; do
