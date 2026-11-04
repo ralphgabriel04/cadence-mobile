@@ -1,26 +1,116 @@
-import { purgeLocalSetQueue } from "../purge-local-queue";
-import { createMemoryStorage, parseQueue, SetQueue } from "../set-queue";
+import { createLocalQueuePurger, type PurgeMarker } from "../purge-local-queue";
+import { createMemoryStorage, SetQueue, type QueuedSet } from "../set-queue";
 
-// Stands in for the file in cadence/set-queue.json, the same one every queue uses.
-const mockFile = createMemoryStorage();
-jest.mock("../queue-storage", () => ({ createQueueStorage: () => mockFile }));
+jest.mock("../queue-storage", () => ({ eraseQueueFile: jest.fn() }));
+
+const old: QueuedSet = { clientId: "old-account-set" } as QueuedSet;
+
+// The marker lives in the keychain, not in the file: it has to survive a refused disk.
+function fakeMarker(opts: { failWrites?: boolean } = {}): PurgeMarker & { value: boolean } {
+  const m = {
+    value: false,
+    set: async () => {
+      if (opts.failWrites) throw new Error("keychain locked");
+      m.value = true;
+    },
+    clear: async () => {
+      m.value = false;
+    },
+    isSet: async () => m.value,
+  };
+  return m;
+}
 
 describe("purgeLocalSetQueue", () => {
-  it("empties the file even when no queue is alive, and closes the live ones", async () => {
-    mockFile.write(JSON.stringify([{ clientId: "left-by-a-previous-run" }]));
-    const live = new SetQueue(mockFile, async () => ({ ok: false, message: "x", retryable: true }));
+  it("says erased only when the file is really gone, closes live queues, leaves no marker", async () => {
+    const marker = fakeMarker();
+    const live = new SetQueue(createMemoryStorage(), async () => ({
+      ok: false,
+      message: "x",
+      retryable: true,
+    }));
     await live.restore();
+    live.add({ ...old, clientId: "waiting" });
+    expect(live.pending).toHaveLength(1);
 
-    purgeLocalSetQueue();
-
-    expect(parseQueue(await mockFile.read())).toEqual([]);
+    const purger = createLocalQueuePurger({ erase: () => ({ erased: true }), marker });
+    expect(await purger.purge()).toEqual({ erased: true });
     expect(live.pending).toHaveLength(0);
+    expect(marker.value).toBe(false);
   });
 
-  it("never throws, even if the storage does", () => {
-    mockFile.write = () => {
-      throw new Error("disk full");
-    };
-    expect(() => purgeLocalSetQueue()).not.toThrow();
+  it("says not erased and keeps a marker when the file cannot be removed", async () => {
+    const marker = fakeMarker();
+    const purger = createLocalQueuePurger({ erase: () => ({ erased: false }), marker });
+    expect(await purger.purge()).toEqual({ erased: false });
+    expect(marker.value).toBe(true);
+  });
+
+  it("never throws: an eraser that throws counts as not erased", async () => {
+    const marker = fakeMarker();
+    const purger = createLocalQueuePurger({
+      erase: () => {
+        throw new Error("disk refused");
+      },
+      marker,
+    });
+    await expect(purger.purge()).resolves.toEqual({ erased: false });
+    expect(marker.value).toBe(true);
+  });
+});
+
+describe("next launch after a refused purge", () => {
+  async function relaunch(
+    purger: ReturnType<typeof createLocalQueuePurger>,
+    storage = createMemoryStorage()
+  ) {
+    const send = jest.fn(async () => ({ ok: true }) as const);
+    const queue = new SetQueue(storage, send);
+    if (await purger.mayRestore()) await queue.restore();
+    await queue.drain();
+    return { queue, send };
+  }
+
+  it("does not reload or send the old account's sets while the file is still refused", async () => {
+    const storage = createMemoryStorage();
+    storage.write(JSON.stringify([old])); // left on disk: the purge was refused
+    const marker = fakeMarker();
+    const first = createLocalQueuePurger({ erase: () => ({ erased: false }), marker });
+    await first.purge();
+
+    // New process: same keychain marker, fresh purger, disk still refusing.
+    const second = createLocalQueuePurger({ erase: () => ({ erased: false }), marker });
+    const { queue, send } = await relaunch(second, storage);
+
+    expect(queue.pending).toHaveLength(0);
+    expect(send).not.toHaveBeenCalled();
+    expect(marker.value).toBe(true);
+  });
+
+  it("retries the erase, clears the marker and restores normally once the disk works again", async () => {
+    const marker = fakeMarker();
+    marker.value = true;
+    const erase = jest.fn(() => ({ erased: true }));
+    const purger = createLocalQueuePurger({ erase, marker });
+
+    expect(await purger.mayRestore()).toBe(true);
+    expect(erase).toHaveBeenCalledTimes(1);
+    expect(marker.value).toBe(false);
+  });
+
+  it("with no marker, restores without touching the file", async () => {
+    const erase = jest.fn(() => ({ erased: true }));
+    const purger = createLocalQueuePurger({ erase, marker: fakeMarker() });
+    expect(await purger.mayRestore()).toBe(true);
+    expect(erase).not.toHaveBeenCalled();
+  });
+
+  it("if even the marker cannot be written, the same process still refuses to restore", async () => {
+    const purger = createLocalQueuePurger({
+      erase: () => ({ erased: false }),
+      marker: fakeMarker({ failWrites: true }),
+    });
+    expect(await purger.purge()).toEqual({ erased: false });
+    expect(await purger.mayRestore()).toBe(false);
   });
 });
