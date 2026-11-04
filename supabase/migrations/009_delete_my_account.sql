@@ -6,7 +6,9 @@
 -- cannot name another account.
 --
 -- What it removes:
---   * the waitlist row(s) with the account's e-mail (personal data, no FK)
+--   * the waitlist row(s) with the account's CURRENT e-mail from auth.users, only if
+--     that address is confirmed (personal data, no FK). The profile e-mail is a
+--     mirror that can be stale, so it is not used.
 --   * the profile, which cascades (ON DELETE CASCADE) to programs and exercises
 --     the user created, sessions, session_exercises, assignments, session_logs,
 --     exercise_logs (sets), readiness_logs, session_images, coach_athletes,
@@ -22,8 +24,11 @@
 --   * Files in Storage (avatars, session photos) are not removed by SQL; the
 --     follow-up is an Edge Function using the service role key held server-side.
 --   * Backups age out on their normal cycle (ticket default).
---   * A coach's deletion also removes athlete history attached to the coach's
---     own programs (cascade); the coach space is epic 12 and is out of scope.
+--   * KNOWN LIMIT (product decision for Ralph, epic 12): deleting a COACH also deletes,
+--     by cascade, other accounts' logs made on that coach's programs/exercises.
+--     Pinned by test 'DEL KNOWN LIMIT'. Not changed here on purpose.
+--   * A JWT already issued stays valid until it expires; the user no longer
+--     exists (token refresh is expected to fail; not verified here).
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.delete_my_account()
@@ -35,13 +40,14 @@ AS $$
 DECLARE
   v_uid   uuid := auth.uid();
   v_email text;
+  v_confirmed timestamptz;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'not authenticated' USING ERRCODE = 'insufficient_privilege';
   END IF;
 
-  SELECT email INTO v_email FROM public.profiles WHERE id = v_uid;
-  IF v_email IS NOT NULL THEN
+  SELECT email, email_confirmed_at INTO v_email, v_confirmed FROM auth.users WHERE id = v_uid;
+  IF v_email IS NOT NULL AND v_confirmed IS NOT NULL THEN
     DELETE FROM public.waitlist_subscribers WHERE lower(email) = lower(v_email);
   END IF;
 
