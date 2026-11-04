@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { createSecureStorage } from "./secure-storage";
+import { clearStoredSession, createSecureStorage } from "./secure-storage";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./constants";
 import type { Database } from "@/types/database";
 
@@ -15,9 +15,14 @@ if (!SUPABASE_ANON_KEY) {
   );
 }
 
+const storage = createSecureStorage();
+
+/** Erases the persisted session of this device (used when server sign-out fails). */
+export const clearLocalSession = () => clearStoredSession(storage, SUPABASE_URL);
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    storage: createSecureStorage(),
+    storage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
