@@ -50,8 +50,8 @@ export type AuthEvent =
   | { type: "session-resolved"; session: Session | null }
   | { type: "signed-out" }
   | { type: "profile-loaded"; profile: Profile }
-  | { type: "profile-missing" }
-  | { type: "profile-failed"; message: string }
+  | { type: "profile-missing"; userId: string }
+  | { type: "profile-failed"; userId: string; message: string }
   | { type: "profile-reload" };
 
 export const initialAuthState: AuthState = { status: "initializing" };
@@ -90,12 +90,20 @@ export function authReducer(state: AuthState, event: AuthEvent): AuthState {
       return { status: "ready", session: state.session, profile: event.profile };
     }
 
+    // A late "missing" or "failed" answer is only valid for the request that is
+    // still in flight: it must be for the same user AND the state must still be
+    // `loading-profile`. This keeps user B's ready profile from being replaced
+    // by a stale answer about user A, and a ready profile from being downgraded
+    // by an old request. A late answer for the SAME user after sign-out and
+    // sign-in again is accepted: it describes the same account.
     case "profile-missing":
-      if (!("session" in state)) return state;
+      if (state.status !== "loading-profile") return state;
+      if (state.session.user.id !== event.userId) return state;
       return { status: "profile-missing", session: state.session };
 
     case "profile-failed":
-      if (!("session" in state)) return state;
+      if (state.status !== "loading-profile") return state;
+      if (state.session.user.id !== event.userId) return state;
       return { status: "error", session: state.session, message: event.message };
 
     case "profile-reload":
@@ -107,10 +115,7 @@ export function authReducer(state: AuthState, event: AuthEvent): AuthState {
 // ── Derivations ──────────────────────────────────────────────────────────────
 
 /** States in which the identity of the user is not yet known. */
-export type ResolvingAuthState = Extract<
-  AuthState,
-  { status: "initializing" | "loading-profile" }
->;
+export type ResolvingAuthState = Extract<AuthState, { status: "initializing" | "loading-profile" }>;
 
 /** States in which it is. */
 export type ResolvedAuthState = Exclude<AuthState, ResolvingAuthState>;
