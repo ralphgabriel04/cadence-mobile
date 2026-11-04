@@ -5,13 +5,17 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useState,
   useRef,
   type ReactNode,
 } from "react";
 import { type Session, type User } from "@supabase/supabase-js";
 
-import { supabase } from "@/config/supabase";
+import { clearLocalSession, supabase } from "@/config/supabase";
 import { DELETION_FAILED } from "@/features/account-deletion/deletion-copy";
+
+import { signInErrorMessage } from "./auth-errors";
+import { signOutAndClearLocal } from "./sign-out";
 
 import {
   authReducer,
@@ -25,6 +29,9 @@ import {
 } from "./auth-state";
 
 export type { AuthState, Profile } from "./auth-state";
+
+export const SIGN_OUT_NOT_CLEARED =
+  "La déconnexion n'a pas pu effacer la session de cet appareil. Réessaie.";
 
 type AuthContextType = {
   /**
@@ -52,7 +59,10 @@ type AuthContextType = {
     lastName: string;
     role: "coach" | "athlete";
   }) => Promise<{ error: string | null }>;
-  signOut: () => Promise<void>;
+  /** Always ends the UI session. `error` is set when this device could not erase the stored session. */
+  signOut: () => Promise<{ error: string | null }>;
+  /** Last sign-out problem, shown on the login screen; cleared by the next sign-in. */
+  signOutNotice: string | null;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   /** Deletes the signed-in account and all its data (public.delete_my_account), then ends the session. */
   deleteAccount: () => Promise<{ error: string | null }>;
@@ -155,14 +165,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    setSignOutNotice(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      if (error.message.includes("rate limit")) {
-        return { error: "Trop de tentatives. Veuillez réessayer dans quelques minutes." };
-      }
-      // Deliberately generic: a distinct "unknown account" message would let
-      // anyone enumerate registered addresses (ADR-001).
-      return { error: "Courriel ou mot de passe incorrect" };
+      // Wrong email and wrong password read the same (ADR-001); see auth-errors.ts.
+      return { error: signInErrorMessage(error) };
     }
     return { error: null };
   }, []);
@@ -202,12 +209,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { error: null };
     },
-    [],
+    []
   );
 
+  const [signOutNotice, setSignOutNotice] = useState<string | null>(null);
+
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    if (mounted.current) dispatch({ type: "signed-out" });
+    const outcome = await signOutAndClearLocal(supabase.auth, clearLocalSession);
+    // The UI always ends the session, but never claims the token is gone when it may not be.
+    const error = outcome.localCleared ? null : SIGN_OUT_NOT_CLEARED;
+    if (mounted.current) {
+      setSignOutNotice(error);
+      dispatch({ type: "signed-out" });
+    }
+    return { error };
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
@@ -246,11 +261,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      signOutNotice,
       resetPassword,
       deleteAccount,
       updatePassword,
     }),
-    [state, refreshProfile, signIn, signUp, signOut, resetPassword, deleteAccount, updatePassword],
+    [
+      state,
+      refreshProfile,
+      signIn,
+      signUp,
+      signOut,
+      signOutNotice,
+      resetPassword,
+      deleteAccount,
+      updatePassword,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -103,7 +103,7 @@ describe("authReducer — no routable state with an unknown role", () => {
     const ready = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-loaded", profile: makeProfile(ALICE, "coach") },
+      { type: "profile-loaded", profile: makeProfile(ALICE, "coach") }
     );
     expect(homeRouteFor(ready)).toBe("/(coach)");
   });
@@ -112,7 +112,7 @@ describe("authReducer — no routable state with an unknown role", () => {
     const ready = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-loaded", profile: makeProfile(ALICE, "athlete") },
+      { type: "profile-loaded", profile: makeProfile(ALICE, "athlete") }
     );
     expect(homeRouteFor(ready)).toBe("/(athlete)");
   });
@@ -125,7 +125,7 @@ describe("authReducer — token refresh", () => {
     const ready = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-loaded", profile: makeProfile(ALICE) },
+      { type: "profile-loaded", profile: makeProfile(ALICE) }
     );
 
     const refreshed = authReducer(ready, {
@@ -142,7 +142,7 @@ describe("authReducer — token refresh", () => {
     const ready = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-loaded", profile: makeProfile(ALICE) },
+      { type: "profile-loaded", profile: makeProfile(ALICE) }
     );
 
     const switched = authReducer(ready, {
@@ -163,7 +163,7 @@ describe("authReducer — stale responses", () => {
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
       { type: "profile-loaded", profile: makeProfile(ALICE) },
-      { type: "session-resolved", session: makeSession(BOB) },
+      { type: "session-resolved", session: makeSession(BOB) }
     );
     expect(loadingBob.status).toBe("loading-profile");
 
@@ -181,7 +181,7 @@ describe("authReducer — stale responses", () => {
     const signedOut = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "signed-out" },
+      { type: "signed-out" }
     );
 
     const after = authReducer(signedOut, {
@@ -195,7 +195,7 @@ describe("authReducer — stale responses", () => {
   it("ignores profile failures that arrive after sign-out", () => {
     const signedOut = authReducer(initialAuthState, { type: "signed-out" });
     expect(authReducer(signedOut, { type: "profile-failed", message: "offline" }).status).toBe(
-      "signed-out",
+      "signed-out"
     );
     expect(authReducer(signedOut, { type: "profile-missing" }).status).toBe("signed-out");
     expect(authReducer(signedOut, { type: "profile-reload" }).status).toBe("signed-out");
@@ -227,14 +227,14 @@ describe("authReducer — failure modes", () => {
     const failed = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-failed", message: "network down" },
+      { type: "profile-failed", message: "network down" }
     );
     expect(homeRouteFor(failed)).toBe("/(athlete)");
 
     const missing = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-missing" },
+      { type: "profile-missing" }
     );
     expect(homeRouteFor(missing)).toBe("/(athlete)");
   });
@@ -243,7 +243,7 @@ describe("authReducer — failure modes", () => {
     const failed = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-failed", message: "network down" },
+      { type: "profile-failed", message: "network down" }
     );
 
     const retrying = authReducer(failed, { type: "profile-reload" });
@@ -261,7 +261,7 @@ describe("authReducer — failure modes", () => {
     const failed = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-failed", message: "network down" },
+      { type: "profile-failed", message: "network down" }
     );
     const refreshed = authReducer(failed, {
       type: "session-resolved",
