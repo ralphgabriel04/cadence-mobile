@@ -10,10 +10,9 @@ import {
 } from "react";
 import { type Session, type User } from "@supabase/supabase-js";
 
-import { clearLocalSession, supabase } from "@/config/supabase";
+import { supabase } from "@/config/supabase";
 
 import { signInErrorMessage } from "./auth-errors";
-import { signOutAndClearLocal } from "./sign-out";
 
 import {
   authReducer,
@@ -202,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    await signOutAndClearLocal(supabase.auth, clearLocalSession);
+    await supabase.auth.signOut();
     if (mounted.current) dispatch({ type: "signed-out" });
   }, []);
 
