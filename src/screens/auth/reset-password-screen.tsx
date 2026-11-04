@@ -10,6 +10,7 @@ import { EXPIRED_LINK_MESSAGE, parseRecoveryLink } from "@/features/auth-routing
 
 const MIN_LENGTH = 8;
 const NO_LINK_DELAY_MS = 1500;
+const SIGN_OUT_FAILED = "Impossible de terminer la session pour l'instant, réessaie.";
 
 type LinkState = "checking" | "ready" | "invalid" | "missing";
 
@@ -61,7 +62,7 @@ export function ResetPasswordScreen() {
 
   // Abandoning ends the temporary session: nothing stays open without a new password.
   const handleCancel = async () => {
-    await signOut();
+    if ((await signOut()) === false) return setErrors({ form: SIGN_OUT_FAILED });
     router.replace("/(auth)/login");
   };
 
@@ -83,8 +84,9 @@ export function ResetPasswordScreen() {
       return;
     }
     // End the temporary recovery session: the user signs in with the new password.
-    await signOut();
+    const ended = await signOut();
     setLoading(false);
+    if (ended === false) return setErrors({ form: SIGN_OUT_FAILED });
     router.replace("/(auth)/login");
   };
 
@@ -98,7 +100,11 @@ export function ResetPasswordScreen() {
     return (
       <View className="flex-1 items-center justify-center bg-bg px-5">
         <Text variant="heading" className="mb-4 text-center">
-          {shown === "checking" ? "Vérification du lien…" : noLink ? "Aucun lien reçu" : "Lien invalide"}
+          {shown === "checking"
+            ? "Vérification du lien…"
+            : noLink
+              ? "Aucun lien reçu"
+              : "Lien invalide"}
         </Text>
         {shown === "invalid" || noLink ? (
           <>
