@@ -15,12 +15,3 @@ major_version = 15
 [studio]
 enabled = true
 port = 54323
-
-[auth]
-# Story 2.1: password minimum is 8 characters (local stack; the hosted project is a Ralph gesture).
-minimum_password_length = 8
-
-[auth.email]
-# Local stack only: ask new accounts to confirm their address (story 2.1, criterion 1).
-# The hosted project's setting is a Ralph gesture; it is never changed from here.
-enable_confirmations = true
