@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
@@ -5,6 +6,7 @@ import Constants from "expo-constants";
 import { SectionLabel } from "@/components/ui/section-label";
 import { SettingsGroup, SettingsRow } from "@/components/ui/settings-group";
 import { TopBar } from "@/components/ui/top-bar";
+import { DeleteAccountPanel } from "@/features/account-deletion/delete-account-panel";
 import { useAuth } from "@/providers/auth-provider";
 
 /**
@@ -16,7 +18,18 @@ import { useAuth } from "@/providers/auth-provider";
  * `colorScheme.set()` call away (nativewind) once a persisted preference exists.
  */
 export function AthleteSettingsScreen() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const confirmDeletion = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    const { error } = await deleteAccount();
+    setDeleting(false);
+    if (error) setDeleteError(error);
+  };
   const version = Constants.expoConfig?.version ?? "dev";
 
   return (
@@ -54,6 +67,28 @@ export function AthleteSettingsScreen() {
             last
           />
         </SettingsGroup>
+
+        {confirming ? (
+          <DeleteAccountPanel
+            busy={deleting}
+            error={deleteError}
+            onConfirm={() => void confirmDeletion()}
+            onCancel={() => {
+              setConfirming(false);
+              setDeleteError(null);
+            }}
+          />
+        ) : (
+          <SettingsGroup>
+            <SettingsRow
+              icon="trash-outline"
+              label="Supprimer mon compte"
+              danger
+              onPress={() => setConfirming(true)}
+              last
+            />
+          </SettingsGroup>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

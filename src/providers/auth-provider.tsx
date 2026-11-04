@@ -11,6 +11,7 @@ import {
 import { type Session, type User } from "@supabase/supabase-js";
 
 import { supabase } from "@/config/supabase";
+import { DELETION_FAILED } from "@/features/account-deletion/deletion-copy";
 
 import {
   authReducer,
@@ -53,6 +54,8 @@ type AuthContextType = {
   }) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  /** Deletes the signed-in account and all its data (public.delete_my_account), then ends the session. */
+  deleteAccount: () => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
 };
 
@@ -219,6 +222,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? error.message : null };
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    try {
+      const { error } = await supabase.rpc("delete_my_account");
+      if (error) return { error: DELETION_FAILED };
+    } catch {
+      return { error: DELETION_FAILED };
+    }
+    // The account no longer exists: end the session on this device.
+    await supabase.auth.signOut();
+    if (mounted.current) dispatch({ type: "signed-out" });
+    return { error: null };
+  }, []);
+
   const value = useMemo<AuthContextType>(
     () => ({
       state,
@@ -231,9 +247,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
       resetPassword,
+      deleteAccount,
       updatePassword,
     }),
-    [state, refreshProfile, signIn, signUp, signOut, resetPassword, updatePassword],
+    [state, refreshProfile, signIn, signUp, signOut, resetPassword, deleteAccount, updatePassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
