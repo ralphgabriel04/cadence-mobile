@@ -10,8 +10,9 @@ const json = (status: number, body: unknown) => ({
 
 describe("2.6 (c) · web deletion flow", () => {
   describe("requestCode", () => {
-    // Critère 4 + anti-énumération : même résultat que le courriel soit inscrit ou non.
-    it("gives the same public answer for a known and an unknown address", async () => {
+    // Message neutre sur la page seulement : l'API Supabase, elle, répond 200 (connu) ou 422 (inconnu).
+    // Limite connue, décision de Ralph (voir la PR) ; ce test ne prouve PAS l'absence d'énumération.
+    it("shows the same page message for a known and an unknown address (UI level only)", async () => {
       const known = await flow.requestCode(
         CFG,
         "inscrit@cadence.test",
