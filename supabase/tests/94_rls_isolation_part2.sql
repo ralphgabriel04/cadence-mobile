@@ -4,7 +4,7 @@
 -- ============================================================================
 INSERT INTO iso_ids
 SELECT k, md5('iso:' || k)::uuid
-  FROM unnest(ARRAY['SXA','SXB','RA','RB','CVA','CVB','MA','MB','IA','IB','NA','NB']) AS k;
+  FROM unnest(ARRAY['SXA','SXB','RA','RB','CVA','CVB','MA','MB','IA','IB','NA','NB','SB2','SB3','LB2','LB3','EB2','PB3','SXB2','RB2','IB2']) AS k;
 
 -- Parents from 92_, re-created if a (deliberately broken) run let an attack delete them.
 INSERT INTO exercises (id, is_public, name) VALUES (iso_id('X'), TRUE, 'iso exercise') ON CONFLICT DO NOTHING;
@@ -28,6 +28,19 @@ INSERT INTO session_images (id, session_log_id, athlete_id, image_url) VALUES
 INSERT INTO coach_notes (id, coach_id, athlete_id, content) VALUES
   (iso_id('NA'), iso_id('K'), iso_id('A'), 'iso note a'), (iso_id('NB'), iso_id('K'), iso_id('B'), 'iso note b');
 
+-- B's second workout and disposable rows for the "delete own" witnesses.
+INSERT INTO programs (id, created_by, name, status) VALUES (iso_id('PB3'), iso_id('B'), 'iso PB3', 'active');
+INSERT INTO sessions (id, program_id, name, order_index) VALUES
+  (iso_id('SB2'), iso_id('PB'), 'iso SB2', 1), (iso_id('SB3'), iso_id('PB'), 'iso SB3', 2);
+INSERT INTO session_logs (id, session_id, athlete_id, status, completed_at)
+  VALUES (iso_id('LB2'), iso_id('SB2'), iso_id('B'), 'completed', NOW()),
+         (iso_id('LB3'), iso_id('SB2'), iso_id('B'), 'completed', NOW());
+INSERT INTO exercise_logs (id, session_log_id, exercise_id, set_number, reps_completed, weight_kg)
+  VALUES (iso_id('EB2'), iso_id('LB'), iso_id('X'), 5, 8, 50);
+INSERT INTO session_exercises (id, session_id, exercise_id, order_index) VALUES (iso_id('SXB2'), iso_id('SB'), iso_id('X'), 7);
+INSERT INTO readiness_logs (id, athlete_id, log_date) VALUES (iso_id('RB2'), iso_id('B'), CURRENT_DATE + 9);
+INSERT INTO session_images (id, session_log_id, athlete_id, image_url)
+  VALUES (iso_id('IB2'), iso_id('LB'), iso_id('B'), 'https://example.test/b2.jpg');
 CREATE TABLE iso_base AS SELECT max(n) AS n FROM iso_cases;
 \o /dev/null
 -- write-side holes (migration 011)
@@ -98,6 +111,42 @@ SELECT iso_case('coach_athletes insert: B makes self coach of A, active', 'B', $
 SELECT iso_case('coach_athletes update: B edits A''s link', 'B', $q$UPDATE coach_athletes SET notes='iso hacked' WHERE athlete_id='{A}'$q$, 'blocked');
 SELECT iso_case('coach_athletes delete: B deletes A''s link', 'B', $q$DELETE FROM coach_athletes WHERE athlete_id='{A}'$q$, 'blocked');
 
+-- positive witnesses: legitimate writes that the hardened policies must still allow
+SELECT iso_case('profiles update: B edits own bio (control)', 'B', $q$UPDATE profiles SET bio='iso b' WHERE id='{B}'$q$, 'rows=1');
+SELECT iso_case('profiles delete: B deletes self (no API delete)', 'B', $q$DELETE FROM profiles WHERE id='{B}'$q$, 'blocked');
+SELECT iso_case('programs update: B renames own (control)', 'B', $q$UPDATE programs SET name='iso b renamed' WHERE id='{PB}'$q$, 'rows=1');
+SELECT iso_case('programs delete: B deletes own (control)', 'B', $q$DELETE FROM programs WHERE id='{PB3}'$q$, 'rows=1');
+SELECT iso_case('sessions update: B renames own (control)', 'B', $q$UPDATE sessions SET name='iso b renamed' WHERE id='{SB}'$q$, 'rows=1');
+SELECT iso_case('sessions delete: B deletes own spare session (control)', 'B', $q$DELETE FROM sessions WHERE id='{SB3}'$q$, 'rows=1');
+SELECT iso_case('session_logs update: B edits own (control)', 'B', $q$UPDATE session_logs SET notes='iso b' WHERE id='{LB}'$q$, 'rows=1');
+SELECT iso_case('session_logs delete: B deletes own spare log (control)', 'B', $q$DELETE FROM session_logs WHERE id='{LB3}'$q$, 'rows=1');
+SELECT iso_case('exercise_logs update: B edits own (control)', 'B', $q$UPDATE exercise_logs SET reps_completed=9 WHERE id='{EB}'$q$, 'rows=1');
+SELECT iso_case('exercise_logs delete: B deletes own (control)', 'B', $q$DELETE FROM exercise_logs WHERE id='{EB2}'$q$, 'rows=1');
+SELECT iso_case('program_assignments select: B reads own AB (control)', 'B', $q$SELECT count(*) FROM program_assignments WHERE id='{AB}'$q$, 'rows=1');
+SELECT iso_case('program_assignments select: B cannot read A''s AA', 'B', $q$SELECT count(*) FROM program_assignments WHERE id='{AA}'$q$, 'rows=0');
+SELECT iso_case('exercises update: B edits own private exercise (control)', 'B', $q$UPDATE exercises SET name='iso b ex' WHERE id='{XB}'$q$, 'rows=1');
+SELECT iso_case('session_exercises update: B edits own (control)', 'B', $q$UPDATE session_exercises SET sets=3 WHERE id='{SXB}'$q$, 'rows=1');
+SELECT iso_case('session_exercises delete: B deletes own (control)', 'B', $q$DELETE FROM session_exercises WHERE id='{SXB2}'$q$, 'rows=1');
+SELECT iso_case('readiness_logs update: B edits own (control)', 'B', $q$UPDATE readiness_logs SET notes='iso b' WHERE id='{RB}'$q$, 'rows=1');
+SELECT iso_case('readiness_logs delete: B deletes own (control)', 'B', $q$DELETE FROM readiness_logs WHERE id='{RB2}'$q$, 'rows=1');
+SELECT iso_case('session_images insert: B on own workout (control)', 'B', $q$INSERT INTO session_images(session_log_id,athlete_id,image_url) VALUES ('{LB}','{B}','https://example.test/new.jpg')$q$, 'rows=1');
+SELECT iso_case('session_images update: B edits own (control)', 'B', $q$UPDATE session_images SET caption='iso b' WHERE id='{IB}'$q$, 'rows=1');
+SELECT iso_case('session_images delete: B deletes own (control)', 'B', $q$DELETE FROM session_images WHERE id='{IB2}'$q$, 'rows=1');
+SELECT iso_case('coach_notes insert: coach K writes about consenting A (control)', 'K', $q$INSERT INTO coach_notes(coach_id,athlete_id,content) VALUES ('{K}','{A}','iso ok')$q$, 'rows=1');
+SELECT iso_case('coach_notes insert: coach K writes about B who never consented', 'K', $q$INSERT INTO coach_notes(coach_id,athlete_id,content) VALUES ('{K}','{B}','iso no')$q$, 'denied');
+SELECT iso_case('coach_notes update: coach K edits own note (control)', 'K', $q$UPDATE coach_notes SET content='iso edited' WHERE id='{NA}'$q$, 'rows=1');
+SELECT iso_case('conversations update: anon', 'anon', $q$UPDATE conversations SET last_message_at=NOW()$q$, 'blocked');
+SELECT iso_case('conversations delete: anon', 'anon', $q$DELETE FROM conversations$q$, 'blocked');
+SELECT iso_case('messages update: anon', 'anon', $q$UPDATE messages SET content='iso hacked'$q$, 'blocked');
+SELECT iso_case('messages delete: anon', 'anon', $q$DELETE FROM messages$q$, 'blocked');
+SELECT iso_case('session_images update: anon', 'anon', $q$UPDATE session_images SET caption='iso hacked'$q$, 'blocked');
+SELECT iso_case('session_images delete: anon', 'anon', $q$DELETE FROM session_images$q$, 'blocked');
+SELECT iso_case('coach_notes update: anon', 'anon', $q$UPDATE coach_notes SET content='iso hacked'$q$, 'blocked');
+SELECT iso_case('coach_notes delete: anon', 'anon', $q$DELETE FROM coach_notes$q$, 'blocked');
+-- assignment key freeze, edge cases
+SELECT iso_case('program_assignments update: A changes all three keys at once', 'A', $q$UPDATE program_assignments SET program_id='{PB}', athlete_id='{B}', coach_id='{A}' WHERE id='{AA}'$q$, 'denied');
+SELECT iso_case('program_assignments update: A changes only coach_id', 'A', $q$UPDATE program_assignments SET coach_id='{K}' WHERE id='{AA}'$q$, 'denied');
+SELECT iso_case('program_assignments update: A keeps the keys and edits a field (control)', 'A', $q$UPDATE program_assignments SET program_id=program_id, athlete_id=athlete_id, end_date=CURRENT_DATE+60 WHERE id='{AA}'$q$, 'rows=1');
 \o
 DO $$
 DECLARE c RECORD; got TEXT; ok BOOLEAN;

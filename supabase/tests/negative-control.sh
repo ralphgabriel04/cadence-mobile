@@ -35,6 +35,10 @@ add "restore the old session_images policy (image on someone else's workout)" \
   'CREATE POLICY old_img ON session_images FOR ALL TO authenticated USING (auth.uid() = athlete_id) WITH CHECK (auth.uid() = athlete_id);'
 add "restore the old programs creator policy (publish to library)" \
   'CREATE POLICY old_pub ON programs FOR ALL TO authenticated USING (auth.uid() = created_by) WITH CHECK (auth.uid() = created_by);'
+add "OVER-STRICT: drop the coach_notes policy (positive witnesses must fail)" \
+  'DROP POLICY "Coaches can manage their notes" ON coach_notes;'
+add "OVER-STRICT: drop the session_images athlete policy (positive witnesses must fail)" \
+  'DROP POLICY "Athletes can manage their session images" ON session_images;'
 
 missed=0
 for i in "${!NAMES[@]}"; do
