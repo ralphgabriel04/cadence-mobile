@@ -2,39 +2,62 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 /**
- * "A password recovery is in progress" marker, outside React state so it survives
- * a restart: the recovery session is persisted, and an armed marker at startup
- * means "sign it out". Armed BEFORE the tokens become a session.
+ * Two small markers kept outside React state so they survive an app restart.
+ * Storage failures read as "absent" and are swallowed on write: the in-memory
+ * state still guards the current run.
+ *
+ * IN PROGRESS: a password recovery is open. The recovery session is a real,
+ * persisted session; without this marker a relaunch would resume it as an
+ * ordinary login and open the athlete space without a password. At startup an
+ * armed marker means "sign this session out". It is armed BEFORE the recovery
+ * tokens become a session, so a crash between the two still ends in a sign-out.
+ *
+ * REQUESTED: this device asked for a recovery email (timestamp). A recovery link
+ * is only accepted while a fresh request exists, which ties the link to the flow
+ * the app started instead of to whatever tokens a caller puts in a URL.
  */
-const KEY = "cadence.recovery-in-progress";
+const IN_PROGRESS_KEY = "cadence.recovery-in-progress";
+const REQUESTED_KEY = "cadence.recovery-requested";
 
-async function read(): Promise<string | null> {
-  if (Platform.OS === "web") return localStorage.getItem(KEY);
-  return SecureStore.getItemAsync(KEY);
+/** Same as the default lifetime of the emailed link (otp_expiry, one hour). */
+export const REQUEST_MAX_AGE_MS = 60 * 60 * 1000;
+
+async function get(key: string): Promise<string | null> {
+  try {
+    if (Platform.OS === "web") return localStorage.getItem(key);
+    return await SecureStore.getItemAsync(key);
+  } catch {
+    return null;
+  }
 }
 
-export async function armRecovery(): Promise<void> {
+async function set(key: string, value: string): Promise<void> {
   try {
-    if (Platform.OS === "web") localStorage.setItem(KEY, "1");
-    else await SecureStore.setItemAsync(KEY, "1");
+    if (Platform.OS === "web") localStorage.setItem(key, value);
+    else await SecureStore.setItemAsync(key, value);
   } catch {
     // see above
   }
 }
 
-export async function disarmRecovery(): Promise<void> {
+async function del(key: string): Promise<void> {
   try {
-    if (Platform.OS === "web") localStorage.removeItem(KEY);
-    else await SecureStore.deleteItemAsync(KEY);
+    if (Platform.OS === "web") localStorage.removeItem(key);
+    else await SecureStore.deleteItemAsync(key);
   } catch {
     // see above
   }
 }
 
+export const armRecovery = () => set(IN_PROGRESS_KEY, "1");
+export const disarmRecovery = () => del(IN_PROGRESS_KEY);
 export async function isRecoveryArmed(): Promise<boolean> {
-  try {
-    return (await read()) === "1";
-  } catch {
-    return false;
-  }
+  return (await get(IN_PROGRESS_KEY)) === "1";
+}
+
+export const markRecoveryRequested = (now = Date.now()) => set(REQUESTED_KEY, String(now));
+export const clearRecoveryRequest = () => del(REQUESTED_KEY);
+export async function hasFreshRecoveryRequest(now = Date.now()): Promise<boolean> {
+  const at = Number(await get(REQUESTED_KEY));
+  return Number.isFinite(at) && at > 0 && now - at >= 0 && now - at <= REQUEST_MAX_AGE_MS;
 }

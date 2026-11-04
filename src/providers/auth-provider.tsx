@@ -13,7 +13,19 @@ import { type Session, type User } from "@supabase/supabase-js";
 import { supabase } from "@/config/supabase";
 
 import { resetErrorMessage } from "./reset-errors";
-import { armRecovery, disarmRecovery, isRecoveryArmed } from "@/features/auth-routing/recovery-flag";
+import {
+  armRecovery,
+  clearRecoveryRequest,
+  disarmRecovery,
+  hasFreshRecoveryRequest,
+  isRecoveryArmed,
+  markRecoveryRequested,
+} from "@/features/auth-routing/recovery-flag";
+import {
+  EXPIRED_LINK_MESSAGE,
+  NOT_REQUESTED_MESSAGE,
+  parseRecoveryLink,
+} from "@/features/auth-routing/recovery-link";
 import {
   authReducer,
   initialAuthState,
@@ -56,6 +68,8 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
+  /** Turns the recovery link opened from the email into a (temporary) recovery session. */
+  acceptRecoveryLink: (url: string) => Promise<{ error: string | null }>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -79,6 +93,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const recoveryArmed = useRef(false);
   // Resolves once the startup check is done.
   const startup = useRef<Promise<void>>(Promise.resolve());
+  // The link already turned into the current recovery session (a remount of the
+  // reset screen must not replay it).
+  const acceptedUrl = useRef<string | null>(null);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
@@ -248,9 +265,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: "cadence://reset-password",
     });
-    if (!error) return { error: null };
     // Only failures that say nothing about the account are shown (anti-enumeration).
-    return { error: resetErrorMessage(error) };
+    const message = error ? resetErrorMessage(error) : null;
+    // The app now expects a recovery link (see recovery-flag.ts).
+    if (!message) await markRecoveryRequested();
+    return { error: message };
+  }, []);
+
+  const acceptRecoveryLink = useCallback(async (url: string) => {
+    const link = parseRecoveryLink(url);
+    if (link.kind === "error") return { error: link.message };
+    if (link.kind !== "tokens") return { error: EXPIRED_LINK_MESSAGE };
+    if (acceptedUrl.current === url && recoveryArmed.current) return { error: null };
+
+    await startup.current;
+    if (!(await hasFreshRecoveryRequest())) return { error: NOT_REQUESTED_MESSAGE };
+
+    // Armed before the session exists: a crash in between still ends in a sign-out.
+    recoveryArmed.current = true;
+    await armRecovery();
+    const { error } = await supabase.auth.setSession({
+      access_token: link.accessToken,
+      refresh_token: link.refreshToken,
+    });
+    if (error) {
+      recoveryArmed.current = false;
+      await disarmRecovery();
+      return { error: EXPIRED_LINK_MESSAGE };
+    }
+    acceptedUrl.current = url;
+    await clearRecoveryRequest();
+    return { error: null };
   }, []);
 
   const updatePassword = useCallback(async (password: string) => {
@@ -271,8 +316,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       resetPassword,
       updatePassword,
+      acceptRecoveryLink,
     }),
-    [state, refreshProfile, signIn, signUp, signOut, resetPassword, updatePassword],
+    [
+      state,
+      refreshProfile,
+      signIn,
+      signUp,
+      signOut,
+      resetPassword,
+      updatePassword,
+      acceptRecoveryLink,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
