@@ -1,80 +1,127 @@
-import { useState } from "react";
-import {
-  View,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from "react-native";
-import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import { View, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { Link, router } from "expo-router";
+import * as Linking from "expo-linking";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
+import { EXPIRED_LINK_MESSAGE, parseRecoveryLink } from "@/features/auth-routing/recovery-link";
 
-function validatePassword(password: string) {
-  if (password.length < 8) return "Minimum 8 caractères";
-  if (!/[A-Z]/.test(password)) return "Au moins 1 majuscule requise";
-  if (!/\d/.test(password)) return "Au moins 1 chiffre requis";
-  return null;
-}
+const MIN_LENGTH = 8;
+const NO_LINK_DELAY_MS = 1500;
 
+type LinkState = "checking" | "ready" | "invalid" | "missing";
+
+/**
+ * Opened from the recovery email (cadence://reset-password#...). The link is
+ * turned into a short session first; without a valid one there is no form, so a
+ * link already used leads to an explanation, never to a password field.
+ */
 export function ResetPasswordScreen() {
-  const { updatePassword, signOut } = useAuth();
+  const { state, updatePassword, acceptRecoveryLink, signOut } = useAuth();
+  const url = Linking.useURL();
+  const [linkState, setLinkState] = useState<LinkState>("checking");
+  const [linkError, setLinkError] = useState(EXPIRED_LINK_MESSAGE);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<{ password?: string; confirm?: string; form?: string }>({});
   const [loading, setLoading] = useState(false);
 
-  const passwordError = password ? validatePassword(password) : undefined;
-  const confirmError =
-    confirmPassword && password !== confirmPassword
-      ? "Les mots de passe ne correspondent pas"
-      : undefined;
+  // Without a link there is nothing to wait for forever: after a moment, say so.
+  const [waited, setWaited] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setWaited(true), NO_LINK_DELAY_MS);
+    return () => clearTimeout(id);
+  }, []);
 
-  const handleUpdate = async () => {
-    if (!password || !confirmPassword) {
-      setError("Veuillez remplir tous les champs");
+  useEffect(() => {
+    if (!url) return;
+    // A new link starts over: no stale "ready" or typed passwords from the previous one.
+    setLinkState("checking");
+    setPassword("");
+    setConfirmPassword("");
+    setErrors({});
+    const link = parseRecoveryLink(url);
+    if (link.kind === "error") {
+      setLinkError(link.message);
+      setLinkState("invalid");
       return;
     }
-    if (passwordError) {
-      setError(passwordError);
-      return;
-    }
-    // eslint-disable-next-line security/detect-possible-timing-attacks -- UI form validation, not cryptographic comparison
-    if (password !== confirmPassword) {
-      setError("Les mots de passe ne correspondent pas");
-      return;
-    }
+    let active = true;
+    void acceptRecoveryLink(url).then(({ error }) => {
+      if (!active) return;
+      if (error) setLinkError(error);
+      setLinkState(error ? "invalid" : "ready");
+    });
+    return () => {
+      active = false;
+    };
+  }, [url, acceptRecoveryLink]);
 
-    setError("");
-    setLoading(true);
-    const result = await updatePassword(password);
-    setLoading(false);
-
-    if (result.error) {
-      setError(result.error);
-    } else {
-      // End the temporary recovery session: the user signs in with the new password.
-      await signOut();
-      router.replace("/(auth)/login");
-    }
-  };
-
-  // Abandoning ends the recovery too: nothing stays open without a new password.
+  // Abandoning ends the temporary session: nothing stays open without a new password.
   const handleCancel = async () => {
     await signOut();
     router.replace("/(auth)/login");
   };
+
+  const handleUpdate = async () => {
+    const next: typeof errors = {};
+    if (password.length < MIN_LENGTH) {
+      next.password = `Le mot de passe doit contenir au moins ${MIN_LENGTH} caractères`;
+    }
+    // eslint-disable-next-line security/detect-possible-timing-attacks -- UI form validation, not cryptographic comparison
+    if (password !== confirmPassword) next.confirm = "Les mots de passe ne correspondent pas";
+    setErrors(next);
+    if (next.password || next.confirm) return;
+
+    setLoading(true);
+    const result = await updatePassword(password);
+    if (result.error) {
+      setLoading(false);
+      setErrors({ form: result.error });
+      return;
+    }
+    // End the temporary recovery session: the user signs in with the new password.
+    await signOut();
+    setLoading(false);
+    router.replace("/(auth)/login");
+  };
+
+  // No link at all: the form only shows for a recovery already in progress
+  // (sent here by the route guards), otherwise there is nothing to do here.
+  let shown: LinkState = linkState;
+  if (!url) shown = state.status === "recovery" ? "ready" : waited ? "missing" : "checking";
+
+  if (shown !== "ready") {
+    const noLink = shown === "missing";
+    return (
+      <View className="flex-1 items-center justify-center bg-bg px-5">
+        <Text variant="heading" className="mb-4 text-center">
+          {shown === "checking" ? "Vérification du lien…" : noLink ? "Aucun lien reçu" : "Lien invalide"}
+        </Text>
+        {shown === "invalid" || noLink ? (
+          <>
+            <Text className="mb-8 text-center leading-5">
+              {noLink ? "Ouvre le lien reçu par courriel, ou demande-en un nouveau." : linkError}
+            </Text>
+            <Link href="/(auth)/forgot-password">
+              <Text weight="bold" className="underline">
+                Demander un nouveau lien
+              </Text>
+            </Link>
+          </>
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-bg"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <View className="flex-1 justify-center px-5 py-12">
           <Text variant="heading" className="mb-2 text-center">
             Nouveau mot de passe
@@ -88,22 +135,28 @@ export function ResetPasswordScreen() {
               label="Nouveau mot de passe"
               placeholder="Minimum 8 caractères"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(v) => {
+                setPassword(v);
+                setErrors((e) => ({ ...e, password: undefined }));
+              }}
               secureTextEntry
               autoComplete="new-password"
-              error={passwordError ?? undefined}
+              error={errors.password}
             />
 
             <Input
               label="Confirmer le mot de passe"
               placeholder="Retapez votre mot de passe"
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={(v) => {
+                setConfirmPassword(v);
+                setErrors((e) => ({ ...e, confirm: undefined }));
+              }}
               secureTextEntry
-              error={confirmError}
+              error={errors.confirm}
             />
 
-            {error ? <Text variant="error">{error}</Text> : null}
+            {errors.form ? <Text variant="error">{errors.form}</Text> : null}
 
             <Button
               title="Mettre à jour"
