@@ -31,6 +31,12 @@ add "disable row level security on sessions" \
   'ALTER TABLE sessions DISABLE ROW LEVEL SECURITY;'
 add "replace the session_logs delete policy by FOR ALL USING (true)" \
   'DROP POLICY "Athletes can delete their session logs" ON session_logs; CREATE POLICY leak ON session_logs FOR ALL TO authenticated USING (true) WITH CHECK (true);'
+add "remove the trigger that freezes assignment keys (forged-assignment read leak)" \
+  'DROP TRIGGER program_assignments_freeze_keys ON program_assignments;'
+add "restore the old coach FOR ALL policy on program_assignments (any coach_id accepted)" \
+  'CREATE POLICY old_coach ON program_assignments FOR ALL TO authenticated USING (auth.uid() = coach_id) WITH CHECK (auth.uid() = coach_id);'
+add "let athletes self-assign any program they can see (old 003 rule)" \
+  'DROP POLICY "Athletes can self-assign their own or a library program" ON program_assignments; CREATE POLICY old_self ON program_assignments FOR INSERT TO authenticated WITH CHECK (athlete_id = auth.uid() AND coach_id IS NULL);'
 
 missed=0
 for i in "${!NAMES[@]}"; do

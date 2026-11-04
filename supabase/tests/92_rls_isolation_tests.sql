@@ -17,7 +17,7 @@
 CREATE TABLE iso_ids (key TEXT PRIMARY KEY, id UUID NOT NULL);
 INSERT INTO iso_ids
 SELECT k, md5('iso:' || k)::uuid
-  FROM unnest(ARRAY['A','B','X','PA','PA2','PA3','PB','PT','SA','SA3','SB','ST',
+  FROM unnest(ARRAY['A','B','K','X','XB','PK','PA','PA2','PA3','PB','PT','SA','SA3','SB','ST',
                     'LA','LA2','LB','EA','EA2','EA3','EB','AA','AB']) AS k;
 
 CREATE FUNCTION iso_id(p_key TEXT) RETURNS UUID LANGUAGE sql STABLE AS
@@ -61,17 +61,21 @@ $$;
 -- ── Fixtures (as superuser: RLS does not apply) ─────────────────────────────
 INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
   (iso_id('A'), 'iso-a@test.local', '{"first_name":"IsoA","role":"athlete"}'),
-  (iso_id('B'), 'iso-b@test.local', '{"first_name":"IsoB","role":"athlete"}');
+  (iso_id('B'), 'iso-b@test.local', '{"first_name":"IsoB","role":"athlete"}'),
+  (iso_id('K'), 'iso-k@test.local', '{"first_name":"IsoK","role":"coach"}');
 
 INSERT INTO exercises (id, coach_id, created_by, is_public, name, category)
-VALUES (iso_id('X'), NULL, NULL, TRUE, 'iso exercise', 'strength');
+VALUES (iso_id('X'), NULL, NULL, TRUE, 'iso exercise', 'strength'),
+       (iso_id('XB'), NULL, iso_id('B'), FALSE, 'iso B private', 'strength');
 
 INSERT INTO programs (id, coach_id, created_by, is_public, is_template, name, status) VALUES
   (iso_id('PA'),  NULL, iso_id('A'), FALSE, FALSE, 'iso PA',  'active'),
   (iso_id('PA2'), NULL, iso_id('A'), FALSE, FALSE, 'iso PA2', 'active'),
   (iso_id('PA3'), NULL, iso_id('A'), FALSE, FALSE, 'iso PA3', 'active'),
   (iso_id('PB'),  NULL, iso_id('B'), FALSE, FALSE, 'iso PB',  'active'),
-  (iso_id('PT'),  NULL, NULL,        TRUE,  TRUE,  'iso PT',  'active');
+  (iso_id('PT'),  NULL, NULL,        TRUE,  TRUE,  'iso PT',  'active'),
+  (iso_id('PK'),  iso_id('K'), iso_id('K'), FALSE, FALSE, 'iso PK', 'active');
+INSERT INTO coach_athletes (coach_id, athlete_id, status) VALUES (iso_id('K'), iso_id('A'), 'active');
 
 INSERT INTO sessions (id, program_id, name, order_index) VALUES
   (iso_id('SA'),  iso_id('PA'), 'iso SA',  0),
@@ -189,7 +193,8 @@ SELECT iso_case('exercises insert: A publishes to the public library', 'A', $q$I
 SELECT iso_case('exercises insert: A plants one in B''s coach space', 'A', $q$INSERT INTO exercises(coach_id,created_by,name) VALUES ('{B}','{A}','iso planted')$q$, 'denied');
 SELECT iso_case('exercises insert: A publishes through the coach policy', 'A', $q$INSERT INTO exercises(coach_id,created_by,is_public,name) VALUES ('{A}','{A}',TRUE,'iso pub2')$q$, 'denied');
 SELECT iso_case('programs insert: A publishes through the coach policy', 'A', $q$INSERT INTO programs(coach_id,created_by,is_public,is_template,name,status) VALUES ('{A}','{A}',TRUE,TRUE,'iso pub2','draft')$q$, 'denied');
-SELECT iso_case('exercises select: A cannot read B''s private exercise', 'A', $q$SELECT count(*) FROM exercises WHERE created_by='{B}' AND NOT is_public$q$, 'rows=0');-- program_assignments
+SELECT iso_case('exercises select: B reads own private (control)', 'B', $q$SELECT count(*) FROM exercises WHERE id='{XB}'$q$, 'rows=1');
+SELECT iso_case('exercises select: A cannot read B''s private exercise', 'A', $q$SELECT count(*) FROM exercises WHERE id='{XB}'$q$, 'rows=0');-- program_assignments
 SELECT iso_case('program_assignments select: A reads own (control)', 'A', $q$SELECT count(*) FROM program_assignments WHERE id='{AA}'$q$, 'rows=1');
 SELECT iso_case('program_assignments select: A reads B''s', 'A', $q$SELECT count(*) FROM program_assignments WHERE id='{AB}'$q$, 'rows=0');
 SELECT iso_case('program_assignments select: anon', 'anon', $q$SELECT count(*) FROM program_assignments$q$, 'blocked');
@@ -203,6 +208,21 @@ SELECT iso_case('program_assignments update: anon', 'anon', $q$UPDATE program_as
 SELECT iso_case('program_assignments delete: A deletes B''s', 'A', $q$DELETE FROM program_assignments WHERE id='{AB}'$q$, 'blocked');
 SELECT iso_case('program_assignments delete: anon', 'anon', $q$DELETE FROM program_assignments$q$, 'blocked');
 
+-- forged assignments (P0 found in review): used to open another account's program
+SELECT iso_case('program_assignments update: A repoints own assignment to B''s program', 'A', $q$UPDATE program_assignments SET program_id='{PB}' WHERE id='{AA}'$q$, 'denied');
+SELECT iso_case('program_assignments update: A gives own assignment to B', 'A', $q$UPDATE program_assignments SET athlete_id='{B}' WHERE id='{AA}'$q$, 'denied');
+SELECT iso_case('program_assignments insert: A forges coach_id=A on B''s program', 'A', $q$INSERT INTO program_assignments(program_id,athlete_id,coach_id,start_date) VALUES ('{PB}','{A}','{A}',CURRENT_DATE)$q$, 'denied');
+SELECT iso_case('program_assignments insert: A forges coach_id=A on own program', 'A', $q$INSERT INTO program_assignments(program_id,athlete_id,coach_id,start_date) VALUES ('{PA}','{A}','{A}',CURRENT_DATE)$q$, 'denied');
+SELECT iso_case('program_assignments insert: coach K assigns own program to consenting A (control)', 'K', $q$INSERT INTO program_assignments(program_id,athlete_id,coach_id,start_date) VALUES ('{PK}','{A}','{K}',CURRENT_DATE)$q$, 'rows=1');
+SELECT iso_case('program_assignments insert: coach K assigns to B who never consented', 'K', $q$INSERT INTO program_assignments(program_id,athlete_id,coach_id,start_date) VALUES ('{PK}','{B}','{K}',CURRENT_DATE)$q$, 'denied');
+SELECT iso_case('program_assignments insert: coach K assigns a program K does not own', 'K', $q$INSERT INTO program_assignments(program_id,athlete_id,coach_id,start_date) VALUES ('{PA}','{A}','{K}',CURRENT_DATE)$q$, 'denied');
+SELECT iso_case('program_assignments update: B repoints own assignment to A''s program', 'B', $q$UPDATE program_assignments SET program_id='{PA}' WHERE id='{AB}'$q$, 'denied');
+SELECT iso_case('program_assignments insert: B forges coach_id=B on A''s program', 'B', $q$INSERT INTO program_assignments(program_id,athlete_id,coach_id,start_date) VALUES ('{PA}','{B}','{B}',CURRENT_DATE)$q$, 'denied');
+SELECT iso_case('program_assignments insert: B assigns A a program', 'B', $q$INSERT INTO program_assignments(program_id,athlete_id,start_date) VALUES ('{PT}','{A}',CURRENT_DATE)$q$, 'denied');
+SELECT iso_case('after the forgery attempts: A still cannot read B''s program', 'A', $q$SELECT count(*) FROM programs WHERE id='{PB}'$q$, 'rows=0');
+SELECT iso_case('after the forgery attempts: A still cannot read B''s session', 'A', $q$SELECT count(*) FROM sessions WHERE id='{SB}'$q$, 'rows=0');
+SELECT iso_case('after the forgery attempts: B still cannot read A''s program', 'B', $q$SELECT count(*) FROM programs WHERE id='{PA}'$q$, 'rows=0');
+SELECT iso_case('after the forgery attempts: B still cannot read A''s session', 'B', $q$SELECT count(*) FROM sessions WHERE id='{SA}'$q$, 'rows=0');
 \o
 -- ── Run every case and record it ────────────────────────────────────────────
 DO $$
