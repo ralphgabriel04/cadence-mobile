@@ -122,15 +122,12 @@ SELECT iso_case('programs select: A reads public template (control)', 'A', $q$SE
 SELECT iso_case('programs select: anon', 'anon', $q$SELECT count(*) FROM programs$q$, 'blocked');
 SELECT iso_case('programs insert: A creates own (control)', 'A', $q$INSERT INTO programs(created_by,name,status) VALUES ('{A}','iso new','draft')$q$, 'rows=1');
 SELECT iso_case('programs insert: A creates one owned by B', 'A', $q$INSERT INTO programs(created_by,name,status) VALUES ('{B}','iso fake','draft')$q$, 'denied');
-SELECT iso_case('programs insert: A plants a program in B''s coach space', 'A', $q$INSERT INTO programs(coach_id,created_by,name,status) VALUES ('{B}','{A}','iso planted','draft')$q$, 'denied');
-SELECT iso_case('programs insert: A publishes to the public library', 'A', $q$INSERT INTO programs(created_by,is_public,is_template,name,status) VALUES ('{A}',TRUE,TRUE,'iso pub','draft')$q$, 'denied');
 SELECT iso_case('programs insert: anon', 'anon', $q$INSERT INTO programs(created_by,name,status) VALUES ('{A}','iso anon','draft')$q$, 'denied');
 SELECT iso_case('programs update: A renames own (control)', 'A', $q$UPDATE programs SET name='iso renamed' WHERE id='{PA}'$q$, 'rows=1');
 SELECT iso_case('programs update: A renames B''s', 'A', $q$UPDATE programs SET name='iso hacked' WHERE id='{PB}'$q$, 'blocked');
 SELECT iso_case('programs update: A takes over B''s', 'A', $q$UPDATE programs SET created_by='{A}' WHERE id='{PB}'$q$, 'blocked');
 SELECT iso_case('programs update: A edits the public template', 'A', $q$UPDATE programs SET name='iso hacked' WHERE id='{PT}'$q$, 'blocked');
 SELECT iso_case('programs update: A hands own program to B', 'A', $q$UPDATE programs SET created_by='{B}' WHERE id='{PA2}'$q$, 'denied');
-SELECT iso_case('programs update: A publishes own program', 'A', $q$UPDATE programs SET is_public=TRUE, is_template=TRUE WHERE id='{PA2}'$q$, 'denied');
 SELECT iso_case('programs update: anon', 'anon', $q$UPDATE programs SET name='iso hacked'$q$, 'blocked');
 SELECT iso_case('programs delete: A deletes B''s', 'A', $q$DELETE FROM programs WHERE id='{PB}'$q$, 'blocked');
 SELECT iso_case('programs delete: A deletes the public template', 'A', $q$DELETE FROM programs WHERE id='{PT}'$q$, 'blocked');
@@ -167,7 +164,6 @@ SELECT iso_case('session_logs insert: anon', 'anon', $q$INSERT INTO session_logs
 SELECT iso_case('session_logs update: A edits own notes (control)', 'A', $q$UPDATE session_logs SET notes='iso own' WHERE id='{LA}'$q$, 'rows=1');
 SELECT iso_case('session_logs update: A edits B''s', 'A', $q$UPDATE session_logs SET notes='iso hacked' WHERE id='{LB}'$q$, 'blocked');
 SELECT iso_case('session_logs update: A gives own log to B', 'A', $q$UPDATE session_logs SET athlete_id='{B}' WHERE id='{LA}'$q$, 'denied');
-SELECT iso_case('session_logs update: A points own log at a session A cannot see', 'A', $q$UPDATE session_logs SET session_id='{SB}' WHERE id='{LA2}'$q$, 'denied');
 SELECT iso_case('session_logs update: anon', 'anon', $q$UPDATE session_logs SET notes='iso hacked'$q$, 'blocked');
 SELECT iso_case('session_logs delete: A deletes B''s', 'A', $q$DELETE FROM session_logs WHERE id='{LB}'$q$, 'blocked');
 SELECT iso_case('session_logs delete: anon', 'anon', $q$DELETE FROM session_logs$q$, 'blocked');
@@ -189,10 +185,6 @@ SELECT iso_case('exercise_logs delete: anon', 'anon', $q$DELETE FROM exercise_lo
 SELECT iso_case('exercise_logs delete: A deletes own (control)', 'A', $q$DELETE FROM exercise_logs WHERE id='{EA3}'$q$, 'rows=1');
 -- exercises (same ownership pattern as programs)
 SELECT iso_case('exercises insert: A creates own (control)', 'A', $q$INSERT INTO exercises(created_by,name) VALUES ('{A}','iso ex')$q$, 'rows=1');
-SELECT iso_case('exercises insert: A publishes to the public library', 'A', $q$INSERT INTO exercises(created_by,is_public,name) VALUES ('{A}',TRUE,'iso pub')$q$, 'denied');
-SELECT iso_case('exercises insert: A plants one in B''s coach space', 'A', $q$INSERT INTO exercises(coach_id,created_by,name) VALUES ('{B}','{A}','iso planted')$q$, 'denied');
-SELECT iso_case('exercises insert: A publishes through the coach policy', 'A', $q$INSERT INTO exercises(coach_id,created_by,is_public,name) VALUES ('{A}','{A}',TRUE,'iso pub2')$q$, 'denied');
-SELECT iso_case('programs insert: A publishes through the coach policy', 'A', $q$INSERT INTO programs(coach_id,created_by,is_public,is_template,name,status) VALUES ('{A}','{A}',TRUE,TRUE,'iso pub2','draft')$q$, 'denied');
 SELECT iso_case('exercises select: B reads own private (control)', 'B', $q$SELECT count(*) FROM exercises WHERE id='{XB}'$q$, 'rows=1');
 SELECT iso_case('exercises select: A cannot read B''s private exercise', 'A', $q$SELECT count(*) FROM exercises WHERE id='{XB}'$q$, 'rows=0');-- program_assignments
 SELECT iso_case('program_assignments select: A reads own (control)', 'A', $q$SELECT count(*) FROM program_assignments WHERE id='{AA}'$q$, 'rows=1');

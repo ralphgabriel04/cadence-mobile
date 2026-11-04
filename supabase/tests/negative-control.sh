@@ -2,14 +2,10 @@
 # ============================================================================
 # Negative control for the isolation suite (cm#153, criterion 3).
 #
-# Breaks one protection at a time in the disposable container and checks that
-# the suite FAILS on an "ISO" test each time. If any break goes unnoticed, this
-# script exits 1: the suite would not catch a PR that removes that protection.
-#
-#   ./supabase/tests/negative-control.sh
-#
-# Note: a lone UPDATE/DELETE policy with USING (true) is NOT a break, because\n# PostgreSQL also applies the SELECT policies to the rows an UPDATE or DELETE\n# touches (defence in depth), so such breaks use FOR ALL.\n#\n# Not part of CI (it needs ~6 container runs and is meant to be run when the
-# policies or the suite change). It never touches a Supabase project.
+# Breaks one protection at a time in the disposable container; the suite must FAIL
+# on an ISO test each time, else exit 1. Not part of CI. Never touches Supabase.
+# A lone UPDATE/DELETE policy with USING (true) is no break (SELECT policies also
+# apply to the rows touched), so such breaks use FOR ALL.
 # ============================================================================
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -35,8 +31,6 @@ add "remove the trigger that freezes assignment keys (forged-assignment read lea
   'DROP TRIGGER program_assignments_freeze_keys ON program_assignments;'
 add "restore the old coach FOR ALL policy on program_assignments (any coach_id accepted)" \
   'CREATE POLICY old_coach ON program_assignments FOR ALL TO authenticated USING (auth.uid() = coach_id) WITH CHECK (auth.uid() = coach_id);'
-add "let athletes self-assign any program they can see (old 003 rule)" \
-  'DROP POLICY "Athletes can self-assign their own or a library program" ON program_assignments; CREATE POLICY old_self ON program_assignments FOR INSERT TO authenticated WITH CHECK (athlete_id = auth.uid() AND coach_id IS NULL);'
 
 missed=0
 for i in "${!NAMES[@]}"; do

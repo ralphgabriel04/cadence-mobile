@@ -1,17 +1,11 @@
 -- ============================================================================
 -- 010 -- Forged assignments opened other accounts' programs (cm#153, P0)
 -- ============================================================================
--- "Athletes can view assigned programs" (and the sessions / session_exercises
--- twins) trust program_assignments. A could therefore read B's private program
--- and sessions by (1) UPDATE-ing own assignment to point at B's program, or
--- (2) INSERT-ing an assignment with coach_id = A, which the old coach FOR ALL
--- policy accepted for any program. Present on develop before this branch.
---
--- Fix: the three key columns can no longer be changed by a client; a
--- self-assignment is limited to the athlete's own or a public template program;
--- a coach assignment needs a program the coach owns AND an active coach_athletes
--- row for that athlete. 003's rule stays: program_assignments SELECT policies
--- never reference programs (the INSERT checks below do, which terminates).
+-- P0: A could read B's program and sessions through a forged assignment, by
+-- (1) UPDATE of own assignment's program_id, or (2) INSERT with coach_id = A
+-- (the old coach FOR ALL policy). Fix: key columns frozen for clients;
+-- self-assign only own/library programs; a coach needs an owned program AND an
+-- active coach_athletes row. program_assignments SELECT never references programs.
 -- ============================================================================
 
 CREATE FUNCTION public.freeze_assignment_keys() RETURNS trigger

@@ -24,7 +24,6 @@ if [ -n "${POST_MIGRATION_SQL:-}" ] && { [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTI
   echo "POST_MIGRATION_SQL is refused when CI or GITHUB_ACTIONS is set" >&2
   exit 2
 fi
-
 CONTAINER=cadence-sqltest
 IMAGE=postgres:17-alpine
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
