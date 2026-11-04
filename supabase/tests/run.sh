@@ -58,6 +58,13 @@ for f in "$MIGRATIONS"/*.sql; do
   psql_file "$f"
 done
 
+# Optional: a SQL file applied after the migrations. Used only by
+# negative-control.sh to break a policy on purpose; unset in normal runs and CI.
+if [ -n "${POST_MIGRATION_SQL:-}" ]; then
+  printf '    (extra) %s\n' "$(basename "$POST_MIGRATION_SQL")"
+  psql_file "$POST_MIGRATION_SQL"
+fi
+
 echo "==> running tests"
 # Lexical order matters: 90_ creates the rec() helper and the shared fixtures
 # that later files build on.
