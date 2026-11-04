@@ -1,5 +1,6 @@
 import {
   backoffMs,
+  closeAllSetQueues,
   createMemoryStorage,
   dueEntries,
   enqueue,
@@ -416,5 +417,76 @@ describe("SetQueue", () => {
     queue.add(set({ clientId: "c2", setNumber: 2 }));
 
     expect(seen).toEqual([1, 0]);
+  });
+});
+
+// ── Account deletion: the local queue must not outlive the account ───────────
+
+describe("SetQueue.close (account deleted)", () => {
+  const retryable: SendResult = { ok: false, message: "net", retryable: true };
+
+  it("forgets pending and refused sets, empties the file, ignores later adds", async () => {
+    const storage = createMemoryStorage();
+    const q = new SetQueue(storage, async (e) =>
+      e.clientId === "refused" ? { ok: false, message: "no", retryable: false } : retryable
+    );
+    await q.restore();
+    q.add(set({ clientId: "waiting", setNumber: 1 }));
+    q.add(set({ clientId: "refused", setNumber: 2 }));
+    await q.drain();
+    expect(q.pending).toHaveLength(2); // control: both really were held
+    expect(q.rejected).toHaveLength(1);
+
+    q.close();
+    q.add(set({ clientId: "late", setNumber: 3 }));
+
+    expect(q.pending).toHaveLength(0);
+    expect(parseQueue(await storage.read())).toEqual([]);
+  });
+
+  it("a send finishing after close cannot write the set back", async () => {
+    const storage = createMemoryStorage();
+    let finish: (r: SendResult) => void = () => {};
+    const q = new SetQueue(storage, () => new Promise<SendResult>((r) => (finish = r)));
+    await q.restore();
+    q.add(set({ clientId: "in-flight" }));
+    expect(parseQueue(await storage.read())).toHaveLength(1);
+
+    q.close();
+    finish(retryable); // would normally mark the set as failed and persist it
+    await q.drain();
+
+    expect(q.pending).toHaveLength(0);
+    expect(parseQueue(await storage.read())).toEqual([]);
+  });
+
+  it("the next account does not get the old account's sets back", async () => {
+    const storage = createMemoryStorage();
+    const old = new SetQueue(storage, async () => retryable);
+    await old.restore();
+    old.add(set());
+    old.close();
+
+    const next = new SetQueue(storage, async () => ({ ok: true }));
+    await next.restore();
+    expect(next.pending).toHaveLength(0);
+  });
+
+  it("closeAllSetQueues closes every live queue, including ones whose screen is gone", async () => {
+    const s1 = createMemoryStorage();
+    const s2 = createMemoryStorage();
+    const a = new SetQueue(s1, async () => retryable);
+    const b = new SetQueue(s2, async () => retryable);
+    await a.restore();
+    await b.restore();
+    a.add(set({ clientId: "a" }));
+    b.add(set({ clientId: "b" }));
+
+    closeAllSetQueues();
+
+    expect(a.pending).toHaveLength(0);
+    expect(b.pending).toHaveLength(0);
+    expect(parseQueue(await s1.read())).toEqual([]);
+    expect(parseQueue(await s2.read())).toEqual([]);
   });
 });
