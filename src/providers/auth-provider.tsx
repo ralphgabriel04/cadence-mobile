@@ -12,6 +12,7 @@ import {
 import { type Session, type User } from "@supabase/supabase-js";
 
 import { clearLocalSession, supabase } from "@/config/supabase";
+import { DELETION_FAILED } from "@/features/account-deletion/deletion-copy";
 
 import { signInErrorMessage } from "./auth-errors";
 import { signOutAndClearLocal } from "./sign-out";
@@ -63,6 +64,8 @@ type AuthContextType = {
   /** Last sign-out problem, shown on the login screen; cleared by the next sign-in. */
   signOutNotice: string | null;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  /** Deletes the signed-in account and all its data (public.delete_my_account), then ends the session. */
+  deleteAccount: () => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
 };
 
@@ -234,6 +237,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? error.message : null };
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    try {
+      const { error } = await supabase.rpc("delete_my_account");
+      if (error) return { error: DELETION_FAILED };
+    } catch {
+      return { error: DELETION_FAILED };
+    }
+    // The account no longer exists, so the deletion has succeeded whatever happens
+    // on this device from here: end the session with the same reliable sign-out as
+    // the Réglages button (it clears the local session even if the server call
+    // fails). A local clean-up problem shows as the sign-out notice on the login
+    // screen, never as a failed deletion.
+    try {
+      await signOut();
+    } catch {
+      if (mounted.current) dispatch({ type: "signed-out" });
+    }
+    return { error: null };
+  }, [signOut]);
+
   const value = useMemo<AuthContextType>(
     () => ({
       state,
@@ -247,9 +270,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       signOutNotice,
       resetPassword,
+      deleteAccount,
       updatePassword,
     }),
-    [state, refreshProfile, signIn, signUp, signOut, signOutNotice, resetPassword, updatePassword]
+    [
+      state,
+      refreshProfile,
+      signIn,
+      signUp,
+      signOut,
+      signOutNotice,
+      resetPassword,
+      deleteAccount,
+      updatePassword,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
