@@ -26,9 +26,9 @@ export function AuthSplash() {
  * Shown when the user holds a valid session but the app cannot determine who
  * they are: either the profiles row is absent, or the request failed.
  *
- * These two are deliberately not merged. A failed request is transient and
- * retrying is the right action. A missing profile is not transient -- the
- * account needs attention -- and offering "retry" there would spin forever.
+ * These two keep distinct wording. A failed request is transient. A missing
+ * profile may be (a slow trigger) or may need attention, so both offer a retry
+ * (story 2.4, default answer) and the missing case also points to the team.
  */
 export function ProfileRecovery({
   reason,
@@ -47,7 +47,7 @@ export function ProfileRecovery({
 
       <Text className="text-center leading-5">
         {reason === "missing"
-          ? "Ton compte existe, mais son profil n'a pas été créé. Déconnecte-toi puis reconnecte-toi. Si le problème persiste, écris-nous."
+          ? "Ton compte existe, mais son profil n'a pas été créé. Réessaie dans un instant. Si le problème persiste, déconnecte-toi puis reconnecte-toi, ou écris-nous."
           : "On n'a pas réussi à charger ton profil. Vérifie ta connexion et réessaie."}
       </Text>
 
@@ -57,9 +57,7 @@ export function ProfileRecovery({
         </Text>
       ) : null}
 
-      {reason === "error" ? (
-        <Button title="Réessayer" onPress={refreshProfile} className="w-full" />
-      ) : null}
+      <Button title="Réessayer" onPress={refreshProfile} className="w-full" />
 
       <Button
         title="Se déconnecter"
