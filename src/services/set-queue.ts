@@ -249,6 +249,8 @@ export class SetQueue {
    */
   private restored = false;
   private listeners = new Set<(queue: readonly QueuedSet[]) => void>();
+  /** Set by close(): the queue is dead for good (account deleted), nothing may revive it. */
+  private closed = false;
 
   constructor(
     private readonly storage: QueueStorage,
@@ -259,6 +261,25 @@ export class SetQueue {
     // and a constructor cannot await. Sets added before restore() resolves are
     // NOT lost -- see the merge rule there.
     this.queue = [];
+    openQueues.add(new WeakRef(this));
+  }
+
+  /**
+   * Ends this queue for good: forgets every set, writes an empty queue to disk
+   * and refuses further work. Used when the account these sets belong to is
+   * deleted. A send already in flight can still finish, but its result is
+   * ignored, so it cannot write anything back.
+   */
+  close(): void {
+    this.closed = true;
+    this.queue = [];
+    this.rerun = false;
+    try {
+      this.storage.write("[]");
+    } catch {
+      // The in-memory queue is already empty; see purgeLocalSetQueue for the file.
+    }
+    for (const listener of this.listeners) listener(this.queue);
   }
 
   /**
@@ -270,6 +291,7 @@ export class SetQueue {
    * present in memory win, since they are the newer of the two.
    */
   async restore(): Promise<void> {
+    if (this.closed) return;
     let raw: string | null = null;
     try {
       raw = await this.storage.read();
@@ -282,6 +304,7 @@ export class SetQueue {
       return;
     }
 
+    if (this.closed) return;
     const persisted = parseQueue(raw);
     const live = new Set(this.queue.map((q) => q.clientId));
     const merged = [...persisted.filter((q) => !live.has(q.clientId)), ...this.queue];
@@ -317,6 +340,7 @@ export class SetQueue {
 
   /** Adds a set and starts a drain. Persisted before returning. */
   add(entry: QueuedSet): void {
+    if (this.closed) return;
     this.queue = enqueue(this.queue, entry);
     this.persist();
     void this.drain();
@@ -365,9 +389,10 @@ export class SetQueue {
     for (const entry of dueEntries(this.queue, this.now())) {
       // The entry may have been replaced by a correction while awaiting.
       const current = this.queue.find((q) => q.clientId === entry.clientId);
-      if (!current) continue;
+      if (!current || this.closed) continue;
 
       const result = await this.attemptSend(current);
+      if (this.closed) return; // closed during the send: write nothing back
       if (result.ok) {
         this.queue = removeById(this.queue, current.clientId);
       } else if (result.retryable) {
@@ -426,6 +451,17 @@ export class SetQueue {
     }
     for (const listener of this.listeners) listener(this.queue);
   }
+}
+
+// Every queue that exists, so the account-deletion flow can close the ones still
+// draining in the background (a screen's queue outlives the screen). Weak: a queue
+// nobody references anymore is not kept alive by this list.
+const openQueues = new Set<WeakRef<SetQueue>>();
+
+/** Closes every live queue (see SetQueue.close). */
+export function closeAllSetQueues(): void {
+  for (const ref of openQueues) ref.deref()?.close();
+  openQueues.clear();
 }
 
 /** In-memory storage, for tests and for platforms with no file system. */

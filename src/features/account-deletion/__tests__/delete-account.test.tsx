@@ -33,6 +33,9 @@ jest.mock("@/config/supabase", () => ({
   },
   clearLocalSession: () => mockClearLocal(),
 }));
+jest.mock("@/services/purge-local-queue", () => ({
+  purgeLocalSetQueue: () => void calls.push("purge-queue"),
+}));
 
 let api: ReturnType<typeof useAuth>;
 function Probe() {
@@ -60,11 +63,11 @@ beforeEach(async () => {
 });
 
 describe("2.6 (b) · AuthProvider.deleteAccount", () => {
-  it("calls delete_my_account with no argument, then signs out", async () => {
+  it("calls delete_my_account with no argument, erases the local queue, then signs out", async () => {
     expect(await api.deleteAccount()).toEqual({ error: null });
     expect(mockRpc).toHaveBeenCalledWith("delete_my_account");
     expect(mockRpc.mock.calls[0]).toHaveLength(1);
-    expect(calls).toEqual(["rpc", "sign-out"]);
+    expect(calls).toEqual(["rpc", "purge-queue", "sign-out"]);
     await waitFor(() => expect(api.state.status).toBe("signed-out"));
     expect(api.signOutNotice).toBeNull();
   });
@@ -92,19 +95,21 @@ describe("2.6 (b) · AuthProvider.deleteAccount", () => {
     expect(api.signOutNotice).toBe(SIGN_OUT_NOT_CLEARED);
   });
 
-  it("keeps the session, with a French message, when the function fails", async () => {
+  it("keeps the session and the local queue, with a French message, when the function fails", async () => {
     mockRpc.mockResolvedValue({ data: null, error: { code: "42501", message: "not authenticated" } });
     const { error } = await api.deleteAccount();
     expect(error).toMatch(/échoué|Réessaie/);
     expect(error).not.toMatch(/not authenticated|42501/);
     expect(mockSignOut).not.toHaveBeenCalled();
+    expect(calls).not.toContain("purge-queue");
     expect(api.state.status).toBe("ready");
   });
 
-  it("keeps the session when the call is rejected", async () => {
+  it("keeps the session and the local queue when the call is rejected", async () => {
     mockRpc.mockRejectedValue(new Error("Network request failed"));
     expect((await api.deleteAccount()).error).toBeTruthy();
     expect(mockSignOut).not.toHaveBeenCalled();
+    expect(calls).not.toContain("purge-queue");
     expect(api.state.status).toBe("ready");
   });
 });

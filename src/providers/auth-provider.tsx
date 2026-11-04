@@ -13,6 +13,7 @@ import { type Session, type User } from "@supabase/supabase-js";
 
 import { clearLocalSession, supabase } from "@/config/supabase";
 import { DELETION_FAILED } from "@/features/account-deletion/deletion-copy";
+import { purgeLocalSetQueue } from "@/services/purge-local-queue";
 
 import { signInErrorMessage } from "./auth-errors";
 import { signOutAndClearLocal } from "./sign-out";
@@ -245,10 +246,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: DELETION_FAILED };
     }
     // The account no longer exists, so the deletion has succeeded whatever happens
-    // on this device from here: end the session with the same reliable sign-out as
-    // the Réglages button (it clears the local session even if the server call
-    // fails). A local clean-up problem shows as the sign-out notice on the login
-    // screen, never as a failed deletion.
+    // on this device from here: erase its unsent sets, then end the session with the
+    // same reliable sign-out as the Réglages button (it clears the local session even
+    // if the server call fails). A local clean-up problem shows as the sign-out
+    // notice on the login screen, never as a failed deletion.
+    purgeLocalSetQueue();
     try {
       await signOut();
     } catch {
