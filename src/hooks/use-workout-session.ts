@@ -9,6 +9,7 @@ import {
   type WorkoutState,
 } from "@/features/training/workout-state";
 import { createQueueStorage } from "@/services/queue-storage";
+import { mayRestoreLocalQueue } from "@/services/purge-local-queue";
 import { SetQueue, type QueuedSet } from "@/services/set-queue";
 import {
   completeSession,
@@ -77,8 +78,16 @@ export function useWorkoutSession(args: {
     // Read what a previous run left on disk, then send it. Until restore() has
     // run, the queue never writes to disk (to avoid erasing the previous run's
     // sets), so skipping it would make the queue memory-only.
-    void queue.restore();
-    return unsubscribe;
+    // After a refused purge (deleted account, file still on disk) the old sets are
+    // neither reloaded nor sent; the queue then stays memory-only until the file goes.
+    let cancelled = false;
+    void mayRestoreLocalQueue().then((ok) => {
+      if (ok && !cancelled) return queue.restore();
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [queue]);
 
   // Open or resume, then rehydrate from what the server already holds.
