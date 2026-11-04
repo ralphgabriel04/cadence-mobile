@@ -87,13 +87,23 @@ describe("2.1 · RegisterScreen", () => {
     expect(screen.queryByText(/romain@exemple\.com/)).toBeNull();
   });
 
-  it("never prints the password", async () => {
-    const spy = jest.spyOn(console, "log").mockImplementation(() => undefined);
+  it.each(["success", "failure"])("never prints the password (%s case)", async (outcome) => {
+    mockSignUp.mockResolvedValue({
+      error: outcome === "failure" ? "Impossible de créer le compte" : null,
+    });
+    const spies = (["log", "warn", "error"] as const).map((m) =>
+      jest.spyOn(console, m).mockImplementation(() => undefined)
+    );
     render(<RegisterScreen />);
     fillValid({ password: "secretsecret" });
     fireEvent.press(screen.getByText("Créer mon compte"));
     await waitFor(() => expect(mockSignUp).toHaveBeenCalled());
-    expect(JSON.stringify(spy.mock.calls)).not.toContain("secretsecret");
-    spy.mockRestore();
+    await screen.findByText(
+      outcome === "failure" ? "Impossible de créer le compte" : "Vérifiez votre courriel"
+    );
+    for (const spy of spies) {
+      expect(JSON.stringify(spy.mock.calls)).not.toContain("secretsecret");
+      spy.mockRestore();
+    }
   });
 });
