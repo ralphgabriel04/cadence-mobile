@@ -21,7 +21,7 @@ const mockProfile = {
 };
 
 type Answer = { data: unknown; error: unknown };
-const mockQueue: Array<(v: Answer) => void> = [];
+const mockQueue: ((v: Answer) => void)[] = [];
 const mockCalls = { profiles: 0 };
 let mockImpl: () => Promise<Answer>;
 
@@ -73,7 +73,7 @@ describe("2.4 · real AuthProvider with a mocked Supabase client", () => {
     expect(view.UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
     expect(screen.queryByText(/REDIRECT/)).toBeNull();
 
-    mockQueue[0]({ data: mockProfile, error: null });
+    mockQueue[0]?.({ data: mockProfile, error: null });
     expect(await screen.findByText("REDIRECT:/(athlete)")).toBeTruthy();
   });
 
