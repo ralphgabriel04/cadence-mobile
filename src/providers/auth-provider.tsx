@@ -11,6 +11,7 @@ import {
 import { type Session, type User } from "@supabase/supabase-js";
 
 import { supabase } from "@/config/supabase";
+import { EXPIRED_LINK_MESSAGE, parseRecoveryLink } from "@/features/auth-routing/recovery-link";
 
 import {
   authReducer,
@@ -54,6 +55,8 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
+  /** Turns the recovery link opened from the email into a (temporary) session. */
+  acceptRecoveryLink: (url: string) => Promise<{ error: string | null }>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -199,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { error: null };
     },
-    [],
+    []
   );
 
   const signOut = useCallback(async () => {
@@ -219,6 +222,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? error.message : null };
   }, []);
 
+  const acceptRecoveryLink = useCallback(async (url: string) => {
+    const link = parseRecoveryLink(url);
+    if (link.kind === "error") return { error: link.message };
+    if (link.kind === "tokens") {
+      const { error } = await supabase.auth.setSession({
+        access_token: link.accessToken,
+        refresh_token: link.refreshToken,
+      });
+      return { error: error ? EXPIRED_LINK_MESSAGE : null };
+    }
+    if (link.kind === "code") {
+      const { error } = await supabase.auth.exchangeCodeForSession(link.code);
+      return { error: error ? EXPIRED_LINK_MESSAGE : null };
+    }
+    return { error: EXPIRED_LINK_MESSAGE };
+  }, []);
+
   const value = useMemo<AuthContextType>(
     () => ({
       state,
@@ -232,8 +252,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       resetPassword,
       updatePassword,
+      acceptRecoveryLink,
     }),
-    [state, refreshProfile, signIn, signUp, signOut, resetPassword, updatePassword],
+    [
+      state,
+      refreshProfile,
+      signIn,
+      signUp,
+      signOut,
+      resetPassword,
+      updatePassword,
+      acceptRecoveryLink,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
