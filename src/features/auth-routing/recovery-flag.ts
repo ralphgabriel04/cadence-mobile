@@ -2,15 +2,9 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 /**
- * "A password recovery is in progress" marker, kept outside React state so it
- * survives an app restart. The recovery session is a real, persisted session:
- * without this marker a relaunch would resume it as an ordinary login and open
- * the athlete space without a password. At startup an armed marker means "sign
- * this session out".
- *
- * Armed BEFORE the recovery tokens are turned into a session, so a crash between
- * the two still ends in a sign-out. Storage failures read as "not armed" for
- * reads and are swallowed for writes: the in-memory state still guards the run.
+ * "A password recovery is in progress" marker, outside React state so it survives
+ * a restart: the recovery session is persisted, and an armed marker at startup
+ * means "sign it out". Armed BEFORE the tokens become a session.
  */
 const KEY = "cadence.recovery-in-progress";
 

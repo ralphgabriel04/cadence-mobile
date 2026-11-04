@@ -75,10 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // True while a recovery session is open in this run. Mirrors the persisted
-  // marker so the auth listener can decide synchronously.
+  // A recovery session is open in this run (mirrors the persisted marker).
   const recoveryArmed = useRef(false);
-  // Resolves once the startup check above is done; link handling waits for it.
+  // Resolves once the startup check is done.
   const startup = useRef<Promise<void>>(Promise.resolve());
 
   const fetchProfile = useCallback(async (userId: string) => {
@@ -116,8 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let unsubscribe = () => {};
 
     startup.current = (async () => {
-      // A recovery left armed by a previous run is a persisted recovery session
-      // that must not resume as an ordinary login: end it before anything reads it.
+      // A recovery left open by a previous run must not resume as a login: end it first.
       if (await isRecoveryArmed()) {
         try {
           await supabase.auth.signOut({ scope: "local" });
