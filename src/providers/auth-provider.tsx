@@ -13,6 +13,7 @@ import { type Session, type User } from "@supabase/supabase-js";
 import { supabase } from "@/config/supabase";
 
 import { resetErrorMessage } from "./reset-errors";
+import { armRecovery, disarmRecovery, isRecoveryArmed } from "@/features/auth-routing/recovery-flag";
 import {
   authReducer,
   initialAuthState,
@@ -74,6 +75,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // True while a recovery session is open in this run. Mirrors the persisted
+  // marker so the auth listener can decide synchronously.
+  const recoveryArmed = useRef(false);
+  // Resolves once the startup check above is done; link handling waits for it.
+  const startup = useRef<Promise<void>>(Promise.resolve());
+
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
@@ -105,38 +112,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Resolve the session, then the profile. The two are sequenced deliberately:
   // routing may not act until both are known.
   useEffect(() => {
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
+    let cancelled = false;
+    let unsubscribe = () => {};
+
+    startup.current = (async () => {
+      // A recovery left armed by a previous run is a persisted recovery session
+      // that must not resume as an ordinary login: end it before anything reads it.
+      if (await isRecoveryArmed()) {
+        try {
+          await supabase.auth.signOut({ scope: "local" });
+        } catch {
+          // Nothing to clear if the client is unreachable; the marker is cleared below.
+        }
+        await disarmRecovery();
+      }
+      if (cancelled) return;
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event, session) => {
         if (!mounted.current) return;
-        dispatch({ type: "session-resolved", session });
-      })
-      .catch((cause: unknown) => {
+        if (event === "SIGNED_OUT" || !session) {
+          recoveryArmed.current = false;
+          void disarmRecovery();
+          dispatch({ type: "signed-out" });
+          return;
+        }
+        if (event === "PASSWORD_RECOVERY") {
+          recoveryArmed.current = true;
+          void armRecovery();
+        }
+        dispatch(
+          recoveryArmed.current
+            ? { type: "recovery-started", session }
+            : { type: "session-resolved", session }
+        );
+      });
+      unsubscribe = () => subscription.unsubscribe();
+
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (mounted.current) dispatch({ type: "session-resolved", session });
+      } catch (cause: unknown) {
         if (!mounted.current) return;
         // Without this the app hung on the splash forever when the auth client
         // failed -- the previous implementation had no rejection handler at all,
         // so `loading` was never cleared.
-        dispatch({
-          type: "session-resolved",
-          session: null,
-        });
+        dispatch({ type: "session-resolved", session: null });
         if (__DEV__) {
           console.warn("[auth] getSession failed", cause);
         }
-      });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted.current) return;
-      if (event === "SIGNED_OUT" || !session) {
-        dispatch({ type: "signed-out" });
-        return;
       }
-      dispatch({ type: "session-resolved", session });
-    });
+    })();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   // One place that turns "a session needs a profile" into a request. Runs for
@@ -204,7 +238,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    // Abandoning or finishing a recovery only needs the local session gone; the
+    // marker is cleared once that is done, so a failure leaves it armed.
+    await supabase.auth.signOut(recoveryArmed.current ? { scope: "local" } : undefined);
+    recoveryArmed.current = false;
+    await disarmRecovery();
     if (mounted.current) dispatch({ type: "signed-out" });
   }, []);
 
