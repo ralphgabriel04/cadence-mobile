@@ -11,6 +11,8 @@ import {
 import { type Session, type User } from "@supabase/supabase-js";
 
 import { supabase } from "@/config/supabase";
+
+import { resetErrorMessage } from "./reset-errors";
 import { EXPIRED_LINK_MESSAGE, parseRecoveryLink } from "@/features/auth-routing/recovery-link";
 
 import {
@@ -214,7 +216,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: "cadence://reset-password",
     });
-    return { error: error ? error.message : null };
+    if (!error) return { error: null };
+    // Only failures that say nothing about the account are shown (anti-enumeration).
+    return { error: resetErrorMessage(error) };
   }, []);
 
   const updatePassword = useCallback(async (password: string) => {
