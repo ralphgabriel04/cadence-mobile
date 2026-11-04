@@ -15,3 +15,13 @@ major_version = 15
 [studio]
 enabled = true
 port = 54323
+
+[auth]
+# Deep link of the app. Recovery emails must come back to cadence://reset-password.
+site_url = "cadence://"
+additional_redirect_urls = ["cadence://reset-password"]
+
+[auth.email.template.recovery]
+subject = "Réinitialise ton mot de passe Cadence"
+content_path = "./supabase/templates/recovery.html"
+
