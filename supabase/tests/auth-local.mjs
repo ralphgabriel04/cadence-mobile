@@ -64,4 +64,5 @@ out.password8Athlete = await roleAfterReconnect(`athlete${stamp}@cadence.test`, 
 const again = await signUp(`coach${stamp}@cadence.test`, "motdepasse8", "coach");
 out.alreadyRegisteredSignUp = { status: again.status, error: again.body.error_code ?? null };
 
+// eslint-disable-next-line no-console -- manual script, its only output is the report
 console.log(JSON.stringify(out, null, 2));
