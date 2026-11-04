@@ -279,7 +279,7 @@ export class SetQueue {
     } catch {
       // The in-memory queue is already empty; see purgeLocalSetQueue for the file.
     }
-    for (const listener of this.listeners) listener(this.queue);
+    this.notify();
   }
 
   /**
@@ -313,6 +313,17 @@ export class SetQueue {
     this.restored = true;
     this.persist();
     void this.drain();
+  }
+
+  /** Tells every listener, each in isolation: one that throws must not silence the others. */
+  private notify(): void {
+    for (const listener of this.listeners) {
+      try {
+        listener(this.queue);
+      } catch {
+        // A faulty subscriber is its own problem; the queue keeps working.
+      }
+    }
   }
 
   /** Every set not yet on the server, including the ones it refused. */
@@ -439,7 +450,7 @@ export class SetQueue {
   private persist(): void {
     // Listeners always hear about the change; only the WRITE waits for restore.
     if (!this.restored) {
-      for (const listener of this.listeners) listener(this.queue);
+      this.notify();
       return;
     }
     try {
@@ -449,7 +460,7 @@ export class SetQueue {
       // memory and will be retried on the next mutation; only a process kill
       // during a storage outage loses it.
     }
-    for (const listener of this.listeners) listener(this.queue);
+    this.notify();
   }
 }
 
@@ -460,8 +471,17 @@ const openQueues = new Set<WeakRef<SetQueue>>();
 
 /** Closes every live queue (see SetQueue.close). */
 export function closeAllSetQueues(): void {
-  for (const ref of openQueues) ref.deref()?.close();
-  openQueues.clear();
+  try {
+    for (const ref of openQueues) {
+      try {
+        ref.deref()?.close();
+      } catch {
+        // One queue failing to close must not leave the others draining.
+      }
+    }
+  } finally {
+    openQueues.clear();
+  }
 }
 
 /** In-memory storage, for tests and for platforms with no file system. */

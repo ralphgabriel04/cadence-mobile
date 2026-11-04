@@ -17,3 +17,7 @@ export const DELETION_ERASED = [
 export const DELETION_BACKUPS =
   "Les sauvegardes de la base s'effacent selon leur cycle normal. La durée exacte est écrite dans la politique de confidentialité.";
 export const DELETION_FAILED = "La suppression a échoué. Réessaie dans un instant.";
+
+/** Shown when the account is deleted but this phone could not erase its unsent sets. */
+export const LOCAL_DATA_LEFT =
+  "Ton compte est supprimé. Certaines données sont restées sur ce téléphone : désinstalle l'app pour les effacer.";
