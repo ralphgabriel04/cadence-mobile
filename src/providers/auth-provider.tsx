@@ -12,9 +12,6 @@ import { type Session, type User } from "@supabase/supabase-js";
 
 import { supabase } from "@/config/supabase";
 
-import { resetErrorMessage } from "./reset-errors";
-import { EXPIRED_LINK_MESSAGE, parseRecoveryLink } from "@/features/auth-routing/recovery-link";
-
 import {
   authReducer,
   initialAuthState,
@@ -57,8 +54,6 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
-  /** Turns the recovery link opened from the email into a (temporary) session. */
-  acceptRecoveryLink: (url: string) => Promise<{ error: string | null }>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -204,7 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { error: null };
     },
-    []
+    [],
   );
 
   const signOut = useCallback(async () => {
@@ -216,31 +211,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: "cadence://reset-password",
     });
-    if (!error) return { error: null };
-    // Only failures that say nothing about the account are shown (anti-enumeration).
-    return { error: resetErrorMessage(error) };
+    return { error: error ? error.message : null };
   }, []);
 
   const updatePassword = useCallback(async (password: string) => {
     const { error } = await supabase.auth.updateUser({ password });
     return { error: error ? error.message : null };
-  }, []);
-
-  const acceptRecoveryLink = useCallback(async (url: string) => {
-    const link = parseRecoveryLink(url);
-    if (link.kind === "error") return { error: link.message };
-    if (link.kind === "tokens") {
-      const { error } = await supabase.auth.setSession({
-        access_token: link.accessToken,
-        refresh_token: link.refreshToken,
-      });
-      return { error: error ? EXPIRED_LINK_MESSAGE : null };
-    }
-    if (link.kind === "code") {
-      const { error } = await supabase.auth.exchangeCodeForSession(link.code);
-      return { error: error ? EXPIRED_LINK_MESSAGE : null };
-    }
-    return { error: EXPIRED_LINK_MESSAGE };
   }, []);
 
   const value = useMemo<AuthContextType>(
@@ -256,18 +232,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       resetPassword,
       updatePassword,
-      acceptRecoveryLink,
     }),
-    [
-      state,
-      refreshProfile,
-      signIn,
-      signUp,
-      signOut,
-      resetPassword,
-      updatePassword,
-      acceptRecoveryLink,
-    ]
+    [state, refreshProfile, signIn, signUp, signOut, resetPassword, updatePassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

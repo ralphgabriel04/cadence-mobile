@@ -90,7 +90,7 @@ export function ForgotPasswordScreen() {
 
             {sent ? (
               <Text weight="medium" className="text-center text-success">
-                Si un compte existe pour ce courriel, un lien de réinitialisation vient d&apos;être envoyé. Vérifiez votre boîte de réception.
+                Courriel envoyé! Vérifiez votre boîte de réception.
               </Text>
             ) : null}
 
