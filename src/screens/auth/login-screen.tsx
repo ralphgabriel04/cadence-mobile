@@ -13,7 +13,7 @@ import { Logo } from "@/components/ui/logo";
 import { Text } from "@/components/ui/text";
 
 export function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, signOutNotice } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -81,6 +81,7 @@ export function LoginScreen() {
               </Text>
             </Link>
 
+            {signOutNotice ? <Text className="text-text">{signOutNotice}</Text> : null}
             {error ? <Text variant="error">{error}</Text> : null}
 
             <Button
