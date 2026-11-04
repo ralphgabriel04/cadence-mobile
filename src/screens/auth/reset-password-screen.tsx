@@ -19,7 +19,7 @@ function validatePassword(password: string) {
 }
 
 export function ResetPasswordScreen() {
-  const { updatePassword } = useAuth();
+  const { updatePassword, signOut } = useAuth();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -54,8 +54,16 @@ export function ResetPasswordScreen() {
     if (result.error) {
       setError(result.error);
     } else {
+      // End the temporary recovery session: the user signs in with the new password.
+      await signOut();
       router.replace("/(auth)/login");
     }
+  };
+
+  // Abandoning ends the recovery too: nothing stays open without a new password.
+  const handleCancel = async () => {
+    await signOut();
+    router.replace("/(auth)/login");
   };
 
   return (
@@ -103,6 +111,7 @@ export function ResetPasswordScreen() {
               loading={loading}
               className="mt-2"
             />
+            <Button title="Annuler" variant="outline" onPress={handleCancel} />
           </View>
         </View>
       </ScrollView>
