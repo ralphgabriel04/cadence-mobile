@@ -1,14 +1,9 @@
 -- ============================================================================
 -- 93 -- Account deletion, database side (cm#154 part a, story 2.6)
 -- ============================================================================
--- delete_my_account() must remove EVERYTHING that belongs to the caller (0 rows
--- left in every table), leave every other account untouched, take no argument
--- (so nobody can target someone else), and be closed to anon.
---
--- LIMIT: auth.uid() is a GUC stub and auth.users is a stub table (see
--- 00_harness.sql). This proves the SQL logic and the cascades, not that the
--- real Supabase `postgres` role may delete from auth.users, nor that GoTrue
--- then refuses sign-in. Those two points are checked on the local stack.
+-- delete_my_account(): 0 rows left for the caller in every table, other accounts
+-- untouched, no argument, closed to anon. LIMIT: auth.uid() and auth.users are
+-- stubs (00_harness.sql); the real Supabase role is checked on the local stack.
 -- ============================================================================
 
 CREATE FUNCTION del_id(k TEXT) RETURNS UUID LANGUAGE sql IMMUTABLE AS
@@ -44,9 +39,8 @@ BEGIN
   INSERT INTO waitlist_subscribers(email) VALUES ('del-' || lower(u) || '@test.local');
 END $$;
 
--- Row counts for user u. Direct ownership is discovered from the foreign keys
--- that point at profiles or auth.users, so a table added later is counted
--- automatically; the tables owned only through a parent are listed by id.
+-- Row counts for user u: direct ownership found from the FKs to profiles/auth.users
+-- (a later table is counted automatically); child-only tables listed by id.
 CREATE FUNCTION del_snapshot(u TEXT) RETURNS JSONB LANGUAGE plpgsql AS $$
 DECLARE r RECORD; n BIGINT; res JSONB := '{}'::jsonb;
 BEGIN

@@ -1,36 +1,24 @@
 -- ============================================================================
 -- 009 -- delete_my_account(): real account deletion, database side (cm#154 a)
 -- ============================================================================
--- Called by the app as  supabase.rpc('delete_my_account')  with the signed-in
--- user's session. No argument: it can only ever act on auth.uid(), so a caller
--- cannot name another account.
+-- Called as supabase.rpc('delete_my_account') with the user's session. No
+-- argument: it acts only on auth.uid(), so a caller cannot name another account.
+-- Removes: the waitlist row of the account's CURRENT Auth e-mail (only if
+-- confirmed; the profile e-mail can be stale and is not used); the profile, which
+-- cascades to all the user's data; the auth.users row (ends sessions, blocks
+-- sign-in). SECURITY DEFINER because a user cannot delete from auth.users; safe
+-- because of no parameter, identity from auth.uid(), empty search_path, EXECUTE
+-- revoked from PUBLIC and anon. Real deletion, not the is_deleted flag.
 --
--- What it removes:
---   * the waitlist row(s) with the account's CURRENT e-mail from auth.users, only if
---     that address is confirmed (personal data, no FK). The profile e-mail is a
---     mirror that can be stale, so it is not used.
---   * the profile, which cascades (ON DELETE CASCADE) to programs and exercises
---     the user created, sessions, session_exercises, assignments, session_logs,
---     exercise_logs (sets), readiness_logs, session_images, coach_athletes,
---     coach_notes, conversations and messages
---   * the auth.users row, which ends every session and makes sign-in impossible
---
--- SECURITY DEFINER because a user has no DELETE right on auth.users. Safe
--- because: no parameter, identity read only from auth.uid(), search_path
--- emptied (every name is schema-qualified), EXECUTE revoked from PUBLIC and
--- anon. It is a real deletion, not the soft-delete flag.
---
--- Known limits (see the story journal):
---   * Files in Storage (avatars, session photos) are not removed by SQL; the
---     follow-up is an Edge Function using the service role key held server-side.
+-- Known limits:
+--   * Storage files (avatars, photos) are not removed by SQL; follow-up: Edge
+--     Function with the service role key kept server-side.
 --   * Backups age out on their normal cycle (ticket default).
---   * KNOWN LIMIT (product decision for Ralph, epic 12): deleting a COACH also deletes,
---     by cascade, other accounts' logs made on that coach's programs/exercises.
---     Pinned by test 'DEL KNOWN LIMIT'. Not changed here on purpose.
---   * A JWT already issued stays valid until it expires; the user no longer
---     exists (token refresh is expected to fail; not verified here).
+--   * KNOWN LIMIT (decision for Ralph, epic 12): deleting a COACH also deletes, by
+--     cascade, other accounts' logs made on that coach's programs/exercises.
+--     Pinned by test 'DEL KNOWN LIMIT'. Not changed on purpose.
+--   * A JWT already issued stays valid until it expires (refresh not verified).
 -- ============================================================================
-
 CREATE OR REPLACE FUNCTION public.delete_my_account()
 RETURNS void
 LANGUAGE plpgsql
