@@ -1,16 +1,12 @@
 -- ============================================================================
 -- 92 -- Isolation tests (cm#153, story 2.5): nobody else sees or changes my data
 -- ============================================================================
--- For profiles, programs, sessions, session_logs (done workouts), exercise_logs
--- (sets) and program_assignments: one case per table and per operation
--- (select, insert, update, delete) for account A, account B and anon.
---
--- Every "blocked" case has a positive control next to it (A can do the same
--- thing on A's own row), so a pass cannot come from a broken fixture.
---
--- LIMIT: auth.uid() is a GUC stub (see 00_harness.sql). This proves the policy
--- logic, not Supabase's JWT handling.
---
+-- Covers profiles, programs, sessions, session_logs, exercise_logs and
+-- program_assignments (+ one exercises read). A and B attack each other's rows
+-- (select/insert/update/delete); anon is tested on selects and on some writes.
+-- NOT a full table x operation x account matrix: 94_ adds the other tables.
+-- Refusals sit beside positive controls. LIMIT: auth.uid() is a GUC stub (see
+-- 00_harness.sql): policy logic, not Supabase JWT handling.
 -- Fixtures use their own ids and fake addresses only. Needs 90_ (rec()).
 -- ============================================================================
 
