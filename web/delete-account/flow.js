@@ -31,8 +31,9 @@
       if (res.status === 429) {
         return { error: "Trop de tentatives. Réessaie dans quelques minutes.", message: null };
       }
-      // Any other answer (sent, unknown address, signups disabled) reads the same:
-      // the page must never reveal who has an account.
+      // Any other answer (sent, unknown address, signups disabled) reads the same ON THE PAGE.
+      // This hides nothing at network level: the Supabase API answers 200 for a known address and
+      // 422 otp_disabled for an unknown one. Known limit, decision for Ralph (see the PR).
       return { error: null, message: NEUTRAL };
     } catch (e) {
       return { error: "Connexion impossible. Vérifie ta connexion et réessaie.", message: null };
