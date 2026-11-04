@@ -16,7 +16,11 @@ export function AuthSplash() {
   const palette = usePalette();
 
   return (
-    <View className="flex-1 items-center justify-center bg-bg">
+    <View
+      className="flex-1 items-center justify-center bg-bg"
+      accessible
+      accessibilityLabel="Chargement du profil"
+    >
       <ActivityIndicator size="large" color={palette.accent} />
     </View>
   );
@@ -57,7 +61,12 @@ export function ProfileRecovery({
         </Text>
       ) : null}
 
-      <Button title="Réessayer" onPress={refreshProfile} className="w-full" />
+      <Button
+        title="Réessayer"
+        accessibilityRole="button"
+        onPress={refreshProfile}
+        className="w-full"
+      />
 
       <Button
         title="Se déconnecter"
