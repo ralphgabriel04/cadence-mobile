@@ -12,6 +12,8 @@ import { type Session, type User } from "@supabase/supabase-js";
 
 import { supabase } from "@/config/supabase";
 
+import { signInErrorMessage } from "./auth-errors";
+
 import {
   authReducer,
   initialAuthState,
@@ -154,12 +156,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      if (error.message.includes("rate limit")) {
-        return { error: "Trop de tentatives. Veuillez réessayer dans quelques minutes." };
-      }
-      // Deliberately generic: a distinct "unknown account" message would let
-      // anyone enumerate registered addresses (ADR-001).
-      return { error: "Courriel ou mot de passe incorrect" };
+      // Wrong email and wrong password read the same (ADR-001); see auth-errors.ts.
+      return { error: signInErrorMessage(error) };
     }
     return { error: null };
   }, []);
