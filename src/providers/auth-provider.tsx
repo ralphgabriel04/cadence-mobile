@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useState,
   useRef,
   type ReactNode,
 } from "react";
@@ -27,6 +28,9 @@ import {
 } from "./auth-state";
 
 export type { AuthState, Profile } from "./auth-state";
+
+export const SIGN_OUT_NOT_CLEARED =
+  "La déconnexion n'a pas pu effacer la session de cet appareil. Réessaie.";
 
 type AuthContextType = {
   /**
@@ -54,7 +58,10 @@ type AuthContextType = {
     lastName: string;
     role: "coach" | "athlete";
   }) => Promise<{ error: string | null }>;
-  signOut: () => Promise<void>;
+  /** Always ends the UI session. `error` is set when this device could not erase the stored session. */
+  signOut: () => Promise<{ error: string | null }>;
+  /** Last sign-out problem, shown on the login screen; cleared by the next sign-in. */
+  signOutNotice: string | null;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
 };
@@ -155,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    setSignOutNotice(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       // Wrong email and wrong password read the same (ADR-001); see auth-errors.ts.
@@ -198,12 +206,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { error: null };
     },
-    [],
+    []
   );
 
+  const [signOutNotice, setSignOutNotice] = useState<string | null>(null);
+
   const signOut = useCallback(async () => {
-    await signOutAndClearLocal(supabase.auth, clearLocalSession);
-    if (mounted.current) dispatch({ type: "signed-out" });
+    const outcome = await signOutAndClearLocal(supabase.auth, clearLocalSession);
+    // The UI always ends the session, but never claims the token is gone when it may not be.
+    const error = outcome.localCleared ? null : SIGN_OUT_NOT_CLEARED;
+    if (mounted.current) {
+      setSignOutNotice(error);
+      dispatch({ type: "signed-out" });
+    }
+    return { error };
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
@@ -229,10 +245,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      signOutNotice,
       resetPassword,
       updatePassword,
     }),
-    [state, refreshProfile, signIn, signUp, signOut, resetPassword, updatePassword],
+    [state, refreshProfile, signIn, signUp, signOut, signOutNotice, resetPassword, updatePassword]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

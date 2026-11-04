@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { clearStoredSession, createSecureStorage } from "@/config/secure-storage";
+import { authStorageKey, clearStoredSession, createSecureStorage } from "@/config/secure-storage";
 import { signOutAndClearLocal } from "../sign-out";
 
 const mockKeychain = new Map<string, string>();
@@ -72,7 +72,10 @@ async function signedInClient() {
 describe("2.2 · sign-out clears the local session", () => {
   it("normal path (default scope): key removed, a new client finds nothing", async () => {
     const client = await signedInClient();
-    expect(await signOutAndClearLocal(client.auth, clear)).toBe(true);
+    expect(await signOutAndClearLocal(client.auth, clear)).toEqual({
+      serverConfirmed: true,
+      localCleared: true,
+    });
     expect(mockKeychain.size).toBe(0);
     expect((await newClient().auth.getSession()).data.session).toBeNull();
   });
@@ -80,7 +83,10 @@ describe("2.2 · sign-out clears the local session", () => {
   it("server answers 500: the local session is still removed", async () => {
     const client = await signedInClient();
     logoutBehaviour = "500";
-    expect(await signOutAndClearLocal(client.auth, clear)).toBe(false);
+    expect(await signOutAndClearLocal(client.auth, clear)).toEqual({
+      serverConfirmed: false,
+      localCleared: true,
+    });
     expect(mockKeychain.size).toBe(0);
     expect((await newClient().auth.getSession()).data.session).toBeNull();
   });
@@ -102,7 +108,50 @@ describe("2.2 · sign-out clears the local session", () => {
         return { error: null };
       }),
     };
-    expect(await signOutAndClearLocal(auth)).toBe(false);
+    expect(await signOutAndClearLocal(auth)).toEqual({
+      serverConfirmed: false,
+      localCleared: false,
+    });
     expect(calls).toEqual([undefined, { scope: "local" }]);
+  });
+});
+
+describe("2.2 · the erased key is the client's real storage key", () => {
+  it("authStorageKey(url) is the key auth-js writes the session under", async () => {
+    const client = createClient(URL_LOCAL, "anon-test", {
+      auth: {
+        storage: createSecureStorage("ios"),
+        storageKey: authStorageKey(URL_LOCAL),
+        persistSession: true,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+    await client.auth.signInWithPassword({ email: USER.email, password: "x" });
+    expect([...mockKeychain.keys()]).toContain(authStorageKey(URL_LOCAL));
+    expect([...mockKeychain.keys()]).toContain("sb-localhost-auth-token");
+  });
+});
+
+describe("2.2 · when the direct clean-up fails", () => {
+  it("retries once, then reports localCleared: false (no claim of success)", async () => {
+    const auth = { signOut: jest.fn(async () => ({ error: { message: "500" } })) };
+    const clearStored = jest.fn(async () => {
+      throw new Error("keychain locked");
+    });
+    expect(await signOutAndClearLocal(auth, clearStored)).toEqual({
+      serverConfirmed: false,
+      localCleared: false,
+    });
+    expect(clearStored).toHaveBeenCalledTimes(2);
+  });
+
+  it("succeeds on the retry when the first clean-up attempt fails", async () => {
+    const auth = { signOut: jest.fn(async () => ({ error: { message: "500" } })) };
+    const clearStored = jest
+      .fn<Promise<void>, []>()
+      .mockRejectedValueOnce(new Error("busy"))
+      .mockResolvedValueOnce(undefined);
+    expect((await signOutAndClearLocal(auth, clearStored)).localCleared).toBe(true);
   });
 });
