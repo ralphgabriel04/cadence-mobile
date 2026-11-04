@@ -45,12 +45,7 @@ export type AuthState =
   | { status: "profile-missing"; session: Session }
   /** The profile request failed. Retryable. */
   | { status: "error"; session: Session; message: string }
-  /**
-   * A password-recovery link opened a temporary session. Until the new password
-   * is saved (or the recovery abandoned, which signs out) the only reachable
-   * screen is the new-password one: no profile is loaded, no athlete or coach
-   * space opens.
-   */
+  /** Temporary recovery session: only the new-password screen is reachable, no profile loads. */
   | { status: "recovery"; session: Session };
 
 export type AuthEvent =
@@ -72,8 +67,7 @@ export function authReducer(state: AuthState, event: AuthEvent): AuthState {
   switch (event.type) {
     case "session-resolved": {
       if (!event.session) return { status: "signed-out" };
-      // A recovery session is not a normal one: a refresh keeps it, nothing else
-      // can replace it (the user must finish or abandon the recovery).
+      // A refresh keeps a recovery session; nothing else replaces it.
       if (state.status === "recovery") {
         return state.session.user.id === event.session.user.id
           ? { status: "recovery", session: event.session }

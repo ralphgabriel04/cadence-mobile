@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Text } from "react-native";
 
 import AthleteLayout from "@/app/(athlete)/_layout";
@@ -6,6 +6,7 @@ import AuthLayout from "@/app/(auth)/_layout";
 import CoachLayout from "@/app/(coach)/_layout";
 import Index from "@/app/index";
 import { AuthProvider, useAuth } from "@/providers/auth-provider";
+import { ResetPasswordScreen } from "@/screens/auth/reset-password-screen";
 
 // Real provider and real route guards; only the network client, the router and
 // the secure storage are replaced.
@@ -21,6 +22,7 @@ jest.mock("expo-router", () => {
   const { Text: T } = require("react-native");
   const Shell = ({ children }: { children?: unknown }) => <T>shell{children as never}</T>;
   return {
+    router: { replace: (...a: unknown[]) => mockReplace(...a) },
     Redirect: ({ href }: { href: string }) => <T>{`redirect:${href}`}</T>,
     Stack: Object.assign(Shell, { Screen: () => null }),
     Tabs: Object.assign(Shell, { Screen: () => null }),
@@ -28,6 +30,7 @@ jest.mock("expo-router", () => {
 });
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 
+const mockReplace = jest.fn();
 type AuthListener = (event: string, session: unknown) => void;
 let mockListener: AuthListener | null = null;
 let mockStoredSession: unknown = null;
@@ -44,6 +47,7 @@ jest.mock("@/config/supabase", () => ({
         mockListener = cb;
         return { data: { subscription: { unsubscribe: jest.fn() } } };
       }),
+      updateUser: jest.fn(async () => ({ error: null })),
       signOut: (...a: unknown[]) => (mockSignOutClient as (...x: unknown[]) => unknown)(...a),
     },
     from: (...a: unknown[]) => mockFrom(...a),
@@ -89,6 +93,8 @@ beforeEach(() => {
   mockStore.clear();
   mockListener = null;
   mockStoredSession = null;
+  mockReplace.mockClear();
+  mockSignOutClient.mockClear();
 });
 
 describe("2.3 · password recovery blocks the app until a new password is set", () => {
@@ -161,5 +167,22 @@ describe("2.3 · password recovery blocks the app until a new password is set", 
 
     expect(screen.getByText("status:signed-out")).toBeTruthy();
     expect(mockStore.has("cadence.recovery-in-progress")).toBe(false);
+  });
+
+  it.each(["a saved new password", "cancelling"])("%s ends the recovery and signs out", async (how) => {
+    mountWith("athlete", () => <ResetPasswordScreen />);
+    await waitFor(() => expect(screen.getByText("status:signed-out")).toBeTruthy());
+    await act(async () => mockListener?.("PASSWORD_RECOVERY", session));
+    expect(screen.getByText("status:recovery")).toBeTruthy(); // control: the recovery is open
+    if (how === "cancelling") {
+      await act(async () => fireEvent.press(screen.getByText("Annuler")));
+    } else {
+      fireEvent.changeText(screen.getByPlaceholderText("Minimum 8 caractères"), "Newpass12");
+      fireEvent.changeText(screen.getByPlaceholderText("Retapez votre mot de passe"), "Newpass12");
+      await act(async () => fireEvent.press(screen.getByText("Mettre à jour")));
+    }
+    await waitFor(() => expect(screen.getByText("status:signed-out")).toBeTruthy());
+    expect(mockStore.has("cadence.recovery-in-progress")).toBe(false);
+    expect(mockReplace).toHaveBeenCalledWith("/(auth)/login");
   });
 });
