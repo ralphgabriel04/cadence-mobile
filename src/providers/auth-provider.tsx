@@ -12,6 +12,8 @@ import { type Session, type User } from "@supabase/supabase-js";
 
 import { supabase } from "@/config/supabase";
 
+import { isAlreadyRegistered, signUpErrorMessage } from "./sign-up-errors";
+
 import {
   authReducer,
   initialAuthState,
@@ -189,17 +191,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // client, which was redundant, raced the trigger, and -- since migration
       // 004 froze profiles.role -- would now fail outright if the two disagreed.
       if (error) {
-        if (error.message.includes("already registered")) {
-          return { error: "Ce courriel est déjà utilisé" };
-        }
-        if (error.message.includes("rate limit")) {
-          return { error: "Trop de tentatives. Veuillez réessayer dans quelques minutes." };
-        }
-        return { error: error.message };
+        // Already registered looks exactly like a new account (anti-enumeration).
+        if (isAlreadyRegistered(error)) return { error: null };
+        return { error: signUpErrorMessage(error) };
       }
       return { error: null };
     },
-    [],
+    []
   );
 
   const signOut = useCallback(async () => {
@@ -233,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       resetPassword,
       updatePassword,
     }),
-    [state, refreshProfile, signIn, signUp, signOut, resetPassword, updatePassword],
+    [state, refreshProfile, signIn, signUp, signOut, resetPassword, updatePassword]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
