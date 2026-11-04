@@ -7,6 +7,7 @@ import { SectionLabel } from "@/components/ui/section-label";
 import { SettingsGroup, SettingsRow } from "@/components/ui/settings-group";
 import { TopBar } from "@/components/ui/top-bar";
 import { DeleteAccountPanel } from "@/features/account-deletion/delete-account-panel";
+import { DELETION_FAILED } from "@/features/account-deletion/deletion-copy";
 import { useAuth } from "@/providers/auth-provider";
 
 /**
@@ -26,9 +27,14 @@ export function AthleteSettingsScreen() {
   const confirmDeletion = async () => {
     setDeleting(true);
     setDeleteError(null);
-    const { error } = await deleteAccount();
-    setDeleting(false);
-    if (error) setDeleteError(error);
+    try {
+      const { error } = await deleteAccount();
+      if (error) setDeleteError(error);
+    } catch {
+      setDeleteError(DELETION_FAILED);
+    } finally {
+      setDeleting(false);
+    }
   };
   const version = Constants.expoConfig?.version ?? "dev";
 
@@ -83,7 +89,6 @@ export function AthleteSettingsScreen() {
             <SettingsRow
               icon="trash-outline"
               label="Supprimer mon compte"
-              danger
               onPress={() => setConfirming(true)}
               last
             />

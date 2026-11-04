@@ -25,17 +25,25 @@ export function DeleteAccountPanel({ busy, error, onConfirm, onCancel }: Props) 
         ))}
       </View>
       <Text variant="caption">{DELETION_BACKUPS}</Text>
-      {error ? <Text variant="error">{error}</Text> : null}
+      {/* Default text colour (17:1), not the error red (3.8:1 on the card): the words carry the meaning. */}
+      {error ? (
+        <Text weight="semibold" accessibilityRole="alert" accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
+      {/* The shared `danger` variant is red text at 3.8:1; `outline` keeps text-text, the words say what it does. */}
       <Button
         title="Supprimer définitivement"
-        variant="danger"
+        variant="outline"
         accessibilityRole="button"
+        accessibilityLabel="Supprimer définitivement mon compte"
+        accessibilityState={{ busy, disabled: busy }}
         loading={busy}
         onPress={onConfirm}
       />
       <Button
         title="Annuler"
-        variant="outline"
+        variant="secondary"
         accessibilityRole="button"
         disabled={busy}
         onPress={onCancel}

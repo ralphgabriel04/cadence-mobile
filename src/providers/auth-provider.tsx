@@ -244,11 +244,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       return { error: DELETION_FAILED };
     }
-    // The account no longer exists: end the session on this device.
-    await supabase.auth.signOut();
-    if (mounted.current) dispatch({ type: "signed-out" });
+    // The account no longer exists, so the deletion has succeeded whatever happens
+    // on this device from here: end the session with the same reliable sign-out as
+    // the Réglages button (it clears the local session even if the server call
+    // fails). A local clean-up problem shows as the sign-out notice on the login
+    // screen, never as a failed deletion.
+    try {
+      await signOut();
+    } catch {
+      if (mounted.current) dispatch({ type: "signed-out" });
+    }
     return { error: null };
-  }, []);
+  }, [signOut]);
 
   const value = useMemo<AuthContextType>(
     () => ({
