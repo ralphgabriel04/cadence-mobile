@@ -490,3 +490,27 @@ describe("SetQueue.close (account deleted)", () => {
     expect(parseQueue(await s2.read())).toEqual([]);
   });
 });
+
+describe("listener isolation on close", () => {
+  it("a listener that throws does not stop the others or the other queues", async () => {
+    const retry: SendResult = { ok: false, message: "net", retryable: true };
+    const a = new SetQueue(createMemoryStorage(), async () => retry);
+    const b = new SetQueue(createMemoryStorage(), async () => retry);
+    await a.restore();
+    await b.restore();
+    const heard: number[] = [];
+    a.subscribe(() => {
+      throw new Error("bad listener");
+    });
+    a.subscribe((q) => heard.push(q.length));
+    a.add(set({ clientId: "a" }));
+    b.add(set({ clientId: "b" }));
+    heard.length = 0;
+
+    expect(() => closeAllSetQueues()).not.toThrow();
+
+    expect(heard).toEqual([0]); // the second listener on the same queue still heard it
+    expect(a.pending).toHaveLength(0);
+    expect(b.pending).toHaveLength(0);
+  });
+});
