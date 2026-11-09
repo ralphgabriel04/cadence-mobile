@@ -514,3 +514,18 @@ describe("listener isolation on close", () => {
     expect(b.pending).toHaveLength(0);
   });
 });
+
+describe("SetQueue owner", () => {
+  it("stamps added sets with the owner and reloads only that owner's sets", async () => {
+    const storage = createMemoryStorage();
+    storage.write(
+      JSON.stringify([set({ clientId: "mine", ownerId: "a" }), set({ clientId: "theirs", ownerId: "b" }), set({ clientId: "legacy" })])
+    );
+    const q = new SetQueue(storage, async () => ({ ok: false, message: "x", retryable: true }), Date.now, "a");
+    await q.restore();
+    expect(q.pending.map((p) => p.clientId)).toEqual(["mine"]);
+    q.add(set({ clientId: "new", setNumber: 2 }));
+    expect(q.pending.find((p) => p.clientId === "new")?.ownerId).toBe("a");
+    expect(JSON.parse((await storage.read()) ?? "[]").map((p: QueuedSet) => p.clientId)).toEqual(["mine", "new"]);
+  });
+});

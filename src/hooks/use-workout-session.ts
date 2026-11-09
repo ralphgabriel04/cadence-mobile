@@ -67,7 +67,12 @@ export function useWorkoutSession(args: {
 
   // Created once. Rebuilding it would drop whatever it is still holding.
   if (queueRef.current === null) {
-    queueRef.current = new SetQueue(createQueueStorage(), (entry) => sendSet(entry));
+    queueRef.current = new SetQueue(
+      createQueueStorage(),
+      (entry) => sendSet(entry),
+      Date.now,
+      athleteId,
+    );
   }
   const queue = queueRef.current;
 
@@ -133,8 +138,7 @@ export function useWorkoutSession(args: {
     const exercise = state.exercises.at(state.currentIndex);
     if (!exercise) return;
 
-    const setNumber =
-      state.logged.filter((l) => l.exerciseId === exercise.exerciseId).length + 1;
+    const setNumber = state.logged.filter((l) => l.exerciseId === exercise.exerciseId).length + 1;
 
     dispatch({ type: "validate-set", at });
 
@@ -190,10 +194,7 @@ export function useWorkoutSession(args: {
       const durationMinutes =
         startedAt === null
           ? null
-          : Math.max(
-              0,
-              Math.round((Date.parse(completedAt) - Date.parse(startedAt)) / 60_000),
-            );
+          : Math.max(0, Math.round((Date.parse(completedAt) - Date.parse(startedAt)) / 60_000));
 
       const result = await completeSession({
         sessionLogId: sessionLogIdRef.current,

@@ -54,4 +54,10 @@ describe("eraseQueueFile", () => {
     fs.directoryThrows = true;
     expect(eraseQueueFile()).toEqual({ erased: false });
   });
+
+  it("on the web the queue never touched a disk, so it counts as erased (no false notice)", () => {
+    fs.directoryThrows = true; // no app file system in a browser
+    expect(eraseQueueFile("web")).toEqual({ erased: true });
+    expect(fs.present).toBe(true); // the native file was not touched
+  });
 });

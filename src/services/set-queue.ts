@@ -31,6 +31,12 @@
 export type QueuedSet = {
   /** Stable client-side id, used for dedupe inside the queue itself. */
   clientId: string;
+  /**
+   * Account that recorded the set. Stamped by the queue; on launch only the signed-in
+   * account's sets are reloaded, so a deleted account's leftovers are never sent
+   * (a set with no owner predates this field and is not trusted).
+   */
+  ownerId?: string;
   sessionLogId: string;
   exerciseId: string;
   sessionExerciseId: string | null;
@@ -256,6 +262,7 @@ export class SetQueue {
     private readonly storage: QueueStorage,
     private readonly send: SetSender,
     private readonly now: () => number = Date.now,
+    private readonly ownerId?: string,
   ) {
     // Starts empty. Loading is `restore()`, because reading the file is async
     // and a constructor cannot await. Sets added before restore() resolves are
@@ -305,7 +312,11 @@ export class SetQueue {
     }
 
     if (this.closed) return;
-    const persisted = parseQueue(raw);
+    // Fail closed: another account's sets (or unowned ones) are dropped here and the
+    // next write replaces the file, whether or not the purge ever managed to erase it.
+    const persisted = parseQueue(raw).filter(
+      (q) => this.ownerId === undefined || q.ownerId === this.ownerId,
+    );
     const live = new Set(this.queue.map((q) => q.clientId));
     const merged = [...persisted.filter((q) => !live.has(q.clientId)), ...this.queue];
 
@@ -352,7 +363,7 @@ export class SetQueue {
   /** Adds a set and starts a drain. Persisted before returning. */
   add(entry: QueuedSet): void {
     if (this.closed) return;
-    this.queue = enqueue(this.queue, entry);
+    this.queue = enqueue(this.queue, this.ownerId ? { ...entry, ownerId: this.ownerId } : entry);
     this.persist();
     void this.drain();
   }
