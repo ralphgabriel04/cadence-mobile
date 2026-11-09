@@ -133,10 +133,10 @@ describe("2.3 · R1 · a recovery fails closed", () => {
     await act(async () => mockListener?.("PASSWORD_RECOVERY", session));
     mockStored = session;
     mockSignOut.mockResolvedValue({ error: new Error("500") });
-    let done: { error: string | null } | undefined = undefined;
+    let done = { error: null } as { error: string | null };
     await act(async () => void (done = await api.signOut()));
 
-    expect(done?.error).toBeTruthy();
+    expect(done.error).toBeTruthy();
     expect(screen.getByText("status:recovery")).toBeTruthy();
     expect(mockStore.get(ARMED)).toBe("1");
   });
