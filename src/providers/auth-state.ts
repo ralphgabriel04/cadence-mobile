@@ -44,14 +44,17 @@ export type AuthState =
    */
   | { status: "profile-missing"; session: Session }
   /** The profile request failed. Retryable. */
-  | { status: "error"; session: Session; message: string };
+  | { status: "error"; session: Session; message: string }
+  /** Temporary recovery session: only the new-password screen is reachable, no profile loads. */
+  | { status: "recovery"; session: Session };
 
 export type AuthEvent =
   | { type: "session-resolved"; session: Session | null }
   | { type: "signed-out" }
+  | { type: "recovery-started"; session: Session }
   | { type: "profile-loaded"; profile: Profile }
-  | { type: "profile-missing" }
-  | { type: "profile-failed"; message: string }
+  | { type: "profile-missing"; userId: string }
+  | { type: "profile-failed"; userId: string; message: string }
   | { type: "profile-reload" };
 
 export const initialAuthState: AuthState = { status: "initializing" };
@@ -64,6 +67,12 @@ export function authReducer(state: AuthState, event: AuthEvent): AuthState {
   switch (event.type) {
     case "session-resolved": {
       if (!event.session) return { status: "signed-out" };
+      // A refresh keeps a recovery session; nothing else replaces it.
+      if (state.status === "recovery") {
+        return state.session.user.id === event.session.user.id
+          ? { status: "recovery", session: event.session }
+          : state;
+      }
       // A token refresh re-emits the session for a user whose profile is
       // already loaded. Re-entering `loading-profile` there would blank the UI
       // on every refresh, so an unchanged user keeps its resolved state.
@@ -81,7 +90,11 @@ export function authReducer(state: AuthState, event: AuthEvent): AuthState {
     case "signed-out":
       return { status: "signed-out" };
 
+    case "recovery-started":
+      return { status: "recovery", session: event.session };
+
     case "profile-loaded": {
+      if (state.status === "recovery") return state;
       // Ignore a response that arrived after sign-out or after a user switch:
       // without this an in-flight request for the previous user could install
       // their profile over the new session.
@@ -90,16 +103,24 @@ export function authReducer(state: AuthState, event: AuthEvent): AuthState {
       return { status: "ready", session: state.session, profile: event.profile };
     }
 
+    // A late "missing" or "failed" answer is only valid for the request that is
+    // still in flight: it must be for the same user AND the state must still be
+    // `loading-profile`. This keeps user B's ready profile from being replaced
+    // by a stale answer about user A, and a ready profile from being downgraded
+    // by an old request. A late answer for the SAME user after sign-out and
+    // sign-in again is accepted: it describes the same account.
     case "profile-missing":
-      if (!("session" in state)) return state;
+      if (state.status !== "loading-profile") return state;
+      if (state.session.user.id !== event.userId) return state;
       return { status: "profile-missing", session: state.session };
 
     case "profile-failed":
-      if (!("session" in state)) return state;
+      if (state.status !== "loading-profile") return state;
+      if (state.session.user.id !== event.userId) return state;
       return { status: "error", session: state.session, message: event.message };
 
     case "profile-reload":
-      if (!("session" in state)) return state;
+      if (!("session" in state) || state.status === "recovery") return state;
       return { status: "loading-profile", session: state.session };
   }
 }
@@ -107,10 +128,7 @@ export function authReducer(state: AuthState, event: AuthEvent): AuthState {
 // ── Derivations ──────────────────────────────────────────────────────────────
 
 /** States in which the identity of the user is not yet known. */
-export type ResolvingAuthState = Extract<
-  AuthState,
-  { status: "initializing" | "loading-profile" }
->;
+export type ResolvingAuthState = Extract<AuthState, { status: "initializing" | "loading-profile" }>;
 
 /** States in which it is. */
 export type ResolvedAuthState = Exclude<AuthState, ResolvingAuthState>;
@@ -146,11 +164,13 @@ export function profileOf(state: AuthState): Profile | null {
  * The 2026 product is athlete-only (ADR-003 at product level). A coach account
  * is routed to an explicit notice, never to an empty coach dashboard.
  */
-export type HomeRoute = "/(athlete)" | "/(coach)" | "/(auth)/login";
+export type HomeRoute = "/(athlete)" | "/(coach)" | "/(auth)/login" | "/reset-password";
 
 export function homeRouteFor(state: AuthState): HomeRoute | null {
   if (isResolving(state)) return null;
   if (state.status === "signed-out") return "/(auth)/login";
+  // Recovery: only the new-password screen, whatever the role.
+  if (state.status === "recovery") return "/reset-password";
   if (state.status === "ready") {
     return state.profile.role === "coach" ? "/(coach)" : "/(athlete)";
   }
