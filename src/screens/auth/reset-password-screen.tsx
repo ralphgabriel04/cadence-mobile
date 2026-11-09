@@ -8,7 +8,8 @@ import {
 import { router } from "expo-router";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordStrengthMeter } from "@/components/ui/password-strength-meter";
 import { Text } from "@/components/ui/text";
 
 function validatePassword(password: string) {
@@ -76,22 +77,21 @@ export function ResetPasswordScreen() {
           </Text>
 
           <View className="gap-3.5">
-            <Input
+            <PasswordInput
               label="Nouveau mot de passe"
               placeholder="Minimum 8 caractères"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
               autoComplete="new-password"
               error={passwordError ?? undefined}
             />
+            <PasswordStrengthMeter password={password} />
 
-            <Input
+            <PasswordInput
               label="Confirmer le mot de passe"
               placeholder="Retapez votre mot de passe"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              secureTextEntry
               error={confirmError}
             />
 

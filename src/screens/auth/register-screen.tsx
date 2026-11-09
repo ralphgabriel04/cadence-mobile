@@ -11,6 +11,8 @@ import { useAuth } from "@/providers/auth-provider";
 import { maskEmail } from "@/utils/mask-email";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordStrengthMeter } from "@/components/ui/password-strength-meter";
 import { Pill } from "@/components/ui/pill";
 import { Text } from "@/components/ui/text";
 
@@ -152,22 +154,21 @@ export function RegisterScreen() {
               autoComplete="email"
             />
 
-            <Input
+            <PasswordInput
               label="Mot de passe"
               placeholder="Minimum 8 caractères"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
               autoComplete="new-password"
               error={passwordError ?? undefined}
             />
+            <PasswordStrengthMeter password={password} />
 
-            <Input
+            <PasswordInput
               label="Confirmer le mot de passe"
               placeholder="Retapez votre mot de passe"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              secureTextEntry
               error={confirmError}
             />
 
