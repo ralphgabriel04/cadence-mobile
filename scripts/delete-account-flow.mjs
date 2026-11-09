@@ -48,7 +48,11 @@ async function signup(label) {
     headers: H,
     body: JSON.stringify({ email, password: PASSWORD, data: { first_name: "Test", last_name: label, role: "athlete" } }),
   });
-  const id = (await r.json()).user?.id;
+  // With email confirmation on (story 2.1), the API answers with the user itself and no session;
+  // the proof confirms the address directly in the local database, as clicking the email would.
+  const body = await r.json();
+  const id = body.user?.id ?? body.id;
+  if (id) sql(`UPDATE auth.users SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()) WHERE id = '${id}'`);
   return { email, id };
 }
 
@@ -86,10 +90,11 @@ const total = (s) => Object.values(s).reduce((a, b) => a + Number(b), 0);
 async function codeFor(email) {
   for (let i = 0; i < 40; i++) {
     const { messages } = await (await fetch(`${MAIL}/messages`)).json();
-    const m = messages.find((x) => x.To.some((t) => t.Address === email));
-    if (m) {
+    // Skip the sign-up confirmation email (story 2.1): only the message carrying a code counts.
+    for (const m of messages.filter((x) => x.To.some((t) => t.Address === email))) {
       const full = await (await fetch(`${MAIL}/message/${m.ID}`)).json();
-      return { subject: full.Subject, code: (full.Text || "").match(/\b(\d{6,8})\b/)?.[1] };
+      const code = (full.Text || "").match(/\b(\d{6,8})\b/)?.[1];
+      if (code) return { subject: full.Subject, code };
     }
     await sleep(500);
   }
