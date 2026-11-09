@@ -358,3 +358,46 @@ describe("authReducer — stale profile answers (story 2.4)", () => {
     );
   });
 });
+
+describe("recovery state", () => {
+  const recovering: AuthState = { status: "recovery", session: makeSession("u1") };
+
+  it("recovery-started enters recovery from any state, and routes only to the new-password screen", () => {
+    for (const from of [
+      initialAuthState,
+      { status: "signed-out" } as AuthState,
+      { status: "ready", session: makeSession("u1"), profile: makeProfile("u1", "coach") } as AuthState,
+    ]) {
+      const next = authReducer(from, { type: "recovery-started", session: makeSession("u1") });
+      expect(next.status).toBe("recovery");
+      expect(homeRouteFor(next)).toBe("/reset-password");
+      expect(isResolving(next)).toBe(false);
+      expect(profileOf(next)).toBeNull();
+    }
+  });
+
+  it("keeps recovery on a refresh of the same user, ignores another user's session", () => {
+    const refreshed = makeSession("u1");
+    expect(authReducer(recovering, { type: "session-resolved", session: refreshed })).toEqual({
+      status: "recovery",
+      session: refreshed,
+    });
+    expect(authReducer(recovering, { type: "session-resolved", session: makeSession("u2") })).toBe(
+      recovering
+    );
+  });
+
+  it("never turns into a profile state through a late profile event", () => {
+    expect(authReducer(recovering, { type: "profile-loaded", profile: makeProfile("u1") })).toBe(recovering);
+    expect(authReducer(recovering, { type: "profile-missing", userId: "u1" })).toBe(recovering);
+    expect(authReducer(recovering, { type: "profile-failed", userId: "u1", message: "x" })).toBe(recovering);
+    expect(authReducer(recovering, { type: "profile-reload" })).toBe(recovering);
+  });
+
+  it("leaves recovery only by signing out", () => {
+    expect(authReducer(recovering, { type: "signed-out" })).toEqual({ status: "signed-out" });
+    expect(authReducer(recovering, { type: "session-resolved", session: null })).toEqual({
+      status: "signed-out",
+    });
+  });
+});

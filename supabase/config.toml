@@ -24,3 +24,12 @@ minimum_password_length = 8
 # Local stack only: ask new accounts to confirm their address (story 2.1, criterion 1).
 # The hosted project's setting is a Ralph gesture; it is never changed from here.
 enable_confirmations = true
+
+# Deep link of the app. Recovery emails must come back to cadence://reset-password.
+site_url = "cadence://"
+additional_redirect_urls = ["cadence://reset-password"]
+
+[auth.email.template.recovery]
+subject = "Réinitialise ton mot de passe Cadence"
+content_path = "./supabase/templates/recovery.html"
+
