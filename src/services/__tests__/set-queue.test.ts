@@ -1,5 +1,6 @@
 import {
   backoffMs,
+  closeAllSetQueues,
   createMemoryStorage,
   dueEntries,
   enqueue,
@@ -416,5 +417,115 @@ describe("SetQueue", () => {
     queue.add(set({ clientId: "c2", setNumber: 2 }));
 
     expect(seen).toEqual([1, 0]);
+  });
+});
+
+// ── Account deletion: the local queue must not outlive the account ───────────
+
+describe("SetQueue.close (account deleted)", () => {
+  const retryable: SendResult = { ok: false, message: "net", retryable: true };
+
+  it("forgets pending and refused sets, empties the file, ignores later adds", async () => {
+    const storage = createMemoryStorage();
+    const q = new SetQueue(storage, async (e) =>
+      e.clientId === "refused" ? { ok: false, message: "no", retryable: false } : retryable
+    );
+    await q.restore();
+    q.add(set({ clientId: "waiting", setNumber: 1 }));
+    q.add(set({ clientId: "refused", setNumber: 2 }));
+    await q.drain();
+    expect(q.pending).toHaveLength(2); // control: both really were held
+    expect(q.rejected).toHaveLength(1);
+
+    q.close();
+    q.add(set({ clientId: "late", setNumber: 3 }));
+
+    expect(q.pending).toHaveLength(0);
+    expect(parseQueue(await storage.read())).toEqual([]);
+  });
+
+  it("a send finishing after close cannot write the set back", async () => {
+    const storage = createMemoryStorage();
+    let finish: (r: SendResult) => void = () => {};
+    const q = new SetQueue(storage, () => new Promise<SendResult>((r) => (finish = r)));
+    await q.restore();
+    q.add(set({ clientId: "in-flight" }));
+    expect(parseQueue(await storage.read())).toHaveLength(1);
+
+    q.close();
+    finish(retryable); // would normally mark the set as failed and persist it
+    await q.drain();
+
+    expect(q.pending).toHaveLength(0);
+    expect(parseQueue(await storage.read())).toEqual([]);
+  });
+
+  it("the next account does not get the old account's sets back", async () => {
+    const storage = createMemoryStorage();
+    const old = new SetQueue(storage, async () => retryable);
+    await old.restore();
+    old.add(set());
+    old.close();
+
+    const next = new SetQueue(storage, async () => ({ ok: true }));
+    await next.restore();
+    expect(next.pending).toHaveLength(0);
+  });
+
+  it("closeAllSetQueues closes every live queue, including ones whose screen is gone", async () => {
+    const s1 = createMemoryStorage();
+    const s2 = createMemoryStorage();
+    const a = new SetQueue(s1, async () => retryable);
+    const b = new SetQueue(s2, async () => retryable);
+    await a.restore();
+    await b.restore();
+    a.add(set({ clientId: "a" }));
+    b.add(set({ clientId: "b" }));
+
+    closeAllSetQueues();
+
+    expect(a.pending).toHaveLength(0);
+    expect(b.pending).toHaveLength(0);
+    expect(parseQueue(await s1.read())).toEqual([]);
+    expect(parseQueue(await s2.read())).toEqual([]);
+  });
+});
+
+describe("listener isolation on close", () => {
+  it("a listener that throws does not stop the others or the other queues", async () => {
+    const retry: SendResult = { ok: false, message: "net", retryable: true };
+    const a = new SetQueue(createMemoryStorage(), async () => retry);
+    const b = new SetQueue(createMemoryStorage(), async () => retry);
+    await a.restore();
+    await b.restore();
+    const heard: number[] = [];
+    a.subscribe(() => {
+      throw new Error("bad listener");
+    });
+    a.subscribe((q) => heard.push(q.length));
+    a.add(set({ clientId: "a" }));
+    b.add(set({ clientId: "b" }));
+    heard.length = 0;
+
+    expect(() => closeAllSetQueues()).not.toThrow();
+
+    expect(heard).toEqual([0]); // the second listener on the same queue still heard it
+    expect(a.pending).toHaveLength(0);
+    expect(b.pending).toHaveLength(0);
+  });
+});
+
+describe("SetQueue owner", () => {
+  it("stamps added sets with the owner and reloads only that owner's sets", async () => {
+    const storage = createMemoryStorage();
+    storage.write(
+      JSON.stringify([set({ clientId: "mine", ownerId: "a" }), set({ clientId: "theirs", ownerId: "b" }), set({ clientId: "legacy" })])
+    );
+    const q = new SetQueue(storage, async () => ({ ok: false, message: "x", retryable: true }), Date.now, "a");
+    await q.restore();
+    expect(q.pending.map((p) => p.clientId)).toEqual(["mine"]);
+    q.add(set({ clientId: "new", setNumber: 2 }));
+    expect(q.pending.find((p) => p.clientId === "new")?.ownerId).toBe("a");
+    expect(JSON.parse((await storage.read()) ?? "[]").map((p: QueuedSet) => p.clientId)).toEqual(["mine", "new"]);
   });
 });

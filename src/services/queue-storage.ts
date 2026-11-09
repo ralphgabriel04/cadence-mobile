@@ -60,3 +60,19 @@ export function createQueueStorage(): QueueStorage {
     return createMemoryStorage();
   }
 }
+
+/**
+ * Deletes cadence/set-queue.json and checks, by asking the file system again,
+ * that it is gone. `erased: false` when the delete throws, when the file is still
+ * there afterwards, or when there is no file system (the memory fallback of
+ * createQueueStorage holds nothing on disk, so it proves nothing about the file).
+ */
+export function eraseQueueFile(): { erased: boolean } {
+  try {
+    const file = new File(new Directory(Paths.document, QUEUE_DIRECTORY), QUEUE_FILE);
+    if (file.exists) file.delete();
+    return { erased: !file.exists };
+  } catch {
+    return { erased: false };
+  }
+}
