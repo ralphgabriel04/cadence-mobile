@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 export const EXPIRED_LINK_MESSAGE =
   "Ce lien a expiré ou a déjà été utilisé. Demande-en un nouveau.";
 
@@ -9,15 +11,38 @@ export type RecoveryLink =
   | { kind: "error"; message: string }
   | { kind: "none" };
 
-/** The only destination a recovery email may open (redirect URL of supabase/config.toml). */
+/** The only destination a recovery email may open in the app (redirect URL of supabase/config.toml). */
+export const NATIVE_RECOVERY_URL = "cadence://reset-password";
 const DESTINATION = /^cadence:\/\/reset-password(?=[?#]|$)/;
+
+/** Origin of the site when the app runs in a browser (Expo web), otherwise null. */
+export function currentWebOrigin(): string | null {
+  if (Platform.OS !== "web" || typeof window === "undefined") return null;
+  return window.location?.origin ?? null;
+}
+
+/**
+ * Where the recovery email sends the user: the app scheme on a phone, this
+ * site's own /reset-password page on the web (a browser cannot open cadence://).
+ */
+export function recoveryRedirectUrl(webOrigin: string | null = currentWebOrigin()): string {
+  return webOrigin ? `${webOrigin}/reset-password` : NATIVE_RECOVERY_URL;
+}
+
+function isDestination(url: string, webOrigin: string | null): boolean {
+  if (DESTINATION.test(url)) return true;
+  if (!webOrigin) return false;
+  const page = `${webOrigin}/reset-password`;
+  return url.startsWith(page) && /^([?#]|$)/.test(url.slice(page.length));
+}
 
 /**
  * Reads what a password-recovery link carries. Pure on purpose: no network, no
  * storage.
  *
- * - Only the exact destination cadence://reset-password is read: another scheme,
- *   host or path, or a lookalike (reset-passwordx, reset-password/x), gives `none`.
+ * - Only the exact destination cadence://reset-password is read (on the web: this
+ *   site's own /reset-password page): another scheme, host or path, or a
+ *   lookalike (reset-passwordx, reset-password/x), gives `none`.
  * - Tokens are accepted from the fragment only, and only with type=recovery. A
  *   signup, magic-link, invite or email-change fragment gives `none`.
  * - A `code` in the query is never accepted: the app uses the implicit flow and
@@ -28,8 +53,11 @@ const DESTINATION = /^cadence:\/\/reset-password(?=[?#]|$)/;
  * checked by the provider (a recent request from this device) and by the server
  * (the tokens must be valid).
  */
-export function parseRecoveryLink(url: string | null | undefined): RecoveryLink {
-  if (!url || !DESTINATION.test(url)) return { kind: "none" };
+export function parseRecoveryLink(
+  url: string | null | undefined,
+  webOrigin: string | null = currentWebOrigin()
+): RecoveryLink {
+  if (!url || !isDestination(url, webOrigin)) return { kind: "none" };
 
   const hashAt = url.indexOf("#");
   const queryAt = url.indexOf("?");

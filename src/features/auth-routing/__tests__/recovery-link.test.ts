@@ -1,4 +1,4 @@
-import { parseRecoveryLink } from "../recovery-link";
+import { parseRecoveryLink, recoveryRedirectUrl } from "../recovery-link";
 
 const TOKENS = "access_token=AAA&refresh_token=BBB&expires_in=3600&token_type=bearer";
 
@@ -33,15 +33,46 @@ describe("parseRecoveryLink", () => {
     ["other scheme", `https://evil.test/reset-password#${TOKENS}&type=recovery`],
     ["lookalike host", `cadence://reset-passwordx#${TOKENS}&type=recovery`],
     ["extra path", `cadence://reset-password/extra#${TOKENS}&type=recovery`],
-    ["not a bearer token", "cadence://reset-password#access_token=A&refresh_token=B&token_type=mac&type=recovery"],
+    [
+      "not a bearer token",
+      "cadence://reset-password#access_token=A&refresh_token=B&token_type=mac&type=recovery",
+    ],
   ])("refuses %s", (_name, url) => {
     expect(parseRecoveryLink(url).kind).toBe("none");
   });
 
-  it.each([null, undefined, "", "cadence://reset-password", "cadence://reset-password#type=recovery"])(
-    "returns none when there is nothing to use (%p)",
-    (url) => {
-      expect(parseRecoveryLink(url as string | null).kind).toBe("none");
-    }
-  );
+  it.each([
+    null,
+    undefined,
+    "",
+    "cadence://reset-password",
+    "cadence://reset-password#type=recovery",
+  ])("returns none when there is nothing to use (%p)", (url) => {
+    expect(parseRecoveryLink(url as string | null).kind).toBe("none");
+  });
+});
+
+describe("recovery link on the web (Expo web)", () => {
+  const origin = "https://app.cadence.test";
+  const frag = "#access_token=a&refresh_token=r&type=recovery&token_type=bearer";
+
+  it("sends the email back to this site's page on the web, to the app scheme elsewhere", () => {
+    expect(recoveryRedirectUrl(origin)).toBe("https://app.cadence.test/reset-password");
+    expect(recoveryRedirectUrl(null)).toBe("cadence://reset-password");
+  });
+
+  it("reads tokens from this site's /reset-password page only", () => {
+    expect(parseRecoveryLink(`${origin}/reset-password${frag}`, origin).kind).toBe("tokens");
+    expect(parseRecoveryLink(`cadence://reset-password${frag}`, origin).kind).toBe("tokens");
+  });
+
+  it("ignores another site, a lookalike path, or a web page when not on the web", () => {
+    expect(parseRecoveryLink(`https://evil.test/reset-password${frag}`, origin).kind).toBe("none");
+    expect(parseRecoveryLink(`${origin}.evil.test/reset-password${frag}`, origin).kind).toBe(
+      "none"
+    );
+    expect(parseRecoveryLink(`${origin}/reset-passwordx${frag}`, origin).kind).toBe("none");
+    expect(parseRecoveryLink(`${origin}/reset-password/x${frag}`, origin).kind).toBe("none");
+    expect(parseRecoveryLink(`${origin}/reset-password${frag}`, null).kind).toBe("none");
+  });
 });
