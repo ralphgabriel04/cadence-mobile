@@ -101,17 +101,20 @@ describe("2.3 · password recovery blocks the app until a new password is set", 
   it.each([
     ["athlete", AthleteLayout],
     ["coach", CoachLayout],
-  ] as const)("a signed-in %s is sent to the new-password screen on recovery", async (role, Guard) => {
-    mockStoredSession = session;
-    mountWith(role, Guard);
-    await waitFor(() => expect(screen.getByText("status:ready")).toBeTruthy());
-    expect(screen.queryByText(/redirect:/)).toBeNull(); // control: the guard let the user in
+  ] as const)(
+    "a signed-in %s is sent to the new-password screen on recovery",
+    async (role, Guard) => {
+      mockStoredSession = session;
+      mountWith(role, Guard);
+      await waitFor(() => expect(screen.getByText("status:ready")).toBeTruthy());
+      expect(screen.queryByText(/redirect:/)).toBeNull(); // control: the guard let the user in
 
-    await act(async () => mockListener?.("PASSWORD_RECOVERY", session));
+      await act(async () => mockListener?.("PASSWORD_RECOVERY", session));
 
-    expect(screen.getByText("status:recovery")).toBeTruthy();
-    expect(screen.getByText("redirect:/reset-password")).toBeTruthy();
-  });
+      expect(screen.getByText("status:recovery")).toBeTruthy();
+      expect(screen.getByText("redirect:/reset-password")).toBeTruthy();
+    }
+  );
 
   it("the auth group and the entry route send a recovery to the same screen", async () => {
     mockStoredSession = session;
@@ -169,20 +172,26 @@ describe("2.3 · password recovery blocks the app until a new password is set", 
     expect(mockStore.has("cadence.recovery-in-progress")).toBe(false);
   });
 
-  it.each(["a saved new password", "cancelling"])("%s ends the recovery and signs out", async (how) => {
-    mountWith("athlete", () => <ResetPasswordScreen />);
-    await waitFor(() => expect(screen.getByText("status:signed-out")).toBeTruthy());
-    await act(async () => mockListener?.("PASSWORD_RECOVERY", session));
-    expect(screen.getByText("status:recovery")).toBeTruthy(); // control: the recovery is open
-    if (how === "cancelling") {
-      await act(async () => fireEvent.press(screen.getByText("Annuler")));
-    } else {
-      fireEvent.changeText(screen.getByPlaceholderText("Minimum 8 caractères"), "Newpass12");
-      fireEvent.changeText(screen.getByPlaceholderText("Retapez votre mot de passe"), "Newpass12");
-      await act(async () => fireEvent.press(screen.getByText("Mettre à jour")));
+  it.each(["a saved new password", "cancelling"])(
+    "%s ends the recovery and signs out",
+    async (how) => {
+      mountWith("athlete", () => <ResetPasswordScreen />);
+      await waitFor(() => expect(screen.getByText("status:signed-out")).toBeTruthy());
+      await act(async () => mockListener?.("PASSWORD_RECOVERY", session));
+      expect(screen.getByText("status:recovery")).toBeTruthy(); // control: the recovery is open
+      if (how === "cancelling") {
+        await act(async () => fireEvent.press(screen.getByText("Annuler")));
+      } else {
+        fireEvent.changeText(screen.getByPlaceholderText("Minimum 8 caractères"), "Newpass12");
+        fireEvent.changeText(
+          screen.getByPlaceholderText("Retapez votre mot de passe"),
+          "Newpass12"
+        );
+        await act(async () => fireEvent.press(screen.getByText("Mettre à jour")));
+      }
+      await waitFor(() => expect(screen.getByText("status:signed-out")).toBeTruthy());
+      expect(mockStore.has("cadence.recovery-in-progress")).toBe(false);
+      expect(mockReplace).toHaveBeenCalledWith("/(auth)/login");
     }
-    await waitFor(() => expect(screen.getByText("status:signed-out")).toBeTruthy());
-    expect(mockStore.has("cadence.recovery-in-progress")).toBe(false);
-    expect(mockReplace).toHaveBeenCalledWith("/(auth)/login");
-  });
+  );
 });

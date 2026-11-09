@@ -33,6 +33,7 @@ import {
   EXPIRED_LINK_MESSAGE,
   NOT_REQUESTED_MESSAGE,
   parseRecoveryLink,
+  recoveryRedirectUrl,
 } from "@/features/auth-routing/recovery-link";
 import {
   authReducer,
@@ -327,7 +328,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "cadence://reset-password",
+      redirectTo: recoveryRedirectUrl(),
     });
     // Only failures that say nothing about the account are shown (anti-enumeration).
     const message = error ? resetErrorMessage(error) : null;
