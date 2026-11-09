@@ -63,7 +63,9 @@ describe("2.3 · ResetPasswordScreen", () => {
 
   it("shows the provider's refusal and no form", async () => {
     mockUrl = LINK;
-    mockAccept.mockResolvedValue({ error: "Ce lien ne vient pas d'une demande faite depuis cet appareil." });
+    mockAccept.mockResolvedValue({
+      error: "Ce lien ne vient pas d'une demande faite depuis cet appareil.",
+    });
     render(<ResetPasswordScreen />);
     expect(await screen.findByText(/ne vient pas d'une demande/)).toBeTruthy();
     expect(screen.queryByPlaceholderText(NEW_PASSWORD_FIELD)).toBeNull();

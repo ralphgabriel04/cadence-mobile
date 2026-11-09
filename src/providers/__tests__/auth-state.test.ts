@@ -366,7 +366,11 @@ describe("recovery state", () => {
     for (const from of [
       initialAuthState,
       { status: "signed-out" } as AuthState,
-      { status: "ready", session: makeSession("u1"), profile: makeProfile("u1", "coach") } as AuthState,
+      {
+        status: "ready",
+        session: makeSession("u1"),
+        profile: makeProfile("u1", "coach"),
+      } as AuthState,
     ]) {
       const next = authReducer(from, { type: "recovery-started", session: makeSession("u1") });
       expect(next.status).toBe("recovery");
@@ -388,9 +392,13 @@ describe("recovery state", () => {
   });
 
   it("never turns into a profile state through a late profile event", () => {
-    expect(authReducer(recovering, { type: "profile-loaded", profile: makeProfile("u1") })).toBe(recovering);
+    expect(authReducer(recovering, { type: "profile-loaded", profile: makeProfile("u1") })).toBe(
+      recovering
+    );
     expect(authReducer(recovering, { type: "profile-missing", userId: "u1" })).toBe(recovering);
-    expect(authReducer(recovering, { type: "profile-failed", userId: "u1", message: "x" })).toBe(recovering);
+    expect(authReducer(recovering, { type: "profile-failed", userId: "u1", message: "x" })).toBe(
+      recovering
+    );
     expect(authReducer(recovering, { type: "profile-reload" })).toBe(recovering);
   });
 
