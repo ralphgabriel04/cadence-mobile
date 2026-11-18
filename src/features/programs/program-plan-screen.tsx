@@ -9,6 +9,7 @@ import { Pill } from "@/components/ui/pill";
 import { Text } from "@/components/ui/text";
 import { usePalette } from "@/theme/tokens";
 import { useProgramPlan } from "@/hooks/use-program-plan";
+import { useAuth } from "@/providers/auth-provider";
 import type { Difficulty, PlanSession, PlanWeek, ProgramPlan } from "@/types/program-plan";
 import {
   dayNameFr,
@@ -36,6 +37,7 @@ const DIFFICULTY_LABEL: Record<Difficulty, string> = {
  */
 export function ProgramPlanScreen() {
   const { state, refetch } = useProgramPlan();
+  const { signOut } = useAuth();
   const palette = usePalette();
 
   if (state.status === "loading") {
@@ -47,7 +49,13 @@ export function ProgramPlanScreen() {
   }
 
   if (state.status === "error") {
-    return <PlanError kind={state.failure.kind} onRetry={refetch} />;
+    return (
+      <PlanError
+        kind={state.failure.kind}
+        onRetry={refetch}
+        onSignIn={() => void signOut()}
+      />
+    );
   }
 
   if (state.plan.kind === "no-active-program") {
@@ -68,9 +76,12 @@ export function ProgramPlanScreen() {
 function PlanError({
   kind,
   onRetry,
+  onSignIn,
 }: {
   kind: "unauthenticated" | "network";
   onRetry: () => void;
+  /** Signs out so the layout redirects to login; see AthleteTodayScreen. */
+  onSignIn: () => void;
 }) {
   return (
     <View className="flex-1 items-center justify-center gap-4 bg-bg px-8">
@@ -84,7 +95,9 @@ function PlanError({
       </Text>
       {kind === "network" ? (
         <Button title="Réessayer" onPress={onRetry} className="w-full" />
-      ) : null}
+      ) : (
+        <Button title="Se reconnecter" onPress={onSignIn} className="w-full" />
+      )}
     </View>
   );
 }

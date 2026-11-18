@@ -41,8 +41,8 @@ import {
  */
 export function LiveSessionScreen() {
   const router = useRouter();
-  const { state: auth } = useAuth();
-  const { state: today } = useTodaySession();
+  const { state: auth, signOut } = useAuth();
+  const { state: today, refetch } = useTodaySession();
 
   const athleteId = auth.status === "ready" ? auth.profile.id : "";
 
@@ -63,14 +63,24 @@ export function LiveSessionScreen() {
   }
 
   if (today.status === "error") {
+    const unauthenticated = today.failure.kind === "unauthenticated";
     return (
       <Centered>
-        <Text variant="heading" className="text-center text-xl">Chargement impossible</Text>
+        <Text variant="heading" className="text-center text-xl">
+          {unauthenticated ? "Session expirée" : "Chargement impossible"}
+        </Text>
         <Text variant="body" className="text-center">
-          {today.failure.kind === "unauthenticated"
+          {unauthenticated
             ? "Reconnecte-toi pour démarrer ta séance."
             : "Vérifie ta connexion et réessaie."}
         </Text>
+        {/* signOut, not a redirect to login: see AthleteTodayScreen. */}
+        {unauthenticated ? (
+          <Button title="Se reconnecter" onPress={() => void signOut()} className="w-full" />
+        ) : (
+          <Button title="Réessayer" onPress={refetch} className="w-full" />
+        )}
+        <Button title="Retour" variant="outline" onPress={() => router.back()} className="w-full" />
       </Centered>
     );
   }
@@ -182,7 +192,14 @@ function ActiveWorkout({
     );
   }
 
-  if (!exercise) return <Centered><Text variant="body">Aucun exercice.</Text></Centered>;
+  if (!exercise) {
+    return (
+      <Centered>
+        <Text variant="heading" className="text-center text-xl">Aucun exercice</Text>
+        <Button title="Retour" variant="outline" onPress={() => router.back()} className="w-full" />
+      </Centered>
+    );
+  }
 
   return (
     <ScrollView
