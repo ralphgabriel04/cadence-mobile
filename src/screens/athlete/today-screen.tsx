@@ -11,6 +11,7 @@ import { Pill } from "@/components/ui/pill";
 import { SectionLabel } from "@/components/ui/section-label";
 import { Text } from "@/components/ui/text";
 import { useTodaySession } from "@/hooks/use-today-session";
+import { useAuth } from "@/providers/auth-provider";
 import { usePalette } from "@/theme/tokens";
 import type {
   LastSessionSummary,
@@ -47,6 +48,7 @@ const COPY = {
 
 export function AthleteTodayScreen() {
   const { state, refetch } = useTodaySession();
+  const { signOut } = useAuth();
   const palette = usePalette();
 
   // Refetch when the screen regains focus (back from the live session), but
@@ -82,9 +84,13 @@ export function AthleteTodayScreen() {
             ? "Reconnecte-toi pour voir ta séance du jour."
             : "On n'a pas réussi à charger ta journée. Vérifie ta connexion et réessaie."}
         </Text>
+        {/* signOut, not a redirect to login: the auth state is still "ready",
+            so the auth layout would bounce the user straight back here. */}
         {kind === "network" ? (
           <Button title="Réessayer" onPress={refetch} className="w-full" />
-        ) : null}
+        ) : (
+          <Button title="Se reconnecter" onPress={() => void signOut()} className="w-full" />
+        )}
       </SafeAreaView>
     );
   }

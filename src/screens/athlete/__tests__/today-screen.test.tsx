@@ -15,6 +15,11 @@ jest.mock("expo-router", () => ({
   useFocusEffect: jest.fn(),
 }));
 
+const mockSignOut = jest.fn();
+jest.mock("@/providers/auth-provider", () => ({
+  useAuth: () => ({ signOut: mockSignOut }),
+}));
+
 const mockUseTodaySession = jest.fn();
 jest.mock("@/hooks/use-today-session", () => ({
   useTodaySession: () => mockUseTodaySession(),
@@ -129,5 +134,22 @@ describe("AthleteTodayScreen", () => {
 
     fireEvent.press(screen.getByText("Réessayer"));
     expect(refetch).toHaveBeenCalled();
+    expect(screen.queryByText("Se reconnecter")).toBeNull();
+  });
+
+  it("offers to sign in again when the session has expired", () => {
+    const refetch = jest.fn();
+    mockUseTodaySession.mockReturnValue({
+      state: { status: "error", failure: { kind: "unauthenticated" } },
+      refetch,
+    });
+    render(<AthleteTodayScreen />);
+
+    expect(screen.getByText("Session expirée")).toBeTruthy();
+    expect(screen.queryByText("Réessayer")).toBeNull();
+
+    fireEvent.press(screen.getByText("Se reconnecter"));
+    expect(mockSignOut).toHaveBeenCalled();
+    expect(refetch).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadence — Hors connexion</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root,[data-theme="signal"]{--bg:#0C0C0F;--surface:#16161C;--surface2:#1E1E28;--border:#2A2A36;--text:#EEEEF5;--textSub:#9090A8;--textMuted:#6A6A86;--accent:oklch(0.62 0.22 22);--accentSoft:oklch(0.62 0.22 22 / 0.14);--btnBg:oklch(0.62 0.22 22);--btnText:#fff;--ghostBg:#252534;--ghostText:#EEEEF5;--skel:#1E1E28;--notch:#2A2A3A;--shadow:none}
+[data-theme="terrain"]{--bg:#F2EFE9;--surface:#FFFFFF;--surface2:#F7F5F0;--border:#E8E4DC;--text:#1A1814;--textSub:#6A6660;--textMuted:#7E7B74;--accent:#1A1814;--accentSoft:#EDEAE3;--btnBg:#1A1814;--btnText:#F2EFE9;--ghostBg:#EDEAE3;--ghostText:#1A1814;--skel:#EDEAE3;--notch:#D8D8E0;--shadow:0 1px 4px rgba(0,0,0,0.06)}
+[data-theme="pulse"]{--bg:#F6F6F8;--surface:#FFFFFF;--surface2:#F0F0F4;--border:#E4E4EC;--text:#111118;--textSub:#5E5E74;--textMuted:#73738A;--accent:oklch(0.52 0.22 22);--accentSoft:oklch(0.52 0.22 22 / 0.10);--btnBg:#111118;--btnText:#FFFFFF;--ghostBg:#EBEBF2;--ghostText:#111118;--skel:#EBEBF2;--notch:#D8D8E0;--shadow:0 1px 4px rgba(0,0,0,0.06)}
+html,body{background:var(--bg)}
+body{font-family:'DM Sans',sans-serif;color:var(--text);min-height:100vh;display:flex;justify-content:center}
+.screen{width:100%;max-width:390px;min-height:100vh;background:var(--bg);display:flex;flex-direction:column;overflow-x:hidden}
+.status{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 8px;height:44px}
+.status .time{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;letter-spacing:.02em}
+.status .notch{width:120px;height:16px;background:var(--notch);border-radius:8px}
+.status .icons{display:flex;gap:5px;align-items:center;color:var(--textMuted)}
+.head{padding:12px 20px 16px;display:flex;justify-content:space-between;align-items:center}
+.head h1{font-size:22px;font-weight:700;letter-spacing:-.03em}
+.search{width:36px;height:36px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;opacity:.5;color:var(--textSub)}
+.skel{margin:0 16px 16px;background:var(--surface);border-radius:18px;border:1px solid var(--border);padding:16px 14px;opacity:.6}
+.skel .top{display:flex;justify-content:space-between;margin-bottom:16px}
+.skel .bar{height:12px;border-radius:6px;background:var(--skel)}
+.skel .row{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:8px}
+.skel .dot{width:24px;height:24px;border-radius:50%;background:var(--skel);justify-self:center}
+.card{margin:0 16px 12px;background:var(--surface);border-radius:18px;border:1px solid var(--border);overflow:hidden;display:flex;box-shadow:var(--shadow)}
+.card .stripe{width:4px;background:var(--accent);flex-shrink:0}
+.card .body{flex:1;padding:22px 18px 18px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.badge{width:64px;height:64px;border-radius:50%;background:var(--accentSoft);display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:var(--accent)}
+.card h2{font-size:18px;font-weight:700;letter-spacing:-.02em;margin-bottom:8px;text-wrap:balance}
+.card p.msg{font-size:13px;line-height:1.5;color:var(--textSub);margin-bottom:14px;text-wrap:pretty}
+.code{font-family:'DM Mono',monospace;font-size:11px;color:var(--textMuted);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;margin-bottom:18px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:42px;border:none;border-radius:40px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;letter-spacing:.01em}
+.btn.primary{background:var(--btnBg);color:var(--btnText)}
+.btn.ghost{background:var(--ghostBg);color:var(--ghostText);margin-top:10px}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{font-size:11px;color:var(--textMuted);margin-top:14px}
+nav{margin-top:auto;background:var(--surface);border-top:1px solid var(--border);display:flex;padding:8px 0 16px}
+nav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;font-size:10px;font-weight:500;letter-spacing:.03em;color:var(--textMuted)}
+nav a.active{font-weight:700;color:var(--accent)}
+</style>
+</head>
+<!-- Thème : changer data-theme pour "signal", "terrain" ou "pulse" -->
+<body data-theme="signal">
+<main class="screen">
+  <div class="status" aria-hidden="true">
+    <span class="time">9:41</span><div class="notch"></div>
+    <div class="icons">
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><rect x="0" y="6" width="3" height="6" rx="1"/><rect x="4" y="4" width="3" height="8" rx="1" opacity="0.25"/><rect x="8" y="2" width="3" height="10" rx="1" opacity="0.25"/><rect x="12" y="0" width="3" height="12" rx="1" opacity="0.25"/></svg>
+      <svg width="16" height="11" viewBox="0 0 20 11"><rect x="0.5" y="0.5" width="17" height="10" rx="3" stroke="currentColor" stroke-width="1" fill="none"/><rect x="2" y="2" width="12" height="7" rx="2" fill="currentColor"/><rect x="18" y="3.5" width="2" height="4" rx="1" fill="currentColor"/></svg>
+    </div>
+  </div>
+  <header class="head">
+    <h1>Ton programme</h1>
+    <button type="button" class="search" aria-label="Rechercher" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+  </header>
+  <div class="skel" aria-hidden="true"><div class="top"><div class="bar" style="width:92px"></div><div class="bar" style="width:40px"></div></div><div class="row"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="row"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="row"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="row"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="row"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+  <section class="card" role="alert">
+    <div class="stripe"></div>
+    <div class="body">
+      <div class="badge"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M4 11.5a16 16 0 0 1 22 0M8 15.5a10.5 10.5 0 0 1 14 0M12 19.5a5 5 0 0 1 6 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="15" cy="23.5" r="1.6" fill="currentColor"/><path d="M5 5l20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <h2>Pas de connexion</h2>
+      <p class="msg">On n'arrive pas à charger ton programme. Vérifie ton Wi-Fi ou tes données cellulaires, puis réessaie.</p>
+      <span class="code">ERR_NETWORK · hors ligne</span>
+      <button type="button" class="btn primary" onclick="location.reload()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M11.5 7a4.5 4.5 0 1 1-1.4-3.26" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M10.5 1.5v2.6H7.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Réessayer</span></button>
+        <button type="button" class="btn ghost">Voir la dernière version enregistrée</button>
+      <p class="note">Dernière synchro : aujourd'hui, 6 h 42</p>
+    </div>
+  </section>
+  <nav aria-label="Navigation principale">
+    <a href="#" class="active" aria-current="page"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="1" y="1" width="7" height="7" rx="2" fill="var(--accent)"/><rect x="10" y="1" width="7" height="7" rx="2" fill="var(--border)"/><rect x="1" y="10" width="7" height="7" rx="2" fill="var(--border)"/><rect x="10" y="10" width="7" height="7" rx="2" fill="var(--border)"/></svg>Programme</a>
+    <a href="#"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M1 9h3l2-5 4 10 2-7 2 2h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Activité</a>
+    <a href="#"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M2 3h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5l-3 3V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Messages</a>
+    <a href="#"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2 16c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Profil</a>
+  </nav>
+</main>
+</body>
+</html>
