@@ -345,7 +345,7 @@ function DayCard({
 }) {
   return (
     <Card className="gap-3">
-      <SectionLabel className="capitalize">{dayNameFr(dayOfWeek)}</SectionLabel>
+      <SectionLabel>{dayNameFr(dayOfWeek)}</SectionLabel>
       {session ? (
         <>
           <Text weight="bold" className="text-lg tracking-[-0.3px]">
