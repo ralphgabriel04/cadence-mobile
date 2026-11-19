@@ -13,6 +13,7 @@ import { type Session, type User } from "@supabase/supabase-js";
 
 import { clearLocalSession, supabase } from "@/config/supabase";
 import { DELETION_FAILED, LOCAL_DATA_LEFT } from "@/features/account-deletion/deletion-copy";
+import { eraseLocalTrainingCopies } from "@/services/local-training-copies";
 import { purgeLocalSetQueue } from "@/services/purge-local-queue";
 
 import { signInErrorMessage } from "./auth-errors";
@@ -383,6 +384,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // deletion; a marker makes the next launch refuse to send those sets.
     let erased = false;
     try {
+      // The last home screen and the open-session record (stories 4.1, 5.3)
+      // belong to the deleted account too.
+      eraseLocalTrainingCopies();
       erased = (await purgeLocalSetQueue()).erased;
     } catch {
       erased = false;

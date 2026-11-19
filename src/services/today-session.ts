@@ -10,11 +10,13 @@ import type {
   OpenSessionLog,
   PlannedSession,
   PrescribedExercise,
+  ScheduleOutlook,
   SkippedSessionLog,
   TodayScreenData,
   TodayState,
   WeekDay,
   WeekDayState,
+  WeekSession,
   WeekSummary,
 } from "@/types/today-screen";
 import { localDateISO } from "@/utils/local-date";
@@ -77,7 +79,14 @@ export async function fetchTodayScreen(options?: {
   const client = await resolveClient(options?.client);
   const onDate = options?.onDate ?? localDateISO();
 
-  const { data, error } = await client.rpc("get_today_screen", { p_on_date: onDate });
+  // Both calls leave together: one round trip of latency, not two.
+  const [{ data, error }, outlookResponse] = await Promise.all([
+    client.rpc("get_today_screen", { p_on_date: onDate }),
+    client.rpc("get_schedule_outlook", { p_on_date: onDate }).then(
+      (r) => r,
+      () => ({ data: null, error: { message: "outlook unavailable" } }),
+    ),
+  ]);
 
   if (error) {
     if (error.code === PGRST_JWT_ERROR || /jwt|token/i.test(error.message)) {
@@ -94,7 +103,18 @@ export async function fetchTodayScreen(options?: {
   }
 
   try {
-    return { ok: true, data: parseTodayScreen(data) };
+    const screen = parseTodayScreen(data);
+    // The outlook only enriches the screen (next session, week detail). If it
+    // fails or drifts, the home screen still renders from get_today_screen().
+    let outlook: ScheduleOutlook | null = null;
+    if (!outlookResponse.error && outlookResponse.data !== null) {
+      try {
+        outlook = parseScheduleOutlook(outlookResponse.data);
+      } catch {
+        outlook = null;
+      }
+    }
+    return { ok: true, data: { ...screen, outlook } };
   } catch (cause) {
     return {
       ok: false,
@@ -205,6 +225,49 @@ export function parseTodayScreen(raw: unknown): TodayScreenData {
     today: parseTodayState(root.today, "$.today"),
     week: parseWeek(root.week, "$.week"),
     lastSession: parseLastSession(root.lastSession, "$.lastSession"),
+    // Present in cached copies (story 4.1); absent from the raw RPC payload.
+    outlook:
+      root.outlook === undefined || root.outlook === null
+        ? null
+        : parseScheduleOutlook(root.outlook),
+  };
+}
+
+export function parseScheduleOutlook(raw: unknown): ScheduleOutlook {
+  const o = obj(raw, "$outlook");
+  const next = o.nextSession;
+  return {
+    nextSession:
+      next === null || next === undefined
+        ? null
+        : (() => {
+            const n = obj(next, "$outlook.nextSession");
+            return {
+              sessionId: str(n.sessionId, "$outlook.nextSession.sessionId"),
+              name: str(n.name, "$outlook.nextSession.name"),
+              date: str(n.date, "$outlook.nextSession.date"),
+              dayOfWeek: num(n.dayOfWeek, "$outlook.nextSession.dayOfWeek"),
+            };
+          })(),
+    programFinished: bool(o.programFinished, "$outlook.programFinished"),
+    weekSessions: arr(o.weekSessions, "$outlook.weekSessions").map((w, i) =>
+      parseWeekSession(w, `$outlook.weekSessions[${i}]`),
+    ),
+  };
+}
+
+function parseWeekSession(raw: unknown, path: string): WeekSession {
+  const o = obj(raw, path);
+  return {
+    dayOfWeek: num(o.dayOfWeek, `${path}.dayOfWeek`),
+    date: str(o.date, `${path}.date`),
+    sessionId: str(o.sessionId, `${path}.sessionId`),
+    name: str(o.name, `${path}.name`),
+    estimatedDurationMinutes: numOrNull(
+      o.estimatedDurationMinutes,
+      `${path}.estimatedDurationMinutes`,
+    ),
+    exerciseCount: num(o.exerciseCount, `${path}.exerciseCount`),
   };
 }
 

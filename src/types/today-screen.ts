@@ -192,6 +192,29 @@ export type LastSessionSummary = {
   prCount: number;
 };
 
+// ── What comes after today (get_schedule_outlook, migration 012) ─────────────
+
+/** The session planned on one day of the current week (story 4.3). */
+export type WeekSession = {
+  /** ISODOW: 1 = Monday */
+  dayOfWeek: number;
+  /** yyyy-mm-dd */
+  date: string;
+  sessionId: string;
+  name: string;
+  estimatedDurationMinutes: number | null;
+  exerciseCount: number;
+};
+
+export type ScheduleOutlook = {
+  /** Next planned session after today, possibly next week (story 4.2). */
+  nextSession: { sessionId: string; name: string; date: string; dayOfWeek: number } | null;
+  /** Nothing left to plan after today: « programme terminé » (story 4.2). */
+  programFinished: boolean;
+  /** Sessions of the current week, one per planned day, Monday first. */
+  weekSessions: WeekSession[];
+};
+
 // ── Root ─────────────────────────────────────────────────────────────────────
 
 export type TodayScreenData = {
@@ -202,4 +225,9 @@ export type TodayScreenData = {
   week: WeekSummary;
   /** null until the athlete has completed at least one session */
   lastSession: LastSessionSummary | null;
+  /**
+   * From get_schedule_outlook(). Absent or null when that call failed: the
+   * screen then falls back to what get_today_screen() alone can say.
+   */
+  outlook?: ScheduleOutlook | null;
 };
