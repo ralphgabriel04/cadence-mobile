@@ -5,12 +5,18 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useState,
   useRef,
   type ReactNode,
 } from "react";
 import { type Session, type User } from "@supabase/supabase-js";
 
-import { supabase } from "@/config/supabase";
+import { clearLocalSession, supabase } from "@/config/supabase";
+import { DELETION_FAILED, LOCAL_DATA_LEFT } from "@/features/account-deletion/deletion-copy";
+import { purgeLocalSetQueue } from "@/services/purge-local-queue";
+
+import { signInErrorMessage } from "./auth-errors";
+import { signOutAndClearLocal } from "./sign-out";
 
 import { isAlreadyRegistered, signUpErrorMessage } from "./sign-up-errors";
 
@@ -26,6 +32,9 @@ import {
 } from "./auth-state";
 
 export type { AuthState, Profile } from "./auth-state";
+
+export const SIGN_OUT_NOT_CLEARED =
+  "La déconnexion n'a pas pu effacer la session de cet appareil. Réessaie.";
 
 type AuthContextType = {
   /**
@@ -53,8 +62,13 @@ type AuthContextType = {
     lastName: string;
     role: "coach" | "athlete";
   }) => Promise<{ error: string | null }>;
-  signOut: () => Promise<void>;
+  /** Always ends the UI session. `error` is set when this device could not erase the stored session. */
+  signOut: () => Promise<{ error: string | null }>;
+  /** Last sign-out problem, shown on the login screen; cleared by the next sign-in. */
+  signOutNotice: string | null;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  /** Deletes the signed-in account and all its data (public.delete_my_account), then ends the session. */
+  deleteAccount: () => Promise<{ error: string | null; notice?: string }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
 };
 
@@ -167,14 +181,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    setSignOutNotice(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      if (error.message.includes("rate limit")) {
-        return { error: "Trop de tentatives. Veuillez réessayer dans quelques minutes." };
-      }
-      // Deliberately generic: a distinct "unknown account" message would let
-      // anyone enumerate registered addresses (ADR-001).
-      return { error: "Courriel ou mot de passe incorrect" };
+      // Wrong email and wrong password read the same (ADR-001); see auth-errors.ts.
+      return { error: signInErrorMessage(error) };
     }
     return { error: null };
   }, []);
@@ -213,9 +224,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const [signOutNotice, setSignOutNotice] = useState<string | null>(null);
+
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    if (mounted.current) dispatch({ type: "signed-out" });
+    const outcome = await signOutAndClearLocal(supabase.auth, clearLocalSession);
+    // The UI always ends the session, but never claims the token is gone when it may not be.
+    const error = outcome.localCleared ? null : SIGN_OUT_NOT_CLEARED;
+    if (mounted.current) {
+      setSignOutNotice(error);
+      dispatch({ type: "signed-out" });
+    }
+    return { error };
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
@@ -230,6 +249,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? error.message : null };
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    try {
+      const { error } = await supabase.rpc("delete_my_account");
+      if (error) return { error: DELETION_FAILED };
+    } catch {
+      return { error: DELETION_FAILED };
+    }
+    // The account no longer exists, so the deletion has succeeded whatever happens
+    // on this device from here. Erase its unsent sets, then end the session with the
+    // same reliable sign-out as the Réglages button. The sign-out is in its own
+    // finally: nothing that goes wrong with the purge may leave the user signed in
+    // to a deleted account. A purge that left data behind is a notice, never a failed
+    // deletion; a marker makes the next launch refuse to send those sets.
+    let erased = false;
+    try {
+      erased = (await purgeLocalSetQueue()).erased;
+    } catch {
+      erased = false;
+    } finally {
+      try {
+        await signOut();
+      } catch {
+        if (mounted.current) dispatch({ type: "signed-out" });
+      }
+    }
+    if (!erased) {
+      if (mounted.current) {
+        setSignOutNotice((previous) =>
+          previous ? `${previous} ${LOCAL_DATA_LEFT}` : LOCAL_DATA_LEFT
+        );
+      }
+      return { error: null, notice: LOCAL_DATA_LEFT };
+    }
+    return { error: null };
+  }, [signOut]);
+
   const value = useMemo<AuthContextType>(
     () => ({
       state,
@@ -241,10 +296,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      signOutNotice,
       resetPassword,
+      deleteAccount,
       updatePassword,
     }),
-    [state, refreshProfile, signIn, signUp, signOut, resetPassword, updatePassword]
+    [
+      state,
+      refreshProfile,
+      signIn,
+      signUp,
+      signOut,
+      signOutNotice,
+      resetPassword,
+      deleteAccount,
+      updatePassword,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
