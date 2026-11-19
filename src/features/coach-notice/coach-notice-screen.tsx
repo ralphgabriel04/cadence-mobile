@@ -17,12 +17,15 @@ export function CoachNoticeScreen() {
   const { profile, signOut } = useAuth();
 
   return (
-    <ScrollView contentContainerClassName="flex-1 justify-center gap-5 px-8 py-12" className="bg-bg">
+    <ScrollView
+      contentContainerClassName="flex-1 justify-center gap-5 px-8 py-12"
+      className="bg-bg"
+    >
       <View className="gap-2">
         <SectionLabel className="text-accent">Espace coach</SectionLabel>
         <Text variant="heading">
-          {profile ? `Bonjour ${profile.first_name},` : "Bonjour,"} l&apos;espace coach arrive en
-          2027
+          {profile ? `Bonjour ${profile.first_name},` : "Bonjour,"} l&apos;espace coach arrive
+          bientôt
         </Text>
       </View>
 
