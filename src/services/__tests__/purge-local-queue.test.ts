@@ -1,9 +1,26 @@
 import { createLocalQueuePurger, type PurgeMarker } from "../purge-local-queue";
-import { createMemoryStorage, SetQueue, type QueuedSet } from "../set-queue";
+import { createMemoryStorage, parseQueue, SetQueue, type QueuedSet } from "../set-queue";
 
 jest.mock("../queue-storage", () => ({ eraseQueueFile: jest.fn() }));
 
-const old: QueuedSet = { clientId: "old-account-set" } as QueuedSet;
+// A COMPLETE set: parseQueue would silently drop anything less, which made the first version of this test prove nothing.
+const old: QueuedSet = {
+  clientId: "old-account-set",
+  sessionLogId: "sl-old",
+  exerciseId: "ex-1",
+  sessionExerciseId: "se-1",
+  setNumber: 1,
+  repsCompleted: 10,
+  weightKg: 60,
+  rpe: null,
+  durationSeconds: null,
+  distanceMeters: null,
+  notes: null,
+  queuedAt: "2026-08-17T18:00:00.000Z",
+  lastAttemptAt: null,
+  attempts: 0,
+  lastError: null,
+};
 
 // The marker lives in the keychain, not in the file: it has to survive a refused disk.
 function fakeMarker(opts: { failWrites?: boolean } = {}): PurgeMarker & { value: boolean } {
@@ -85,6 +102,7 @@ describe("next launch after a refused purge", () => {
     expect(queue.pending).toHaveLength(0);
     expect(send).not.toHaveBeenCalled();
     expect(marker.value).toBe(true);
+    expect(parseQueue(await storage.read())).toHaveLength(1); // control: the set really was on disk and valid
   });
 
   it("retries the erase, clears the marker and restores normally once the disk works again", async () => {
