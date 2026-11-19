@@ -98,13 +98,13 @@ describe("adjustRest", () => {
   it("adds time to a running timer", () => {
     const timer = startRest(60, T0);
     const longer = adjustRest(timer, REST_ADJUST_SECONDS, T0 + s(10));
-    expect(remainingSeconds(longer, T0 + s(10))).toBe(65);
+    expect(remainingSeconds(longer, T0 + s(10))).toBe(80);
   });
 
   it("removes time", () => {
     const timer = startRest(60, T0);
     const shorter = adjustRest(timer, -REST_ADJUST_SECONDS, T0 + s(10));
-    expect(remainingSeconds(shorter, T0 + s(10))).toBe(35);
+    expect(remainingSeconds(shorter, T0 + s(10))).toBe(20);
   });
 
   it("finishes rather than going negative when shortened past the end", () => {
@@ -123,6 +123,19 @@ describe("adjustRest", () => {
 
     expect(again.status).toBe("running");
     expect(remainingSeconds(again, T0 + s(40))).toBe(30);
+  });
+
+  it("story 5.4: with 0:20 left, « +30 s » shows 0:50", () => {
+    const timer = startRest(90, T0);
+    const plus = adjustRest(timer, REST_ADJUST_SECONDS, T0 + s(70));
+    expect(remainingSeconds(plus, T0 + s(70))).toBe(50);
+  });
+
+  it("story 5.4: after 60 s away from a 90 s rest, 30 s are left, to the second", () => {
+    const timer = startRest(90, T0);
+    expect(remainingSeconds(tickRest(timer, T0 + s(60)), T0 + s(60))).toBe(30);
+    expect(remainingSeconds(timer, T0 + s(60) + 400)).toBeGreaterThanOrEqual(29);
+    expect(formatCountdown(90)).toBe("1:30");
   });
 
   it("starts a rest from idle when time is added", () => {

@@ -16,6 +16,8 @@ type Client = SupabaseClient<Database>;
 const PGRST_JWT_ERROR = "PGRST301";
 /** PostgreSQL unique_violation. */
 const PG_UNIQUE_VIOLATION = "23505";
+/** PostgreSQL foreign_key_violation: the session log does not exist (yet). */
+const PG_FOREIGN_KEY_VIOLATION = "23503";
 
 async function resolveClient(injected?: Client): Promise<Client> {
   if (injected) return injected;
@@ -28,17 +30,23 @@ export type StartSessionResult =
   | { ok: false; kind: "unauthenticated" | "network"; message: string };
 
 /**
- * Opens a session, or returns the one already open.
+ * Opens a session on the server, or returns the one already open.
+ *
+ * Story 5.3: the id of the log is chosen by the PHONE (`sessionLogId`) so a
+ * session can be started and logged without network; the log is created here
+ * when the network is there, or later by the sender of the first set.
  *
  * Migration 005 enforces at most one in-progress log per athlete, so "start"
- * genuinely means "start or resume". Checking first rather than inserting and
- * catching the violation keeps the happy path free of an error round trip and
- * lets the caller tell the two apart -- resuming should not reset the clock.
+ * genuinely means "start or resume". When one is already open, its id is
+ * returned and the caller decides whether to adopt it.
  */
 export async function startSession(args: {
   sessionId: string;
   athleteId: string;
   programAssignmentId?: string | null;
+  /** Id chosen on the phone. Without it the server picks one (older callers). */
+  sessionLogId?: string;
+  startedAt?: string;
   client?: Client;
 }): Promise<StartSessionResult> {
   const client = await resolveClient(args.client);
@@ -58,15 +66,24 @@ export async function startSession(args: {
   if (existing.error) return failure(existing.error);
 
   if (existing.data) {
-    // An open log for a DIFFERENT session is not an error the athlete caused --
-    // they left one running yesterday. Returning it lets the caller decide
-    // whether to resume it or close it, instead of failing the unique index.
-    return { ok: true, sessionLogId: existing.data.id, resumed: true };
+    // Same session (or an older caller that lets the server choose): resume it.
+    if (!args.sessionLogId || existing.data.session_id === args.sessionId) {
+      return { ok: true, sessionLogId: existing.data.id, resumed: true };
+    }
+    // A DIFFERENT session was left open (yesterday's, quit without finishing).
+    // Writing today's sets into it would file them under the wrong workout, and
+    // leaving it open blocks today's (one open session per athlete, migration
+    // 005). It is closed as it stands: « completed » with what was noted, or
+    // « skipped » when nothing was.
+    const closed = await closeAbandonedSession(client, existing.data.id);
+    if (!closed.ok) return failure(closed.error);
   }
 
   const created = await client
     .from("session_logs")
     .insert({
+      ...(args.sessionLogId ? { id: args.sessionLogId } : {}),
+      ...(args.startedAt ? { started_at: args.startedAt } : {}),
       session_id: args.sessionId,
       athlete_id: args.athleteId,
       program_assignment_id: args.programAssignmentId ?? null,
@@ -75,8 +92,66 @@ export async function startSession(args: {
     .select("id")
     .single();
 
-  if (created.error) return failure(created.error);
+  if (created.error) {
+    // Created meanwhile by the queue (same id): that is a success.
+    if (created.error.code === PG_UNIQUE_VIOLATION && args.sessionLogId) {
+      return { ok: true, sessionLogId: args.sessionLogId, resumed: true };
+    }
+    return failure(created.error);
+  }
   return { ok: true, sessionLogId: created.data.id, resumed: false };
+}
+
+async function closeAbandonedSession(
+  client: Client,
+  sessionLogId: string,
+): Promise<{ ok: true } | { ok: false; error: PostgrestErrorLike }> {
+  const sets = await client
+    .from("exercise_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("session_log_id", sessionLogId)
+    .eq("is_deleted", false);
+  if (sets.error) return { ok: false, error: sets.error };
+  const hasSets = (sets.count ?? 0) > 0;
+  const { error } = await client
+    .from("session_logs")
+    .update(
+      hasSets
+        ? { status: "completed", completed_at: new Date().toISOString(), paused_at: null }
+        : { status: "skipped", completed_at: null, paused_at: null },
+    )
+    .eq("id", sessionLogId);
+  return error ? { ok: false, error } : { ok: true };
+}
+
+/**
+ * Creates the log of a session opened without network (story 5.3), if it does
+ * not exist yet. Idempotent: an existing row with the same id is left alone.
+ */
+export async function ensureSessionLog(
+  args: {
+    sessionLogId: string;
+    sessionId: string;
+    athleteId: string;
+    startedAt?: string | null;
+    programAssignmentId?: string | null;
+  },
+  client?: Client,
+): Promise<{ ok: true } | { ok: false; message: string; code?: string }> {
+  const db = await resolveClient(client);
+  const { error } = await db.from("session_logs").upsert(
+    {
+      id: args.sessionLogId,
+      session_id: args.sessionId,
+      athlete_id: args.athleteId,
+      program_assignment_id: args.programAssignmentId ?? null,
+      status: "in_progress",
+      ...(args.startedAt ? { started_at: args.startedAt } : {}),
+    },
+    { onConflict: "id", ignoreDuplicates: true },
+  );
+  if (error) return { ok: false, message: error.message, code: error.code };
+  return { ok: true };
 }
 
 /**
@@ -113,7 +188,39 @@ export async function sendSet(entry: QueuedSet, client?: Client): Promise<SendRe
     notes: entry.notes,
   };
 
-  const inserted = await db.from("exercise_logs").insert(row);
+  let inserted = await db.from("exercise_logs").insert(row);
+
+  // Story 5.3: the session was opened without network, so its log does not
+  // exist yet. Create it from what the queued set carries, then retry once.
+  if (
+    inserted.error?.code === PG_FOREIGN_KEY_VIOLATION &&
+    entry.sessionId &&
+    entry.ownerId
+  ) {
+    const ensured = await ensureSessionLog(
+      {
+        sessionLogId: entry.sessionLogId,
+        sessionId: entry.sessionId,
+        athleteId: entry.ownerId,
+        startedAt: entry.sessionStartedAt ?? null,
+        programAssignmentId: entry.programAssignmentId ?? null,
+      },
+      db,
+    );
+    if (!ensured.ok) {
+      if (ensured.code === PG_UNIQUE_VIOLATION) {
+        // Another session is still open on the server for this account.
+        return {
+          ok: false,
+          message: "Une autre séance est encore ouverte sur ton compte.",
+          retryable: false,
+        };
+      }
+      return sendFailure({ message: ensured.message, code: ensured.code });
+    }
+    inserted = await db.from("exercise_logs").insert(row);
+  }
+
   if (!inserted.error) return { ok: true };
 
   if (inserted.error.code === PG_UNIQUE_VIOLATION) {

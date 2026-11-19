@@ -68,6 +68,14 @@ export type QueuedSet = {
    * it. Optional so queues persisted before this field still parse.
    */
   rejected?: boolean;
+  /**
+   * Story 5.3: what the server needs to create the session log if the session
+   * was opened without network. The sender creates the log on first contact
+   * when it does not exist yet. Optional so older queues still parse.
+   */
+  sessionId?: string;
+  sessionStartedAt?: string;
+  programAssignmentId?: string | null;
 };
 
 /**
@@ -335,6 +343,16 @@ export class SetQueue {
         // A faulty subscriber is its own problem; the queue keeps working.
       }
     }
+  }
+
+  /** True once close() ended this queue (account deleted). */
+  get isClosed(): boolean {
+    return this.closed;
+  }
+
+  /** True once restore() has read what the previous run left on disk. */
+  get isRestored(): boolean {
+    return this.restored;
   }
 
   /** Every set not yet on the server, including the ones it refused. */

@@ -1,43 +1,63 @@
-import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, PanResponder, Pressable, ScrollView, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
-import { usePalette } from "@/theme/tokens";
 import { useRestTimer } from "@/hooks/use-rest-timer";
 import { useTodaySession } from "@/hooks/use-today-session";
 import { useWorkoutSession } from "@/hooks/use-workout-session";
 import { useAuth } from "@/providers/auth-provider";
+import { createLocalStore } from "@/services/local-store";
+import { usePalette } from "@/theme/tokens";
 import type { PrescribedExercise } from "@/types/today-screen";
-import { formatDurationFr } from "@/utils/format-date-fr";
 
 import {
-  DEFAULT_REST_SECONDS,
-  formatCountdown,
-  REST_ADJUST_SECONDS,
-} from "./rest-timer";
+  ConfirmOverlay,
+  ExerciseCard,
+  ExerciseRecapRow,
+  NextUpCard,
+  RecapStat,
+  RestRing,
+  RpePicker,
+  SessionTopBar,
+  SetDots,
+  SetSummaryRow,
+  StatTile,
+  StepButton,
+  WorkoutProgress,
+} from "./live-session-parts";
+import { DEFAULT_REST_SECONDS, REST_ADJUST_SECONDS } from "./rest-timer";
 import {
+  exerciseRecap,
+  formatElapsed,
+  formatKg,
+  formatWeight,
+  sessionRecap,
+} from "./session-recap";
+import {
+  completedExerciseCount,
   currentExercise,
+  draftProblem,
   isExerciseComplete,
   nextSetNumber,
+  parseTargetReps,
+  remainingSets,
   setsLoggedFor,
   WEIGHT_STEP_KG,
+  type LoggedSet,
   type WorkoutExercise,
 } from "./workout-state";
 
 /**
- * Live workout logging (cm#25).
+ * Live session (epic 5), after design/wireframe/athlete/session-live/musculation:
+ *   1. série en cours  2. repos  3. résumé d'exercice  4. séance terminée.
  *
- * The interaction model comes straight from the wireframe: one set at a time, a
- * large rep counter driven by thumb-sized +/- controls, a weight stepper, and a
- * single validate button. Everything else is secondary. The target is three
- * seconds per set, one-handed.
- *
- * The screen holds no rules. Every decision lives in the reducer
- * (workout-state.ts) and the queue (set-queue.ts), both of which are tested
- * without rendering anything.
+ * The screen holds no rules: the reducer (workout-state.ts), the queue
+ * (set-queue.ts) and the session hook decide; this file only renders and
+ * routes between the four views.
  */
 export function LiveSessionScreen() {
   const router = useRouter();
@@ -55,32 +75,41 @@ export function LiveSessionScreen() {
 
   const exercises = useMemo<WorkoutExercise[]>(
     () => (plan ? plan.exercises.map(toWorkoutExercise) : []),
-    [plan],
+    [plan]
   );
 
   if (today.status === "loading") {
-    return <Centered><Spinner /></Centered>;
+    return (
+      <Centered>
+        <Spinner />
+      </Centered>
+    );
   }
 
   if (today.status === "error") {
     return (
       <Centered>
-        <Text variant="heading" className="text-center text-xl">Chargement impossible</Text>
+        <Text variant="heading" className="text-center text-xl">
+          Chargement impossible
+        </Text>
         <Text variant="body" className="text-center">
           {today.failure.kind === "unauthenticated"
             ? "Reconnecte-toi pour démarrer ta séance."
             : "Vérifie ta connexion et réessaie."}
         </Text>
+        <Button title="Retour" variant="outline" onPress={() => router.back()} className="w-full" />
       </Centered>
     );
   }
 
-  if (!plan || exercises.length === 0) {
+  if (!plan || exercises.length === 0 || !athleteId) {
     return (
       <Centered>
-        <Text variant="heading" className="text-center text-xl">Aucune séance à logger</Text>
+        <Text variant="heading" className="text-center text-xl">
+          Aucune séance à noter
+        </Text>
         <Text variant="body" className="text-center">
-          Rien n&apos;est planifié pour aujourd&apos;hui, ou la séance n&apos;a pas d&apos;exercice.
+          Rien n&apos;est prévu aujourd&apos;hui, ou la séance n&apos;a pas d&apos;exercice.
         </Text>
         <Button title="Retour" variant="outline" onPress={() => router.back()} className="w-full" />
       </Centered>
@@ -97,16 +126,15 @@ export function LiveSessionScreen() {
   );
 }
 
-function toWorkoutExercise(e: PrescribedExercise): WorkoutExercise {
-  // The heaviest set of the last session is the useful anchor for the weight
-  // stepper; the reps of that same set seed the counter when the prescription
-  // carries no number.
+export function toWorkoutExercise(e: PrescribedExercise): WorkoutExercise {
+  // The heaviest set of the last session anchors the weight; its reps seed the
+  // counter when the prescription carries no number.
   const heaviest = e.lastPerformance?.sets.reduce<{ weightKg: number | null; reps: number | null }>(
     (best, s) =>
       (s.weightKg ?? -1) > (best.weightKg ?? -1)
         ? { weightKg: s.weightKg, reps: s.repsCompleted }
         : best,
-    { weightKg: null, reps: null },
+    { weightKg: null, reps: null }
   );
 
   return {
@@ -117,10 +145,16 @@ function toWorkoutExercise(e: PrescribedExercise): WorkoutExercise {
     targetSets: e.sets ?? 1,
     targetReps: e.reps,
     restSeconds: e.restSeconds,
+    muscleGroups: e.muscleGroups,
+    lastSetCount: e.lastPerformance?.sets.length ?? null,
     lastWeightKg: heaviest?.weightKg ?? null,
     lastReps: heaviest?.reps ?? null,
   };
 }
+
+type Confirm = { kind: "quit" } | { kind: "finish"; remaining: number } | null;
+
+const rpeHelpStore = createLocalStore("rpe-help-seen.json");
 
 function ActiveWorkout({
   sessionId,
@@ -134,354 +168,633 @@ function ActiveWorkout({
   exercises: WorkoutExercise[];
 }) {
   const router = useRouter();
-  const {
-    state,
-    status,
-    pendingCount,
-    rejectedCount,
-    discardRejected,
-    startedAt,
-    dispatch,
-    validateSet,
-    finish,
-    retryPending,
-  } = useWorkoutSession({ sessionId, athleteId, exercises });
-
+  const session = useWorkoutSession({ sessionId, athleteId, exercises });
+  const { state, status, dispatch } = session;
   const rest = useRestTimer();
-  const elapsed = useElapsedMinutes(startedAt);
+  const now = useNow(1000);
+  const palette = usePalette();
+
+  const [restOpen, setRestOpen] = useState(false);
+  const [summaryIndex, setSummaryIndex] = useState<number | null>(null);
+  const [recapOpen, setRecapOpen] = useState(false);
+  const [confirm, setConfirm] = useState<Confirm>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [lastSet, setLastSet] = useState<{ exerciseId: string; setNumber: number } | null>(null);
+  const [rpeHelp, setRpeHelp] = useState(false);
+
+  useEffect(() => {
+    void rpeHelpStore.read().then((seen) => setRpeHelp(seen === null));
+  }, []);
+
   const exercise = currentExercise(state);
   const done = exercise ? setsLoggedFor(state.logged, exercise.exerciseId) : [];
+  const isLast = state.currentIndex >= state.exercises.length - 1;
+  const elapsed = formatElapsed(
+    session.startedAt ? (now - Date.parse(session.startedAt)) / 1000 : 0
+  );
+  const lastLogged = lastSet
+    ? state.logged.find(
+        (l) => l.exerciseId === lastSet.exerciseId && l.setNumber === lastSet.setNumber
+      )
+    : undefined;
 
-  /**
-   * Validating a set starts the rest (cm#27).
-   *
-   * Started here rather than inside the reducer: the reducer is pure and the
-   * timer needs the clock and the OS. The rest never blocks -- the athlete can
-   * validate the next set while it runs, which is what an athlete supersetting
-   * actually does.
-   */
-  const validateAndRest = () => {
-    validateSet();
+  const goNext = () => {
+    if (isLast) return askFinish();
+    dispatch({ type: "next-exercise" });
+    setProblem(null);
+  };
+  const goPrevious = () => {
+    dispatch({ type: "previous-exercise" });
+    setProblem(null);
+  };
+
+  // Story 5.1: swipe left for the next exercise, right for the previous one.
+  const swipe = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 24 && Math.abs(g.dy) < 20,
+      onPanResponderRelease: (_e, g) => {
+        if (g.dx < -60) swipeRef.current.next();
+        else if (g.dx > 60) swipeRef.current.previous();
+      },
+    })
+  ).current;
+  const swipeRef = useRef({ next: goNext, previous: goPrevious });
+  swipeRef.current = { next: goNext, previous: goPrevious };
+
+  const askFinish = () => {
+    const remaining = remainingSets(state);
+    if (remaining > 0) setConfirm({ kind: "finish", remaining });
+    else openRecap();
+  };
+
+  const openRecap = () => {
+    setConfirm(null);
+    setRestOpen(false);
+    setSummaryIndex(null);
+    void rest.cancel();
+    setRecapOpen(true);
+  };
+
+  /** Story 5.2: one touch, refused with a reason when the value is not plausible. */
+  const validate = () => {
+    const result = session.validateSet();
+    if (!result.ok) {
+      setProblem(result.message);
+      return;
+    }
+    setProblem(null);
+    setLastSet({ exerciseId: result.set.exerciseId, setNumber: result.set.setNumber });
+    // Story 5.4: the rest starts on its own, with the programme's rest.
     void rest.start(exercise?.restSeconds ?? DEFAULT_REST_SECONDS);
+    const logged = setsLoggedFor([...state.logged, result.set], result.set.exerciseId).length;
+    if (exercise && logged >= exercise.targetSets) {
+      setSummaryIndex(state.currentIndex);
+    } else {
+      setRestOpen(true);
+    }
+  };
+
+  const changeRpe = (rpe: number | null) => {
+    if (!lastLogged) return;
+    session.setRpe(lastLogged.exerciseId, lastLogged.setNumber, rpe);
+    if (rpeHelp) {
+      setRpeHelp(false);
+      rpeHelpStore.write("1");
+    }
   };
 
   if (status.status === "starting") {
-    return <Centered><Spinner /></Centered>;
-  }
-
-  if (status.status === "finished") {
     return (
       <Centered>
-        <Text variant="heading" className="text-center text-xl">Séance terminée</Text>
-        <Text variant="body" className="text-center">
-          {state.logged.length} série{state.logged.length === 1 ? "" : "s"} enregistrée
-          {state.logged.length === 1 ? "" : "s"}.
-        </Text>
-        <Button title="Retour à l'accueil" onPress={() => router.replace("/(athlete)")} className="w-full" />
+        <Spinner />
       </Centered>
     );
   }
 
-  if (!exercise) return <Centered><Text variant="body">Aucun exercice.</Text></Centered>;
+  // ── 4. Séance terminée ──
+  if (recapOpen) {
+    return (
+      <RecapView
+        sessionName={sessionName}
+        recap={sessionRecap(state, session.startedAt, now)}
+        saving={status.status === "finishing"}
+        saved={status.status === "finished" ? status : null}
+        onSave={() => void session.finish()}
+        onHome={() => router.replace("/(athlete)")}
+        onBack={() => setRecapOpen(false)}
+      />
+    );
+  }
 
-  return (
-    <ScrollView
-      className="flex-1 bg-bg"
-      contentContainerClassName="pb-10"
-    >
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 pt-4">
-        <View>
-          <Text variant="caption" className="uppercase">{sessionName}</Text>
-          <Text variant="body" weight="semibold">
-            Exercice {state.currentIndex + 1} / {state.exercises.length}
-            {elapsed === null ? "" : ` · ${formatDurationFr(elapsed)}`}
-          </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Quitter la séance"
-          onPress={() => router.back()}
-          className="rounded-full bg-surface2 px-4 py-2"
-        >
-          <Text variant="caption" weight="semibold">Quitter</Text>
-        </Pressable>
-      </View>
+  if (!exercise) {
+    return (
+      <Centered>
+        <Text variant="body">Aucun exercice.</Text>
+      </Centered>
+    );
+  }
 
-      {/* Unsent sets. Shown as reassurance, not as an error: the sets are safe
-          on disk and will go out on their own. */}
-      {pendingCount > 0 ? (
-        <Pressable onPress={retryPending} className="mx-4 mt-3 rounded-input bg-surface2 p-3">
-          <Text variant="caption" className="text-warning">
-            {pendingCount} série{pendingCount === 1 ? "" : "s"} en attente d&apos;envoi. Elles sont
-            enregistrées sur ton appareil — touche pour réessayer maintenant.
-          </Text>
-        </Pressable>
-      ) : null}
+  const banners = (
+    <Banners
+      pending={session.pendingCount}
+      rejected={session.rejectedCount}
+      onRetry={session.retryPending}
+      onDiscard={session.discardRejected}
+    />
+  );
 
-      {/* Refused sets: never dropped silently. The athlete corrects them (a new
-          value for the same set replaces it) or chooses to remove them. */}
-      {rejectedCount > 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Retirer ${rejectedCount} série(s) refusée(s)`}
-          onPress={discardRejected}
-          className="mx-4 mt-3 rounded-xl bg-red-100 p-3 dark:bg-red-900/40"
-        >
-          <Text variant="caption" className="text-red-900 dark:text-red-100">
-            {rejectedCount} série{rejectedCount === 1 ? "" : "s"} refusée
-            {rejectedCount === 1 ? "" : "s"} par le serveur. Corrige-la ou touche ici pour la retirer.
-          </Text>
-        </Pressable>
-      ) : null}
+  let body: React.ReactNode;
 
-      {status.status === "error" ? (
-        <View className="mx-4 mt-3 rounded-input bg-surface2 p-3">
-          <Text variant="caption" className="text-error">{status.message}</Text>
-        </View>
-      ) : null}
-
-      {/* Rest timer. Sits above the exercise so it is visible without scrolling,
-          and never covers the controls: resting is a suggestion. */}
-      {rest.isResting || rest.isFinished ? (
-        <RestBar
-          remaining={rest.remaining}
-          progress={rest.progress}
-          finished={rest.isFinished}
-          notificationsReady={rest.notificationsReady}
-          onAdjust={(delta) => void rest.adjust(delta)}
-          onCancel={() => void rest.cancel()}
-        />
-      ) : null}
-
-      {/* Exercise */}
-      <View className="px-4 pt-4">
-        <Card className="gap-1 p-4">
-          <Text variant="heading" className="text-xl">{exercise.name}</Text>
-          <Text variant="caption">
-            Série {nextSetNumber(state)} / {exercise.targetSets}
-            {exercise.targetReps ? ` · cible ${exercise.targetReps}` : ""}
-          </Text>
-          <View className="mt-2 flex-row gap-1.5">
-            {Array.from({ length: exercise.targetSets }, (_unused, i) => (
-              <View
-                key={i}
-                className={`h-2 flex-1 rounded-full ${
-                  i < done.length ? "bg-accent" : "bg-surface2"
-                }`}
-              />
-            ))}
+  if (summaryIndex !== null) {
+    // ── 3. Résumé d'exercice ──
+    const recap = exerciseRecap(state, summaryIndex);
+    const ex = state.exercises.at(summaryIndex);
+    const next = state.exercises.at(summaryIndex + 1);
+    const target = ex ? parseTargetReps(ex.targetReps) : null;
+    body = (
+      <>
+        <View className="flex-row items-center gap-3 px-5 pt-5">
+          <View className="h-10 w-10 items-center justify-center rounded-xl border border-accent bg-accent-dim">
+            <Ionicons name="checkmark" size={18} color={palette.accent} />
           </View>
-        </Card>
-      </View>
-
-      {/* Rep counter — the primary control */}
-      <View className="items-center gap-3 px-4 pt-8">
-        <Text variant="caption" className="uppercase">Répétitions</Text>
-        <View className="flex-row items-center gap-7">
-          <StepButton label="Une répétition de moins" onPress={() => dispatch({ type: "adjust-reps", delta: -1 })} symbol="−" />
-          <Text variant="heading" className="min-w-[90px] text-center text-6xl">{state.draft.reps}</Text>
-          <StepButton label="Une répétition de plus" onPress={() => dispatch({ type: "adjust-reps", delta: 1 })} symbol="+" primary />
+          <View>
+            <Text weight="bold" className="text-[17px] text-text" accessibilityRole="header">
+              {recap?.name}
+            </Text>
+            <Text className="mt-0.5 text-xs text-text-muted">
+              {recap?.sets.length} séries terminées
+            </Text>
+          </View>
+        </View>
+        <View className="flex-row gap-2.5 px-5 pt-4">
+          <StatTile
+            label="Volume total"
+            value={`${formatKg(recap?.volumeKg ?? 0)} kg`}
+            sub="sur cet exercice"
+          />
+          <StatTile
+            label="Rép. moyen"
+            value={
+              recap?.averageReps === null || recap?.averageReps === undefined
+                ? "—"
+                : `${String(recap.averageReps).replace(".", ",")} reps`
+            }
+            sub={ex?.targetReps ? `cible : ${ex.targetReps}` : "sans cible"}
+          />
+        </View>
+        <View className="pt-4">
+          <RpePicker value={lastLogged?.rpe ?? null} onChange={changeRpe} showHelp={rpeHelp} />
+        </View>
+        <View className="px-5 pt-4">
+          <Text
+            weight="bold"
+            className="mb-3 text-[11px] uppercase tracking-[0.6px] text-text-muted"
+          >
+            Détail des séries
+          </Text>
+          {recap?.sets.map((s) => (
+            <SetSummaryRow key={s.setNumber} set={s} targetReps={target} />
+          ))}
+        </View>
+        {next ? (
+          <View className="pt-1">
+            <NextUpCard label="Prochain exercice" title={next.name} detail={prescription(next)} />
+          </View>
+        ) : null}
+        <View className="px-5 pb-8 pt-1">
+          {next ? (
+            <Button
+              title="Exercice suivant →"
+              className="h-14"
+              onPress={() => {
+                setSummaryIndex(null);
+                dispatch({ type: "go-to-exercise", index: summaryIndex + 1 });
+                setRestOpen(rest.isResting);
+              }}
+            />
+          ) : (
+            <Button title="Terminer la séance" className="h-14" onPress={askFinish} />
+          )}
+          <Button
+            title="Revenir à l'exercice"
+            variant="ghost"
+            onPress={() => setSummaryIndex(null)}
+            className="mt-1"
+          />
+        </View>
+      </>
+    );
+  } else if (restOpen) {
+    // ── 2. Repos ──
+    const setsLeft = Math.max(0, exercise.targetSets - done.length);
+    body = (
+      <>
+        <View className="items-center px-5 pt-6">
+          <Text weight="bold" className="mb-1 text-[11px] uppercase tracking-[1px] text-text-muted">
+            {rest.isFinished ? "Repos terminé" : "Repos"}
+          </Text>
+          <Text weight="semibold" className="text-base text-text-sub">
+            Série {done.length} terminée · {setsLeft} restante{setsLeft > 1 ? "s" : ""}
+          </Text>
+        </View>
+        <View className="items-center py-6">
+          <RestRing remaining={rest.remaining} fraction={rest.progress} />
+        </View>
+        {rest.notificationsReady === false ? (
+          <Text variant="caption" className="px-5 pb-3 text-center">
+            Notifications désactivées : le téléphone ne vibrera pas si l&apos;écran est éteint.
+          </Text>
+        ) : null}
+        <View className="pb-4">
+          <RpePicker value={lastLogged?.rpe ?? null} onChange={changeRpe} showHelp={rpeHelp} />
+        </View>
+        <NextUpCard
+          label="Prochaine série"
+          title={`${exercise.name} · Série ${nextSetNumber(state)} / ${exercise.targetSets}`}
+          detail={`${exercise.targetReps ? `${exercise.targetReps} rép` : `${state.draft.reps} rép`}${state.draft.weightKg === null ? "" : ` · ${formatWeight(state.draft.weightKg)} kg`}`}
+        />
+        <View className="gap-2.5 px-5 pb-8">
+          <Button
+            title="Reprendre maintenant"
+            accessibilityLabel="Passer le repos et reprendre maintenant"
+            className="h-14"
+            icon={<Ionicons name="arrow-forward" size={16} color={palette.btnPrimaryText} />}
+            onPress={() => {
+              void rest.cancel();
+              setRestOpen(false);
+            }}
+          />
+          <Button
+            title={`+${REST_ADJUST_SECONDS} s`}
+            accessibilityLabel={`Ajouter ${REST_ADJUST_SECONDS} secondes de repos`}
+            variant="secondary"
+            onPress={() => void rest.adjust(REST_ADJUST_SECONDS)}
+          />
+        </View>
+      </>
+    );
+  } else {
+    // ── 1. Série en cours ──
+    body = (
+      <>
+        <View {...swipe.panHandlers}>
+          <ExerciseCard
+            name={exercise.name}
+            muscles={exercise.muscleGroups ?? []}
+            weightKg={state.draft.weightKg}
+            position={state.currentIndex + 1}
+            total={state.exercises.length}
+          />
+          <SetDots current={nextSetNumber(state)} total={exercise.targetSets} done={done.length} />
         </View>
 
-        {/* Weight */}
-        <View className="mt-2 flex-row items-center gap-3 rounded-full border border-border px-3 py-2">
-          <StepButton small label="Moins de poids" onPress={() => dispatch({ type: "adjust-weight", delta: -WEIGHT_STEP_KG })} symbol="−" />
-          <Text variant="body" weight="semibold" className="min-w-[80px] text-center">
-            {state.draft.weightKg === null ? "—" : `${state.draft.weightKg} kg`}
+        <View className="items-center px-5 pt-8">
+          <Text
+            weight="bold"
+            className="mb-3.5 text-[11px] uppercase tracking-[1px] text-text-muted"
+          >
+            Répétitions
           </Text>
-          <StepButton small label="Plus de poids" onPress={() => dispatch({ type: "adjust-weight", delta: WEIGHT_STEP_KG })} symbol="+" />
+          <View className="mb-4 flex-row items-center gap-7">
+            <StepButton
+              symbol="−"
+              label="Une répétition de moins"
+              onPress={() => dispatch({ type: "adjust-reps", delta: -1 })}
+            />
+            <View
+              className="min-w-[90px] items-center"
+              accessible
+              accessibilityLabel={`${state.draft.reps} répétitions`}
+            >
+              <Text mono weight="medium" className="text-[88px] leading-[92px] text-text">
+                {state.draft.reps}
+              </Text>
+              {exercise.targetReps ? (
+                <Text mono className="mt-1.5 text-[13px] text-text-muted">
+                  / {exercise.targetReps} cible
+                </Text>
+              ) : null}
+            </View>
+            <StepButton
+              symbol="+"
+              primary
+              label="Une répétition de plus"
+              onPress={() => dispatch({ type: "adjust-reps", delta: 1 })}
+            />
+          </View>
+
+          <View className="flex-row items-center gap-2 rounded-[40px] border border-border bg-surface px-3 py-2">
+            <StepButton
+              small
+              symbol="−"
+              label={`${String(WEIGHT_STEP_KG).replace(".", ",")} kilo de moins`}
+              onPress={() => dispatch({ type: "adjust-weight", delta: -WEIGHT_STEP_KG })}
+            />
+            <View
+              className="min-w-[80px] flex-row items-baseline justify-center"
+              accessible
+              accessibilityLabel={
+                state.draft.weightKg === null
+                  ? "Sans poids"
+                  : `${formatWeight(state.draft.weightKg)} kilos`
+              }
+            >
+              <Text mono weight="medium" className="text-xl text-text">
+                {state.draft.weightKg === null ? "—" : `${formatWeight(state.draft.weightKg)} `}
+              </Text>
+              <Text mono className="text-[13px] text-text-muted">
+                kg
+              </Text>
+            </View>
+            <StepButton
+              small
+              symbol="+"
+              label={`${String(WEIGHT_STEP_KG).replace(".", ",")} kilo de plus`}
+              onPress={() => dispatch({ type: "adjust-weight", delta: WEIGHT_STEP_KG })}
+            />
+          </View>
+          {(problem ?? draftProblem(state.draft)) ? (
+            <Text
+              variant="error"
+              className="mt-3 text-center text-[13px]"
+              accessibilityLiveRegion="polite"
+            >
+              {problem ?? draftProblem(state.draft)}
+            </Text>
+          ) : null}
         </View>
 
         {exercise.lastWeightKg !== null ? (
-          <Text variant="caption">
-            Dernière perf : {exercise.lastReps ?? "?"} reps à {exercise.lastWeightKg} kg
-          </Text>
-        ) : null}
-      </View>
-
-      {/* Sets already logged for this exercise */}
-      {done.length > 0 ? (
-        <View className="gap-2 px-4 pt-6">
-          {done.map((s) => (
-            <View key={s.setNumber} className="flex-row items-center justify-between rounded-input bg-surface px-4 py-2">
-              <Text variant="caption">Série {s.setNumber}</Text>
-              <Text variant="body" weight="semibold">
-                {s.repsCompleted} reps{s.weightKg === null ? "" : ` · ${s.weightKg} kg`}
+          <View className="mx-5 mt-6 flex-row items-center gap-2 rounded-xl border border-border bg-surface px-3.5 py-2.5">
+            <Ionicons name="time-outline" size={14} color={palette.textMuted} />
+            <Text className="text-xs text-text-muted">
+              Dernière perf :{" "}
+              <Text mono className="text-xs text-text-sub">
+                {exercise.lastSetCount ? `${exercise.lastSetCount}×` : ""}
+                {exercise.lastReps ?? "?"} à {formatWeight(exercise.lastWeightKg)} kg
               </Text>
-            </View>
-          ))}
-          <Pressable accessibilityRole="button" onPress={() => dispatch({ type: "undo-last-set" })} className="self-end py-2">
-            <Text variant="caption" weight="semibold" className="text-accent">
-              Annuler la dernière série
             </Text>
-          </Pressable>
-        </View>
-      ) : null}
+          </View>
+        ) : null}
 
-      {/* Actions */}
-      <View className="gap-3 px-4 pt-8">
-        <Button title="Série terminée" onPress={validateAndRest} className="h-14" />
-
-        <View className="flex-row gap-3">
-          <View className="flex-1">
-            <Button
-              title="Exercice précédent"
-              variant="outline"
-              disabled={state.currentIndex === 0}
-              onPress={() => dispatch({ type: "previous-exercise" })}
+        {state.exercises.at(state.currentIndex + 1) ? (
+          <View className="pt-4">
+            <NextUpCard
+              label="Exercice suivant"
+              title={state.exercises.at(state.currentIndex + 1)?.name ?? ""}
+              detail={prescription(state.exercises.at(state.currentIndex + 1) as WorkoutExercise)}
             />
           </View>
-          <View className="flex-1">
-            <Button
-              title={isExerciseComplete(state, state.currentIndex) ? "Exercice suivant ✓" : "Exercice suivant"}
-              variant="outline"
-              disabled={state.currentIndex >= state.exercises.length - 1}
-              onPress={() => dispatch({ type: "next-exercise" })}
-            />
-          </View>
-        </View>
+        ) : null}
 
-        <Button
-          title="Terminer la séance"
-          variant="secondary"
-          loading={status.status === "finishing"}
-          onPress={() => void finish()}
+        <View className="gap-2 px-5 pb-8 pt-1">
+          <Button
+            title="Série terminée"
+            className="h-14"
+            accessibilityLabel={`Série terminée : ${state.draft.reps} répétitions${state.draft.weightKg === null ? "" : ` à ${formatWeight(state.draft.weightKg)} kilos`}`}
+            icon={<Ionicons name="checkmark" size={18} color={palette.btnPrimaryText} />}
+            onPress={validate}
+          />
+          <View className="flex-row gap-2">
+            <View className="flex-1">
+              <Button
+                title="‹ Précédent"
+                variant="ghost"
+                disabled={state.currentIndex === 0}
+                onPress={goPrevious}
+              />
+            </View>
+            <View className="flex-1">
+              {isLast ? (
+                <Button title="Terminer" variant="ghost" onPress={askFinish} />
+              ) : (
+                <Button
+                  title={
+                    isExerciseComplete(state, state.currentIndex) ? "Suivant ✓ ›" : "Suivant ›"
+                  }
+                  variant="ghost"
+                  onPress={goNext}
+                />
+              )}
+            </View>
+          </View>
+          {!isLast ? (
+            <Pressable accessibilityRole="button" onPress={askFinish} className="items-center py-2">
+              <Text variant="caption" weight="semibold">
+                Terminer la séance
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </>
+    );
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-bg">
+      <SessionTopBar
+        elapsed={elapsed}
+        offline={session.offline}
+        onQuit={() => setConfirm({ kind: "quit" })}
+      />
+      <WorkoutProgress done={completedExerciseCount(state)} total={state.exercises.length} />
+      <ScrollView className="flex-1" contentContainerClassName="pb-6">
+        {banners}
+        {body}
+      </ScrollView>
+
+      {confirm?.kind === "quit" ? (
+        <ConfirmOverlay
+          title="Quitter la séance ?"
+          body={`${state.logged.length === 0 ? "Rien n'est encore noté." : `Tes ${state.logged.length} série${state.logged.length > 1 ? "s" : ""} notée${state.logged.length > 1 ? "s sont gardées" : " est gardée"}.`} Tu pourras reprendre depuis Aujourd'hui.`}
+          confirmLabel="Quitter"
+          cancelLabel="Continuer la séance"
+          onConfirm={() => {
+            setConfirm(null);
+            void rest.cancel();
+            router.back();
+          }}
+          onCancel={() => setConfirm(null)}
         />
-      </View>
-    </ScrollView>
+      ) : null}
+      {confirm?.kind === "finish" ? (
+        <ConfirmOverlay
+          title={`Il reste ${confirm.remaining} série${confirm.remaining > 1 ? "s" : ""}. Terminer quand même ?`}
+          body="Ce qui est déjà noté est gardé."
+          confirmLabel="Terminer quand même"
+          cancelLabel="Continuer la séance"
+          onConfirm={openRecap}
+          onCancel={() => setConfirm(null)}
+        />
+      ) : null}
+    </SafeAreaView>
   );
 }
 
-/**
- * Elapsed minutes since the session opened, refreshed once a minute.
- *
- * Derived from `started_at` rather than from a counter started on mount: the
- * screen can be reopened mid-session, and a counter would restart from zero
- * while the session did not.
- */
-function useElapsedMinutes(startedAt: string | null): number | null {
+function RecapView({
+  sessionName,
+  recap,
+  saving,
+  saved,
+  onSave,
+  onHome,
+  onBack,
+}: {
+  sessionName: string;
+  recap: ReturnType<typeof sessionRecap>;
+  saving: boolean;
+  saved: { queued: boolean } | null;
+  onSave: () => void;
+  onHome: () => void;
+  onBack: () => void;
+}) {
+  const accent = usePalette().accent;
+  return (
+    <SafeAreaView className="flex-1 bg-bg">
+      <ScrollView contentContainerClassName="pb-8">
+        <View className="items-center px-5 pt-5">
+          <Ionicons name="checkmark" size={32} color={accent} />
+          <Text
+            weight="bold"
+            className="mb-1 mt-2 text-2xl tracking-[-0.7px] text-text"
+            accessibilityRole="header"
+          >
+            Séance terminée
+          </Text>
+          <Text className="text-[13px] text-text-muted">
+            {sessionName} · {recap.exercises.length} exercice{recap.exercises.length > 1 ? "s" : ""}
+          </Text>
+        </View>
+
+        <View className="mx-5 mt-5 flex-row rounded-[18px] border border-border bg-surface py-4">
+          <RecapStat
+            label="Durée"
+            value={formatElapsed(recap.durationSeconds)}
+            sub=""
+            spoken={`Durée ${formatElapsed(recap.durationSeconds)}`}
+          />
+          <View className="mx-1 w-px bg-border" />
+          <RecapStat
+            label="Séries"
+            value={String(recap.setsDone)}
+            sub={`sur ${recap.setsPlanned}`}
+            spoken={`${recap.setsDone} séries sur ${recap.setsPlanned}`}
+          />
+          <View className="mx-1 w-px bg-border" />
+          <RecapStat
+            label="Volume"
+            value={formatKg(recap.volumeKg)}
+            sub="kg total"
+            spoken={`${formatKg(recap.volumeKg)} kilos au total`}
+          />
+        </View>
+
+        <View className="px-5 pt-5">
+          <Text
+            weight="bold"
+            className="mb-3 text-[11px] uppercase tracking-[0.6px] text-text-muted"
+          >
+            Résumé par exercice
+          </Text>
+          {recap.exercises.map((ex) => (
+            <ExerciseRecapRow key={ex.exerciseId} recap={ex} />
+          ))}
+        </View>
+
+        <View className="gap-2 px-5 pt-3">
+          {saved ? (
+            <>
+              <Text
+                variant="caption"
+                className="text-center text-[13px]"
+                accessibilityLiveRegion="polite"
+              >
+                {saved.queued
+                  ? "Séance gardée sur ton téléphone. Elle sera envoyée dès que le réseau revient."
+                  : "Séance enregistrée."}
+              </Text>
+              <Button title="Retour à l'accueil" className="h-14" onPress={onHome} />
+            </>
+          ) : (
+            <>
+              <Button
+                title="Enregistrer la séance"
+                className="h-14"
+                loading={saving}
+                onPress={onSave}
+              />
+              <Button
+                title="Revenir à la séance"
+                variant="ghost"
+                onPress={onBack}
+                disabled={saving}
+              />
+            </>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function Banners({
+  pending,
+  rejected,
+  onRetry,
+  onDiscard,
+}: {
+  pending: number;
+  rejected: number;
+  onRetry: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <>
+      {/* Reassurance, not an error: the sets are safe on the phone. */}
+      {pending > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onRetry}
+          className="mx-5 mt-3 rounded-xl border border-border bg-surface px-3.5 py-2.5"
+        >
+          <Text variant="caption">
+            {pending} série{pending > 1 ? "s" : ""} en attente d&apos;envoi, gardée
+            {pending > 1 ? "s" : ""} sur ton téléphone. Touche pour réessayer.
+          </Text>
+        </Pressable>
+      ) : null}
+      {rejected > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Retirer ${rejected} série(s) refusée(s)`}
+          onPress={onDiscard}
+          className="mx-5 mt-3 rounded-xl border border-error bg-surface px-3.5 py-2.5"
+        >
+          <Text variant="error">
+            {rejected} série{rejected > 1 ? "s" : ""} refusée{rejected > 1 ? "s" : ""} par le
+            serveur. Touche pour la retirer.
+          </Text>
+        </Pressable>
+      ) : null}
+    </>
+  );
+}
+
+function prescription(e: WorkoutExercise): string {
+  const parts = [`${e.targetSets} séries`];
+  if (e.targetReps) parts.push(`${e.targetReps} rép`);
+  if (e.lastWeightKg !== null) parts.push(`${formatWeight(e.lastWeightKg)} kg`);
+  return parts.join(" · ");
+}
+
+/** Wall clock, refreshed every `ms`, for the session clock and the recap. */
+function useNow(ms: number): number {
   const [now, setNow] = useState(() => Date.now());
-
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000);
+    const id = setInterval(() => setNow(Date.now()), ms);
     return () => clearInterval(id);
-  }, []);
-
-  if (startedAt === null) return null;
-  const started = Date.parse(startedAt);
-  if (Number.isNaN(started)) return null;
-  return Math.max(0, Math.floor((now - started) / 60_000));
-}
-
-function StepButton({
-  symbol,
-  label,
-  onPress,
-  primary = false,
-  small = false,
-}: {
-  symbol: string;
-  label: string;
-  onPress: () => void;
-  primary?: boolean;
-  small?: boolean;
-}) {
-  // 52pt for the primary controls: the wireframe's size, and comfortably above
-  // the 44pt minimum touch target, because these are pressed with a thumb while
-  // holding a barbell.
-  const size = small ? "h-8 w-8" : "h-[52px] w-[52px]";
-  const background = primary
-    ? "bg-btn-primary-bg"
-    : "bg-surface border border-border";
-  const colour = primary ? "text-btn-primary-text" : "text-text";
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      className={`${size} ${background} items-center justify-center rounded-full active:opacity-70`}
-    >
-      <Text variant="body" className={`${colour} ${small ? "text-base" : "text-2xl"}`} weight="bold">
-        {symbol}
-      </Text>
-    </Pressable>
-  );
-}
-
-/**
- * Rest countdown.
- *
- * A bar rather than a full-screen takeover: cm#27 requires that resting does
- * not block input, and a modal countdown is precisely what stops an athlete
- * from starting their next set early.
- */
-function RestBar({
-  remaining,
-  progress,
-  finished,
-  notificationsReady,
-  onAdjust,
-  onCancel,
-}: {
-  remaining: number;
-  progress: number;
-  finished: boolean;
-  notificationsReady: boolean | null;
-  onAdjust: (delta: number) => void;
-  onCancel: () => void;
-}) {
-  return (
-    <View
-      className={`mx-4 mt-3 gap-2 rounded-2xl p-4 ${
-        finished ? "bg-accent-dim" : "bg-surface2"
-      }`}
-    >
-      <View className="flex-row items-center justify-between">
-        <Text variant="caption" className="uppercase">
-          {finished ? "Repos terminé" : "Repos"}
-        </Text>
-        <Text variant="heading" className="text-3xl">
-          {formatCountdown(remaining)}
-        </Text>
-      </View>
-
-      <View className="h-1.5 overflow-hidden rounded-full bg-surface2">
-        <View
-          className={`h-full rounded-full ${finished ? "bg-success" : "bg-accent"}`}
-          style={{ width: `${Math.round(progress * 100)}%` }}
-        />
-      </View>
-
-      <View className="flex-row items-center justify-between gap-2 pt-1">
-        <RestChip label={`−${REST_ADJUST_SECONDS} s`} onPress={() => onAdjust(-REST_ADJUST_SECONDS)} />
-        <RestChip label={`+${REST_ADJUST_SECONDS} s`} onPress={() => onAdjust(REST_ADJUST_SECONDS)} />
-        <RestChip label={finished ? "Fermer" : "Passer"} onPress={onCancel} />
-      </View>
-
-      {notificationsReady === false ? (
-        <Text variant="caption">
-          Notifications désactivées : le minuteur ne te préviendra pas si l&apos;écran est
-          éteint.
-        </Text>
-      ) : null}
-    </View>
-  );
-}
-
-function RestChip({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      className="flex-1 rounded-full bg-surface px-3 py-2 active:opacity-70"
-    >
-      <Text variant="caption" weight="semibold" className="text-center">
-        {label}
-      </Text>
-    </Pressable>
-  );
+  }, [ms]);
+  return now;
 }
 
 function Spinner() {
@@ -490,9 +803,7 @@ function Spinner() {
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
-  return (
-    <View className="flex-1 items-center justify-center gap-4 bg-bg px-8">
-      {children}
-    </View>
-  );
+  return <View className="flex-1 items-center justify-center gap-4 bg-bg px-8">{children}</View>;
 }
+
+export type { LoggedSet };
