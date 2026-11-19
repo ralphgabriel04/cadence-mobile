@@ -937,6 +937,11 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      // Added by hand for story 2.6 until `pnpm gen:types` is re-run on the 009 migration.
+      delete_my_account: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
+      };
       get_exercise_history: {
         Args: { p_exercise_id: string; p_limit?: number };
         Returns: {

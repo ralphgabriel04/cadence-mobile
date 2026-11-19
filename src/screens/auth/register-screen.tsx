@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  View,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-} from "react-native";
+import { View, KeyboardAvoidingView, Platform, Pressable, ScrollView } from "react-native";
 import { Link } from "expo-router";
 import { useAuth } from "@/providers/auth-provider";
 import { maskEmail } from "@/utils/mask-email";
@@ -15,17 +9,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { PasswordStrengthMeter } from "@/components/ui/password-strength-meter";
 import { Pill } from "@/components/ui/pill";
 import { Text } from "@/components/ui/text";
-
-function validateEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function validatePassword(password: string) {
-  if (password.length < 8) return "Minimum 8 caractères";
-  if (!/[A-Z]/.test(password)) return "Au moins 1 majuscule requise";
-  if (!/\d/.test(password)) return "Au moins 1 chiffre requis";
-  return null;
-}
+import { validateRegister, type RegisterErrors } from "@/features/auth-routing/register-validation";
 
 type Role = "coach" | "athlete";
 
@@ -43,30 +27,14 @@ export function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const passwordError = password ? validatePassword(password) : undefined;
-  const confirmError =
-    confirmPassword && password !== confirmPassword
-      ? "Les mots de passe ne correspondent pas"
-      : undefined;
+  const [fieldErrors, setFieldErrors] = useState<RegisterErrors>({});
+  const clear = (key: keyof RegisterErrors) =>
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
 
   const handleRegister = async () => {
-    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password || !confirmPassword) {
-      setError("Veuillez remplir tous les champs");
-      return;
-    }
-    if (!validateEmail(email.trim())) {
-      setError("Courriel invalide");
-      return;
-    }
-    if (passwordError) {
-      setError(passwordError);
-      return;
-    }
-    // eslint-disable-next-line security/detect-possible-timing-attacks -- UI form validation, not cryptographic comparison
-    if (password !== confirmPassword) {
-      setError("Les mots de passe ne correspondent pas");
-      return;
-    }
+    const errors = validateRegister({ firstName, lastName, email, password, confirmPassword });
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
     setError("");
     setLoading(true);
@@ -93,8 +61,8 @@ export function RegisterScreen() {
           Vérifiez votre courriel
         </Text>
         <Text className="mb-8 text-center leading-5">
-          Un lien de confirmation a été envoyé à {maskEmail(email)}. Cliquez dessus pour
-          activer votre compte.
+          Un lien de confirmation a été envoyé à {maskEmail(email)}. Cliquez dessus pour activer
+          votre compte.
         </Text>
         <Link href="/(auth)/login">
           <Text weight="bold" className="text-accent">
@@ -110,10 +78,7 @@ export function RegisterScreen() {
       className="flex-1 bg-bg"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <View className="flex-1 justify-center px-5 py-12">
           <Text variant="heading" className="mb-2 text-center">
             Créer un compte
@@ -129,7 +94,11 @@ export function RegisterScreen() {
                   label="Prénom"
                   placeholder="Prénom"
                   value={firstName}
-                  onChangeText={setFirstName}
+                  onChangeText={(v) => {
+                    setFirstName(v);
+                    clear("firstName");
+                  }}
+                  error={fieldErrors.firstName}
                   autoComplete="given-name"
                 />
               </View>
@@ -138,7 +107,11 @@ export function RegisterScreen() {
                   label="Nom"
                   placeholder="Nom"
                   value={lastName}
-                  onChangeText={setLastName}
+                  onChangeText={(v) => {
+                    setLastName(v);
+                    clear("lastName");
+                  }}
+                  error={fieldErrors.lastName}
                   autoComplete="family-name"
                 />
               </View>
@@ -148,7 +121,11 @@ export function RegisterScreen() {
               label="Courriel"
               placeholder="nom@exemple.com"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(v) => {
+                setEmail(v);
+                clear("email");
+              }}
+              error={fieldErrors.email}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -158,9 +135,12 @@ export function RegisterScreen() {
               label="Mot de passe"
               placeholder="Minimum 8 caractères"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(v) => {
+                setPassword(v);
+                clear("password");
+              }}
               autoComplete="new-password"
-              error={passwordError ?? undefined}
+              error={fieldErrors.password}
             />
             <PasswordStrengthMeter password={password} />
 
@@ -168,8 +148,11 @@ export function RegisterScreen() {
               label="Confirmer le mot de passe"
               placeholder="Retapez votre mot de passe"
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              error={confirmError}
+              onChangeText={(v) => {
+                setConfirmPassword(v);
+                clear("confirmPassword");
+              }}
+              error={fieldErrors.confirmPassword}
             />
 
             <View className="gap-2">

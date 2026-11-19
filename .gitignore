@@ -38,3 +38,5 @@ coverage/
 
 # Build
 *.tsbuildinfo
+
+web/delete-account/config.js
