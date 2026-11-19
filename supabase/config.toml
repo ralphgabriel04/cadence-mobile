@@ -32,3 +32,9 @@ enable_confirmations = true
 [auth.email.template.recovery]
 subject = "Réinitialise ton mot de passe Cadence"
 content_path = "./supabase/templates/recovery.html"
+
+# Story 2.6 (c): the email code used by the web deletion page. The app has no
+# passwordless login, so the "magic link" template is only used by that page.
+[auth.email.template.magic_link]
+subject = "Ton code de confirmation Cadence"
+content_path = "./supabase/templates/deletion-code.html"
