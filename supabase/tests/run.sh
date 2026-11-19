@@ -19,6 +19,11 @@
 # ============================================================================
 set -euo pipefail
 
+# A deliberate break (POST_MIGRATION_SQL) must never run where results gate a merge.
+if [ -n "${POST_MIGRATION_SQL:-}" ] && { [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ]; }; then
+  echo "POST_MIGRATION_SQL is refused when CI or GITHUB_ACTIONS is set" >&2
+  exit 2
+fi
 CONTAINER=cadence-sqltest
 IMAGE=postgres:17-alpine
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -58,6 +63,13 @@ for f in "$MIGRATIONS"/*.sql; do
   psql_file "$f"
 done
 
+# Optional: a SQL file applied after the migrations. Used only by
+# negative-control.sh to break a policy on purpose; unset in normal runs and CI.
+if [ -n "${POST_MIGRATION_SQL:-}" ]; then
+  printf '    (extra) %s\n' "$(basename "$POST_MIGRATION_SQL")"
+  psql_file "$POST_MIGRATION_SQL"
+fi
+
 echo "==> running tests"
 # Lexical order matters: 90_ creates the rec() helper and the shared fixtures
 # that later files build on.
@@ -65,7 +77,7 @@ for t in "$HERE"/9*.sql; do
   printf '    %s\n' "$(basename "$t")"
   # `|| true`: under `set -o pipefail`, a grep that filters out every line exits
   # 1, which would abort the run through `set -e` even though nothing failed.
-  docker exec -i "$CONTAINER" psql -U postgres -d cadence -q -f - < "$t" 2>&1 \
+  docker exec -i "$CONTAINER" psql -U postgres -d cadence -v ON_ERROR_STOP=1 -q -f - < "$t" 2>&1 \
     | { grep -vE '^(NOTICE|CREATE|INSERT|DO|UPDATE [0-9]|SELECT [0-9])' || true; }
 done
 
@@ -76,7 +88,14 @@ docker exec "$CONTAINER" psql -U postgres -d cadence -q -c \
 
 # Non-zero exit if anything failed, so CI can gate on it.
 failed=$(docker exec "$CONTAINER" psql -U postgres -d cadence -tAc \
-  "SELECT count(*) FROM test_results WHERE NOT passed")
+  "SELECT count(*) FROM test_results WHERE passed IS NOT TRUE")
+# A suite that silently ran far fewer cases than expected must not look green.
+MIN_TESTS="${MIN_TESTS:-150}"
+ran=$(docker exec "$CONTAINER" psql -U postgres -d cadence -tAc "SELECT count(*) FROM test_results")
+if [ "$ran" -lt "$MIN_TESTS" ]; then
+  echo "FAILED: only $ran test(s) ran, expected at least $MIN_TESTS" >&2
+  exit 1
+fi
 if [ "$failed" != "0" ]; then
   echo "FAILED: $failed test(s)" >&2
   exit 1
