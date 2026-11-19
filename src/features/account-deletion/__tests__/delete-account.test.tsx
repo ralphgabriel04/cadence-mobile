@@ -1,6 +1,7 @@
 import { render, waitFor } from "@testing-library/react-native";
 import { Text } from "react-native";
 
+import { LOCAL_DATA_LEFT } from "@/features/account-deletion/deletion-copy";
 import { AuthProvider, SIGN_OUT_NOT_CLEARED, useAuth } from "@/providers/auth-provider";
 
 // Starts from a real signed-in session, then checks the order of the steps and the final state.
@@ -33,6 +34,10 @@ jest.mock("@/config/supabase", () => ({
   },
   clearLocalSession: () => mockClearLocal(),
 }));
+const mockPurge = jest.fn();
+jest.mock("@/services/purge-local-queue", () => ({
+  purgeLocalSetQueue: () => mockPurge(),
+}));
 
 let api: ReturnType<typeof useAuth>;
 function Probe() {
@@ -51,6 +56,10 @@ beforeEach(async () => {
     return { error: null };
   });
   mockClearLocal.mockResolvedValue(undefined);
+  mockPurge.mockImplementation(async () => {
+    calls.push("purge-queue");
+    return { erased: true };
+  });
   const view = render(
     <AuthProvider>
       <Probe />
@@ -60,11 +69,11 @@ beforeEach(async () => {
 });
 
 describe("2.6 (b) · AuthProvider.deleteAccount", () => {
-  it("calls delete_my_account with no argument, then signs out", async () => {
+  it("calls delete_my_account with no argument, erases the local queue, then signs out", async () => {
     expect(await api.deleteAccount()).toEqual({ error: null });
     expect(mockRpc).toHaveBeenCalledWith("delete_my_account");
     expect(mockRpc.mock.calls[0]).toHaveLength(1);
-    expect(calls).toEqual(["rpc", "sign-out"]);
+    expect(calls).toEqual(["rpc", "purge-queue", "sign-out"]);
     await waitFor(() => expect(api.state.status).toBe("signed-out"));
     expect(api.signOutNotice).toBeNull();
   });
@@ -92,19 +101,55 @@ describe("2.6 (b) · AuthProvider.deleteAccount", () => {
     expect(api.signOutNotice).toBe(SIGN_OUT_NOT_CLEARED);
   });
 
-  it("keeps the session, with a French message, when the function fails", async () => {
-    mockRpc.mockResolvedValue({ data: null, error: { code: "42501", message: "not authenticated" } });
+  it("keeps the session and the local queue, with a French message, when the function fails", async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { code: "42501", message: "not authenticated" },
+    });
     const { error } = await api.deleteAccount();
     expect(error).toMatch(/échoué|Réessaie/);
     expect(error).not.toMatch(/not authenticated|42501/);
     expect(mockSignOut).not.toHaveBeenCalled();
+    expect(calls).not.toContain("purge-queue");
     expect(api.state.status).toBe("ready");
   });
 
-  it("keeps the session when the call is rejected", async () => {
+  it("keeps the session and the local queue when the call is rejected", async () => {
     mockRpc.mockRejectedValue(new Error("Network request failed"));
     expect((await api.deleteAccount()).error).toBeTruthy();
     expect(mockSignOut).not.toHaveBeenCalled();
+    expect(calls).not.toContain("purge-queue");
     expect(api.state.status).toBe("ready");
+  });
+
+  it("when the local queue cannot be erased: still a success, tells the user in French, still signs out", async () => {
+    mockPurge.mockImplementation(async () => {
+      calls.push("purge-queue");
+      return { erased: false };
+    });
+    expect(await api.deleteAccount()).toEqual({ error: null, notice: LOCAL_DATA_LEFT });
+    expect(LOCAL_DATA_LEFT).toBe(
+      "Ton compte est supprimé. Certaines données sont restées sur ce téléphone : désinstalle l'app pour les effacer."
+    );
+    expect(calls).toEqual(["rpc", "purge-queue", "sign-out"]);
+    await waitFor(() => expect(api.state.status).toBe("signed-out"));
+    await waitFor(() => expect(api.signOutNotice).toBe(LOCAL_DATA_LEFT));
+  });
+
+  it("signs out even when the purge rejects", async () => {
+    mockPurge.mockRejectedValue(new Error("boom"));
+    expect(await api.deleteAccount()).toEqual({ error: null, notice: LOCAL_DATA_LEFT });
+    expect(mockSignOut).toHaveBeenCalled();
+    await waitFor(() => expect(api.state.status).toBe("signed-out"));
+  });
+
+  it("keeps both notices when the purge and the sign-out clean-up both fail", async () => {
+    mockPurge.mockResolvedValue({ erased: false });
+    mockSignOut.mockResolvedValue({ error: { message: "500" } });
+    mockClearLocal.mockRejectedValue(new Error("keychain locked"));
+    await api.deleteAccount();
+    await waitFor(() =>
+      expect(api.signOutNotice).toBe(`${SIGN_OUT_NOT_CLEARED} ${LOCAL_DATA_LEFT}`)
+    );
   });
 });
