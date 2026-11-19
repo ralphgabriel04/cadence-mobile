@@ -10,6 +10,7 @@ CREATE SCHEMA IF NOT EXISTS auth;
 CREATE TABLE auth.users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT,
+  email_confirmed_at TIMESTAMPTZ,
   raw_user_meta_data JSONB DEFAULT '{}'::jsonb
 );
 
