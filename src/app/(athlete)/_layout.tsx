@@ -25,6 +25,11 @@ export default function AthleteLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
+  // A password recovery in progress opens nothing but the new-password screen.
+  if (state.status === "recovery") {
+    return <Redirect href="/reset-password" />;
+  }
+
   if (state.status === "profile-missing") {
     return <ProfileRecovery reason="missing" />;
   }

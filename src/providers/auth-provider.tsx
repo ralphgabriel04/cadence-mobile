@@ -14,6 +14,20 @@ import { supabase } from "@/config/supabase";
 
 import { resetErrorMessage } from "./reset-errors";
 import {
+  armRecovery,
+  clearRecoveryRequest,
+  disarmRecovery,
+  hasFreshRecoveryRequest,
+  readRecoveryMarker,
+  markRecoveryRequested,
+} from "@/features/auth-routing/recovery-flag";
+import {
+  EXPIRED_LINK_MESSAGE,
+  NOT_REQUESTED_MESSAGE,
+  parseRecoveryLink,
+  recoveryRedirectUrl,
+} from "@/features/auth-routing/recovery-link";
+import {
   authReducer,
   initialAuthState,
   isResolving,
@@ -52,15 +66,41 @@ type AuthContextType = {
     lastName: string;
     role: "coach" | "athlete";
   }) => Promise<{ error: string | null }>;
-  signOut: () => Promise<void>;
+  /** Resolves false when an open recovery could not be ended (the session is still on the device). */
+  signOut: () => Promise<boolean>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
+  /** Turns the recovery link opened from the email into a (temporary) recovery session. */
+  acceptRecoveryLink: (url: string) => Promise<{ error: string | null }>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 /** PostgREST code for "expected exactly one row, got none". */
 const PGRST_NO_ROWS = "PGRST116";
+const LINK_OPEN_FAILED = "Impossible d'ouvrir le lien, réessaie";
+
+/**
+ * Ends the local session and checks it is really gone, whatever signOut says:
+ * it can reject or return an error before erasing anything. Same logic as
+ * signOutAndClearLocal (#194), kept minimal here because that branch is not in this stack.
+ */
+async function endLocalSession(): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // judged below on the stored session, not on this call
+    }
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) return true;
+    } catch {
+      // unknown counts as not cleared
+    }
+  }
+  return false;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(authReducer, initialAuthState);
@@ -73,6 +113,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted.current = false;
     };
   }, []);
+
+  // A recovery session is open in this run (mirrors the persisted marker).
+  const recoveryArmed = useRef(false);
+  // Resolves once the startup check is done.
+  const startup = useRef<Promise<void>>(Promise.resolve());
+  // The link already turned into the current recovery session (a remount of the
+  // reset screen must not replay it).
+  const acceptedUrl = useRef<string | null>(null);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
@@ -105,38 +153,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Resolve the session, then the profile. The two are sequenced deliberately:
   // routing may not act until both are known.
   useEffect(() => {
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
+    let cancelled = false;
+    let unsubscribe = () => {};
+
+    startup.current = (async () => {
+      // A recovery left open by a previous run must not resume as a login: end it first.
+      const marker = await readRecoveryMarker();
+      if (marker !== "clear") {
+        // Armed, or unreadable (treated the same): the stored session is not trusted.
+        if (await endLocalSession()) await disarmRecovery();
+        else recoveryArmed.current = true; // still there: stay on the recovery screen
+      }
+      if (cancelled) return;
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event, session) => {
         if (!mounted.current) return;
-        dispatch({ type: "session-resolved", session });
-      })
-      .catch((cause: unknown) => {
+        if (event === "SIGNED_OUT" || !session) {
+          recoveryArmed.current = false;
+          void disarmRecovery();
+          dispatch({ type: "signed-out" });
+          return;
+        }
+        if (event === "PASSWORD_RECOVERY") {
+          recoveryArmed.current = true;
+          void armRecovery().then((ok) => ok || endLocalSession());
+        }
+        dispatch(
+          recoveryArmed.current
+            ? { type: "recovery-started", session }
+            : { type: "session-resolved", session }
+        );
+      });
+      unsubscribe = () => subscription.unsubscribe();
+
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (mounted.current) {
+          dispatch(
+            recoveryArmed.current && session
+              ? { type: "recovery-started", session }
+              : { type: "session-resolved", session }
+          );
+        }
+      } catch (cause: unknown) {
         if (!mounted.current) return;
         // Without this the app hung on the splash forever when the auth client
         // failed -- the previous implementation had no rejection handler at all,
         // so `loading` was never cleared.
-        dispatch({
-          type: "session-resolved",
-          session: null,
-        });
+        dispatch({ type: "session-resolved", session: null });
         if (__DEV__) {
           console.warn("[auth] getSession failed", cause);
         }
-      });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted.current) return;
-      if (event === "SIGNED_OUT" || !session) {
-        dispatch({ type: "signed-out" });
-        return;
       }
-      dispatch({ type: "session-resolved", session });
-    });
+    })();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   // One place that turns "a session needs a profile" into a request. Runs for
@@ -200,21 +278,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { error: null };
     },
-    [],
+    []
   );
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    if (recoveryArmed.current) {
+      // Ending a recovery: stay on it, marker armed, unless the session is really gone.
+      if (!(await endLocalSession())) return false;
+      recoveryArmed.current = false;
+      await disarmRecovery();
+    } else {
+      await supabase.auth.signOut();
+    }
     if (mounted.current) dispatch({ type: "signed-out" });
+    return true;
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "cadence://reset-password",
+      redirectTo: recoveryRedirectUrl(),
     });
-    if (!error) return { error: null };
     // Only failures that say nothing about the account are shown (anti-enumeration).
-    return { error: resetErrorMessage(error) };
+    const message = error ? resetErrorMessage(error) : null;
+    // The app now expects a recovery link (see recovery-flag.ts).
+    if (!message) await markRecoveryRequested();
+    return { error: message };
+  }, []);
+
+  const acceptRecoveryLink = useCallback(async (url: string) => {
+    const link = parseRecoveryLink(url);
+    if (link.kind === "error") return { error: link.message };
+    if (link.kind !== "tokens") return { error: EXPIRED_LINK_MESSAGE };
+    if (acceptedUrl.current === url && recoveryArmed.current) return { error: null };
+
+    await startup.current;
+    if (!(await hasFreshRecoveryRequest())) return { error: NOT_REQUESTED_MESSAGE };
+
+    // Armed before the session exists: a crash in between still ends in a sign-out.
+    if (!(await armRecovery())) return { error: LINK_OPEN_FAILED };
+    recoveryArmed.current = true;
+    const { error } = await supabase.auth.setSession({
+      access_token: link.accessToken,
+      refresh_token: link.refreshToken,
+    });
+    if (error) {
+      recoveryArmed.current = false;
+      await disarmRecovery();
+      return { error: EXPIRED_LINK_MESSAGE };
+    }
+    acceptedUrl.current = url;
+    await clearRecoveryRequest();
+    return { error: null };
   }, []);
 
   const updatePassword = useCallback(async (password: string) => {
@@ -235,8 +349,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       resetPassword,
       updatePassword,
+      acceptRecoveryLink,
     }),
-    [state, refreshProfile, signIn, signUp, signOut, resetPassword, updatePassword],
+    [
+      state,
+      refreshProfile,
+      signIn,
+      signUp,
+      signOut,
+      resetPassword,
+      updatePassword,
+      acceptRecoveryLink,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
