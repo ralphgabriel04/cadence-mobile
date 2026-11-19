@@ -62,7 +62,7 @@ export function ResetPasswordScreen() {
 
   // Abandoning ends the temporary session: nothing stays open without a new password.
   const handleCancel = async () => {
-    if ((await signOut()) === false) return setErrors({ form: SIGN_OUT_FAILED });
+    if ((await signOut()).error) return setErrors({ form: SIGN_OUT_FAILED });
     router.replace("/(auth)/login");
   };
 
@@ -86,7 +86,7 @@ export function ResetPasswordScreen() {
     // End the temporary recovery session: the user signs in with the new password.
     const ended = await signOut();
     setLoading(false);
-    if (ended === false) return setErrors({ form: SIGN_OUT_FAILED });
+    if (ended.error) return setErrors({ form: SIGN_OUT_FAILED });
     router.replace("/(auth)/login");
   };
 

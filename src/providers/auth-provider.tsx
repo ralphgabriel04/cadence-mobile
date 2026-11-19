@@ -5,12 +5,20 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useState,
   useRef,
   type ReactNode,
 } from "react";
 import { type Session, type User } from "@supabase/supabase-js";
 
-import { supabase } from "@/config/supabase";
+import { clearLocalSession, supabase } from "@/config/supabase";
+import { DELETION_FAILED, LOCAL_DATA_LEFT } from "@/features/account-deletion/deletion-copy";
+import { purgeLocalSetQueue } from "@/services/purge-local-queue";
+
+import { signInErrorMessage } from "./auth-errors";
+import { signOutAndClearLocal } from "./sign-out";
+
+import { isAlreadyRegistered, signUpErrorMessage } from "./sign-up-errors";
 
 import { resetErrorMessage } from "./reset-errors";
 import {
@@ -40,6 +48,9 @@ import {
 
 export type { AuthState, Profile } from "./auth-state";
 
+export const SIGN_OUT_NOT_CLEARED =
+  "La déconnexion n'a pas pu effacer la session de cet appareil. Réessaie.";
+
 type AuthContextType = {
   /**
    * The full state machine. New code should read this: it distinguishes
@@ -66,9 +77,13 @@ type AuthContextType = {
     lastName: string;
     role: "coach" | "athlete";
   }) => Promise<{ error: string | null }>;
-  /** Resolves false when an open recovery could not be ended (the session is still on the device). */
-  signOut: () => Promise<boolean>;
+  /** Always ends the UI session. `error` is set when this device could not erase the stored session. */
+  signOut: () => Promise<{ error: string | null }>;
+  /** Last sign-out problem, shown on the login screen; cleared by the next sign-in. */
+  signOutNotice: string | null;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  /** Deletes the signed-in account and all its data (public.delete_my_account), then ends the session. */
+  deleteAccount: () => Promise<{ error: string | null; notice?: string }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
   /** Turns the recovery link opened from the email into a (temporary) recovery session. */
   acceptRecoveryLink: (url: string) => Promise<{ error: string | null }>;
@@ -123,11 +138,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const acceptedUrl = useRef<string | null>(null);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select(PROFILE_COLUMNS)
-      .eq("id", userId)
-      .maybeSingle();
+    let result;
+    try {
+      result = await supabase
+        .from("profiles")
+        .select(PROFILE_COLUMNS)
+        .eq("id", userId)
+        .maybeSingle();
+    } catch (cause) {
+      // A rejected promise (network down) must not leave the UI on the loader.
+      if (!mounted.current) return;
+      dispatch({
+        type: "profile-failed",
+        userId,
+        message: cause instanceof Error ? cause.message : "Erreur réseau",
+      });
+      return;
+    }
+    const { data, error } = result;
 
     if (!mounted.current) return;
 
@@ -135,15 +163,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // maybeSingle() returns data: null rather than an error for "no rows",
       // but a PostgREST version or a RLS change can still surface the code.
       if (error.code === PGRST_NO_ROWS) {
-        dispatch({ type: "profile-missing" });
+        dispatch({ type: "profile-missing", userId });
         return;
       }
-      dispatch({ type: "profile-failed", message: error.message });
+      dispatch({ type: "profile-failed", userId, message: error.message });
       return;
     }
 
     if (!data) {
-      dispatch({ type: "profile-missing" });
+      dispatch({ type: "profile-missing", userId });
       return;
     }
 
@@ -231,14 +259,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    setSignOutNotice(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      if (error.message.includes("rate limit")) {
-        return { error: "Trop de tentatives. Veuillez réessayer dans quelques minutes." };
-      }
-      // Deliberately generic: a distinct "unknown account" message would let
-      // anyone enumerate registered addresses (ADR-001).
-      return { error: "Courriel ou mot de passe incorrect" };
+      // Wrong email and wrong password read the same (ADR-001); see auth-errors.ts.
+      return { error: signInErrorMessage(error) };
     }
     return { error: null };
   }, []);
@@ -268,30 +293,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // client, which was redundant, raced the trigger, and -- since migration
       // 004 froze profiles.role -- would now fail outright if the two disagreed.
       if (error) {
-        if (error.message.includes("already registered")) {
-          return { error: "Ce courriel est déjà utilisé" };
-        }
-        if (error.message.includes("rate limit")) {
-          return { error: "Trop de tentatives. Veuillez réessayer dans quelques minutes." };
-        }
-        return { error: error.message };
+        // Already registered looks exactly like a new account (anti-enumeration).
+        if (isAlreadyRegistered(error)) return { error: null };
+        return { error: signUpErrorMessage(error) };
       }
       return { error: null };
     },
     []
   );
 
+  const [signOutNotice, setSignOutNotice] = useState<string | null>(null);
+
   const signOut = useCallback(async () => {
     if (recoveryArmed.current) {
-      // Ending a recovery: stay on it, marker armed, unless the session is really gone.
-      if (!(await endLocalSession())) return false;
+      // Ending a recovery: stay on it, marker armed, unless the session is really gone (story 2.3).
+      if (!(await endLocalSession())) return { error: SIGN_OUT_NOT_CLEARED };
       recoveryArmed.current = false;
       await disarmRecovery();
-    } else {
-      await supabase.auth.signOut();
+      if (mounted.current) {
+        setSignOutNotice(null);
+        dispatch({ type: "signed-out" });
+      }
+      return { error: null };
     }
-    if (mounted.current) dispatch({ type: "signed-out" });
-    return true;
+    const outcome = await signOutAndClearLocal(supabase.auth, clearLocalSession);
+    // The UI always ends the session, but never claims the token is gone when it may not be.
+    const error = outcome.localCleared ? null : SIGN_OUT_NOT_CLEARED;
+    if (mounted.current) {
+      setSignOutNotice(error);
+      dispatch({ type: "signed-out" });
+    }
+    return { error };
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
@@ -336,6 +368,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? error.message : null };
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    try {
+      const { error } = await supabase.rpc("delete_my_account");
+      if (error) return { error: DELETION_FAILED };
+    } catch {
+      return { error: DELETION_FAILED };
+    }
+    // The account no longer exists, so the deletion has succeeded whatever happens
+    // on this device from here. Erase its unsent sets, then end the session with the
+    // same reliable sign-out as the Réglages button. The sign-out is in its own
+    // finally: nothing that goes wrong with the purge may leave the user signed in
+    // to a deleted account. A purge that left data behind is a notice, never a failed
+    // deletion; a marker makes the next launch refuse to send those sets.
+    let erased = false;
+    try {
+      erased = (await purgeLocalSetQueue()).erased;
+    } catch {
+      erased = false;
+    } finally {
+      try {
+        await signOut();
+      } catch {
+        if (mounted.current) dispatch({ type: "signed-out" });
+      }
+    }
+    if (!erased) {
+      if (mounted.current) {
+        setSignOutNotice((previous) =>
+          previous ? `${previous} ${LOCAL_DATA_LEFT}` : LOCAL_DATA_LEFT
+        );
+      }
+      return { error: null, notice: LOCAL_DATA_LEFT };
+    }
+    return { error: null };
+  }, [signOut]);
+
   const value = useMemo<AuthContextType>(
     () => ({
       state,
@@ -347,7 +415,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      signOutNotice,
       resetPassword,
+      deleteAccount,
       updatePassword,
       acceptRecoveryLink,
     }),
@@ -357,7 +427,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      signOutNotice,
       resetPassword,
+      deleteAccount,
       updatePassword,
       acceptRecoveryLink,
     ]

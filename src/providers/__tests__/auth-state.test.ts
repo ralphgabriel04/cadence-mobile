@@ -103,7 +103,7 @@ describe("authReducer — no routable state with an unknown role", () => {
     const ready = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-loaded", profile: makeProfile(ALICE, "coach") },
+      { type: "profile-loaded", profile: makeProfile(ALICE, "coach") }
     );
     expect(homeRouteFor(ready)).toBe("/(coach)");
   });
@@ -112,7 +112,7 @@ describe("authReducer — no routable state with an unknown role", () => {
     const ready = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-loaded", profile: makeProfile(ALICE, "athlete") },
+      { type: "profile-loaded", profile: makeProfile(ALICE, "athlete") }
     );
     expect(homeRouteFor(ready)).toBe("/(athlete)");
   });
@@ -125,7 +125,7 @@ describe("authReducer — token refresh", () => {
     const ready = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-loaded", profile: makeProfile(ALICE) },
+      { type: "profile-loaded", profile: makeProfile(ALICE) }
     );
 
     const refreshed = authReducer(ready, {
@@ -142,7 +142,7 @@ describe("authReducer — token refresh", () => {
     const ready = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-loaded", profile: makeProfile(ALICE) },
+      { type: "profile-loaded", profile: makeProfile(ALICE) }
     );
 
     const switched = authReducer(ready, {
@@ -163,7 +163,7 @@ describe("authReducer — stale responses", () => {
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
       { type: "profile-loaded", profile: makeProfile(ALICE) },
-      { type: "session-resolved", session: makeSession(BOB) },
+      { type: "session-resolved", session: makeSession(BOB) }
     );
     expect(loadingBob.status).toBe("loading-profile");
 
@@ -181,7 +181,7 @@ describe("authReducer — stale responses", () => {
     const signedOut = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "signed-out" },
+      { type: "signed-out" }
     );
 
     const after = authReducer(signedOut, {
@@ -194,10 +194,12 @@ describe("authReducer — stale responses", () => {
 
   it("ignores profile failures that arrive after sign-out", () => {
     const signedOut = authReducer(initialAuthState, { type: "signed-out" });
-    expect(authReducer(signedOut, { type: "profile-failed", message: "offline" }).status).toBe(
-      "signed-out",
+    expect(
+      authReducer(signedOut, { type: "profile-failed", userId: ALICE, message: "offline" }).status
+    ).toBe("signed-out");
+    expect(authReducer(signedOut, { type: "profile-missing", userId: ALICE }).status).toBe(
+      "signed-out"
     );
-    expect(authReducer(signedOut, { type: "profile-missing" }).status).toBe("signed-out");
     expect(authReducer(signedOut, { type: "profile-reload" }).status).toBe("signed-out");
   });
 });
@@ -211,8 +213,12 @@ describe("authReducer — failure modes", () => {
       session: makeSession(ALICE),
     });
 
-    const missing = authReducer(loading, { type: "profile-missing" });
-    const failed = authReducer(loading, { type: "profile-failed", message: "network down" });
+    const missing = authReducer(loading, { type: "profile-missing", userId: ALICE });
+    const failed = authReducer(loading, {
+      type: "profile-failed",
+      userId: ALICE,
+      message: "network down",
+    });
 
     expect(missing.status).toBe("profile-missing");
     expect(failed.status).toBe("error");
@@ -227,14 +233,14 @@ describe("authReducer — failure modes", () => {
     const failed = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-failed", message: "network down" },
+      { type: "profile-failed", userId: ALICE, message: "network down" }
     );
     expect(homeRouteFor(failed)).toBe("/(athlete)");
 
     const missing = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-missing" },
+      { type: "profile-missing", userId: ALICE }
     );
     expect(homeRouteFor(missing)).toBe("/(athlete)");
   });
@@ -243,7 +249,7 @@ describe("authReducer — failure modes", () => {
     const failed = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-failed", message: "network down" },
+      { type: "profile-failed", userId: ALICE, message: "network down" }
     );
 
     const retrying = authReducer(failed, { type: "profile-reload" });
@@ -261,7 +267,7 @@ describe("authReducer — failure modes", () => {
     const failed = reduceAll(
       initialAuthState,
       { type: "session-resolved", session: makeSession(ALICE) },
-      { type: "profile-failed", message: "network down" },
+      { type: "profile-failed", userId: ALICE, message: "network down" }
     );
     const refreshed = authReducer(failed, {
       type: "session-resolved",
@@ -303,6 +309,56 @@ describe("homeRouteFor — totality", () => {
   });
 });
 
+describe("authReducer — stale profile answers (story 2.4)", () => {
+  const loadingFor = (id: string) =>
+    reduceAll(initialAuthState, { type: "session-resolved", session: makeSession(id) });
+
+  it("a late 'missing' or 'failed' about A leaves a ready B untouched", () => {
+    const ready = reduceAll(
+      loadingFor(ALICE),
+      { type: "session-resolved", session: makeSession(BOB) },
+      { type: "profile-loaded", profile: makeProfile(BOB, "coach") }
+    );
+    expect(ready.status).toBe("ready");
+    expect(authReducer(ready, { type: "profile-missing", userId: ALICE })).toBe(ready);
+    expect(authReducer(ready, { type: "profile-failed", userId: ALICE, message: "late" })).toBe(
+      ready
+    );
+  });
+
+  it("a late answer about A is ignored while B is still loading", () => {
+    const bLoading = reduceAll(loadingFor(ALICE), {
+      type: "session-resolved",
+      session: makeSession(BOB),
+    });
+    expect(authReducer(bLoading, { type: "profile-missing", userId: ALICE })).toBe(bLoading);
+    expect(authReducer(bLoading, { type: "profile-failed", userId: ALICE, message: "x" })).toBe(
+      bLoading
+    );
+  });
+
+  it("an old 'missing' for the same user cannot downgrade a ready profile", () => {
+    const ready = reduceAll(loadingFor(ALICE), {
+      type: "profile-loaded",
+      profile: makeProfile(ALICE),
+    });
+    expect(authReducer(ready, { type: "profile-missing", userId: ALICE })).toBe(ready);
+  });
+
+  // Chosen behaviour: after sign-out then sign-in of the SAME user, an answer
+  // from the older request is accepted, since it describes the same account.
+  it("accepts a late answer for the same user after sign-out and sign-in again", () => {
+    const again = reduceAll(
+      loadingFor(ALICE),
+      { type: "signed-out" },
+      { type: "session-resolved", session: makeSession(ALICE) }
+    );
+    expect(authReducer(again, { type: "profile-missing", userId: ALICE }).status).toBe(
+      "profile-missing"
+    );
+  });
+});
+
 describe("recovery state", () => {
   const recovering: AuthState = { status: "recovery", session: makeSession("u1") };
 
@@ -310,7 +366,11 @@ describe("recovery state", () => {
     for (const from of [
       initialAuthState,
       { status: "signed-out" } as AuthState,
-      { status: "ready", session: makeSession("u1"), profile: makeProfile("u1", "coach") } as AuthState,
+      {
+        status: "ready",
+        session: makeSession("u1"),
+        profile: makeProfile("u1", "coach"),
+      } as AuthState,
     ]) {
       const next = authReducer(from, { type: "recovery-started", session: makeSession("u1") });
       expect(next.status).toBe("recovery");
@@ -332,9 +392,13 @@ describe("recovery state", () => {
   });
 
   it("never turns into a profile state through a late profile event", () => {
-    expect(authReducer(recovering, { type: "profile-loaded", profile: makeProfile("u1") })).toBe(recovering);
-    expect(authReducer(recovering, { type: "profile-missing" })).toBe(recovering);
-    expect(authReducer(recovering, { type: "profile-failed", message: "x" })).toBe(recovering);
+    expect(authReducer(recovering, { type: "profile-loaded", profile: makeProfile("u1") })).toBe(
+      recovering
+    );
+    expect(authReducer(recovering, { type: "profile-missing", userId: "u1" })).toBe(recovering);
+    expect(authReducer(recovering, { type: "profile-failed", userId: "u1", message: "x" })).toBe(
+      recovering
+    );
     expect(authReducer(recovering, { type: "profile-reload" })).toBe(recovering);
   });
 
