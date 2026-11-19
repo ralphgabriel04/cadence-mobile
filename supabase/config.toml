@@ -19,7 +19,8 @@ port = 54323
 [auth]
 # Deep link of the app. Recovery emails must come back to cadence://reset-password.
 site_url = "cadence://"
-additional_redirect_urls = ["cadence://reset-password"]
+# The localhost entries let the same flow run on Expo web against the local stack.
+additional_redirect_urls = ["cadence://reset-password", "http://localhost:8081/reset-password"]
 
 [auth.email.template.recovery]
 subject = "Réinitialise ton mot de passe Cadence"

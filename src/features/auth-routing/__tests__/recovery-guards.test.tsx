@@ -24,6 +24,8 @@ jest.mock("expo-router", () => {
   return {
     router: { replace: (...a: unknown[]) => mockReplace(...a) },
     Redirect: ({ href }: { href: string }) => <T>{`redirect:${href}`}</T>,
+    // The screen briefly shows its "no link" state between sign-out and navigation.
+    Link: ({ children }: { children?: unknown }) => <T>{children as never}</T>,
     Stack: Object.assign(Shell, { Screen: () => null }),
     Tabs: Object.assign(Shell, { Screen: () => null }),
   };

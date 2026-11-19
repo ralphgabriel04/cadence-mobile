@@ -49,10 +49,36 @@ async function del(key: string): Promise<void> {
   }
 }
 
-export const armRecovery = () => set(IN_PROGRESS_KEY, "1");
-export const disarmRecovery = () => del(IN_PROGRESS_KEY);
-export async function isRecoveryArmed(): Promise<boolean> {
-  return (await get(IN_PROGRESS_KEY)) === "1";
+// The in-progress marker fails closed: callers learn whether the write worked,
+// and an unreadable marker is "unknown", never "not armed".
+async function tried(fn: () => unknown): Promise<boolean> {
+  try {
+    await fn();
+    return true;
+  } catch {
+    return false;
+  }
+}
+const web = Platform.OS === "web";
+export const armRecovery = () =>
+  tried(() =>
+    web
+      ? localStorage.setItem(IN_PROGRESS_KEY, "1")
+      : SecureStore.setItemAsync(IN_PROGRESS_KEY, "1")
+  );
+export const disarmRecovery = () =>
+  tried(() =>
+    web ? localStorage.removeItem(IN_PROGRESS_KEY) : SecureStore.deleteItemAsync(IN_PROGRESS_KEY)
+  );
+export async function readRecoveryMarker(): Promise<"armed" | "clear" | "unknown"> {
+  try {
+    const v = web
+      ? localStorage.getItem(IN_PROGRESS_KEY)
+      : await SecureStore.getItemAsync(IN_PROGRESS_KEY);
+    return v === "1" ? "armed" : "clear";
+  } catch {
+    return "unknown";
+  }
 }
 
 export const markRecoveryRequested = (now = Date.now()) => set(REQUESTED_KEY, String(now));
