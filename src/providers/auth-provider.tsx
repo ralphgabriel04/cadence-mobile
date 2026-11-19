@@ -12,6 +12,8 @@ import {
 import { type Session, type User } from "@supabase/supabase-js";
 
 import { clearLocalSession, supabase } from "@/config/supabase";
+import { DELETION_FAILED, LOCAL_DATA_LEFT } from "@/features/account-deletion/deletion-copy";
+import { purgeLocalSetQueue } from "@/services/purge-local-queue";
 
 import { signInErrorMessage } from "./auth-errors";
 import { signOutAndClearLocal } from "./sign-out";
@@ -63,6 +65,8 @@ type AuthContextType = {
   /** Last sign-out problem, shown on the login screen; cleared by the next sign-in. */
   signOutNotice: string | null;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  /** Deletes the signed-in account and all its data (public.delete_my_account), then ends the session. */
+  deleteAccount: () => Promise<{ error: string | null; notice?: string }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
 };
 
@@ -234,6 +238,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? error.message : null };
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    try {
+      const { error } = await supabase.rpc("delete_my_account");
+      if (error) return { error: DELETION_FAILED };
+    } catch {
+      return { error: DELETION_FAILED };
+    }
+    // The account no longer exists, so the deletion has succeeded whatever happens
+    // on this device from here. Erase its unsent sets, then end the session with the
+    // same reliable sign-out as the Réglages button. The sign-out is in its own
+    // finally: nothing that goes wrong with the purge may leave the user signed in
+    // to a deleted account. A purge that left data behind is a notice, never a failed
+    // deletion; a marker makes the next launch refuse to send those sets.
+    let erased = false;
+    try {
+      erased = (await purgeLocalSetQueue()).erased;
+    } catch {
+      erased = false;
+    } finally {
+      try {
+        await signOut();
+      } catch {
+        if (mounted.current) dispatch({ type: "signed-out" });
+      }
+    }
+    if (!erased) {
+      if (mounted.current) {
+        setSignOutNotice((previous) =>
+          previous ? `${previous} ${LOCAL_DATA_LEFT}` : LOCAL_DATA_LEFT
+        );
+      }
+      return { error: null, notice: LOCAL_DATA_LEFT };
+    }
+    return { error: null };
+  }, [signOut]);
+
   const value = useMemo<AuthContextType>(
     () => ({
       state,
@@ -247,9 +287,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       signOutNotice,
       resetPassword,
+      deleteAccount,
       updatePassword,
     }),
-    [state, refreshProfile, signIn, signUp, signOut, signOutNotice, resetPassword, updatePassword]
+    [
+      state,
+      refreshProfile,
+      signIn,
+      signUp,
+      signOut,
+      signOutNotice,
+      resetPassword,
+      deleteAccount,
+      updatePassword,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
