@@ -76,11 +76,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select(PROFILE_COLUMNS)
-      .eq("id", userId)
-      .maybeSingle();
+    let result;
+    try {
+      result = await supabase
+        .from("profiles")
+        .select(PROFILE_COLUMNS)
+        .eq("id", userId)
+        .maybeSingle();
+    } catch (cause) {
+      // A rejected promise (network down) must not leave the UI on the loader.
+      if (!mounted.current) return;
+      dispatch({
+        type: "profile-failed",
+        userId,
+        message: cause instanceof Error ? cause.message : "Erreur réseau",
+      });
+      return;
+    }
+    const { data, error } = result;
 
     if (!mounted.current) return;
 
@@ -88,15 +101,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // maybeSingle() returns data: null rather than an error for "no rows",
       // but a PostgREST version or a RLS change can still surface the code.
       if (error.code === PGRST_NO_ROWS) {
-        dispatch({ type: "profile-missing" });
+        dispatch({ type: "profile-missing", userId });
         return;
       }
-      dispatch({ type: "profile-failed", message: error.message });
+      dispatch({ type: "profile-failed", userId, message: error.message });
       return;
     }
 
     if (!data) {
-      dispatch({ type: "profile-missing" });
+      dispatch({ type: "profile-missing", userId });
       return;
     }
 
