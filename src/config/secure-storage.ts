@@ -26,3 +26,19 @@ export function createSecureStorage(platform: string = Platform.OS) {
     },
   };
 }
+
+/** Default key auth-js stores the session under for a given project URL. */
+export function authStorageKey(supabaseUrl: string): string {
+  return `sb-${new URL(supabaseUrl).hostname.split(".")[0]}-auth-token`;
+}
+
+/** Removes every auth-js entry for this project from the device storage. */
+export async function clearStoredSession(
+  storage: ReturnType<typeof createSecureStorage>,
+  supabaseUrl: string
+): Promise<void> {
+  const key = authStorageKey(supabaseUrl);
+  for (const k of [key, `${key}-user`, `${key}-code-verifier`]) {
+    await storage.removeItem(k);
+  }
+}

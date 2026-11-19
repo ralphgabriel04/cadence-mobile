@@ -9,6 +9,7 @@ import {
   type WorkoutState,
 } from "@/features/training/workout-state";
 import { createQueueStorage } from "@/services/queue-storage";
+import { mayRestoreLocalQueue } from "@/services/purge-local-queue";
 import { SetQueue, type QueuedSet } from "@/services/set-queue";
 import {
   completeSession,
@@ -66,7 +67,12 @@ export function useWorkoutSession(args: {
 
   // Created once. Rebuilding it would drop whatever it is still holding.
   if (queueRef.current === null) {
-    queueRef.current = new SetQueue(createQueueStorage(), (entry) => sendSet(entry));
+    queueRef.current = new SetQueue(
+      createQueueStorage(),
+      (entry) => sendSet(entry),
+      Date.now,
+      athleteId,
+    );
   }
   const queue = queueRef.current;
 
@@ -77,8 +83,16 @@ export function useWorkoutSession(args: {
     // Read what a previous run left on disk, then send it. Until restore() has
     // run, the queue never writes to disk (to avoid erasing the previous run's
     // sets), so skipping it would make the queue memory-only.
-    void queue.restore();
-    return unsubscribe;
+    // After a refused purge (deleted account, file still on disk) the old sets are
+    // neither reloaded nor sent; the queue then stays memory-only until the file goes.
+    let cancelled = false;
+    void mayRestoreLocalQueue().then((ok) => {
+      if (ok && !cancelled) return queue.restore();
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [queue]);
 
   // Open or resume, then rehydrate from what the server already holds.
@@ -124,8 +138,7 @@ export function useWorkoutSession(args: {
     const exercise = state.exercises.at(state.currentIndex);
     if (!exercise) return;
 
-    const setNumber =
-      state.logged.filter((l) => l.exerciseId === exercise.exerciseId).length + 1;
+    const setNumber = state.logged.filter((l) => l.exerciseId === exercise.exerciseId).length + 1;
 
     dispatch({ type: "validate-set", at });
 
@@ -181,10 +194,7 @@ export function useWorkoutSession(args: {
       const durationMinutes =
         startedAt === null
           ? null
-          : Math.max(
-              0,
-              Math.round((Date.parse(completedAt) - Date.parse(startedAt)) / 60_000),
-            );
+          : Math.max(0, Math.round((Date.parse(completedAt) - Date.parse(startedAt)) / 60_000));
 
       const result = await completeSession({
         sessionLogId: sessionLogIdRef.current,
