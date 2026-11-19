@@ -369,7 +369,9 @@ function ActiveWorkout({
               onPress={() => {
                 setSummaryIndex(null);
                 dispatch({ type: "go-to-exercise", index: summaryIndex + 1 });
-                setRestOpen(rest.isResting);
+                // The summary was the rest: the next exercise starts now.
+                void rest.cancel();
+                setRestOpen(false);
               }}
             />
           ) : (
@@ -466,7 +468,12 @@ function ActiveWorkout({
               accessible
               accessibilityLabel={`${state.draft.reps} répétitions`}
             >
-              <Text mono weight="medium" className="text-[88px] leading-[92px] text-text">
+              <Text
+                mono
+                weight="medium"
+                className="text-text"
+                style={{ fontSize: 88, lineHeight: 92 }}
+              >
                 {state.draft.reps}
               </Text>
               {exercise.targetReps ? (
@@ -656,7 +663,8 @@ function RecapView({
           <Ionicons name="checkmark" size={32} color={accent} />
           <Text
             weight="bold"
-            className="mb-1 mt-2 text-2xl tracking-[-0.7px] text-text"
+            className="mb-1 mt-2 tracking-[-0.7px] text-text"
+            style={{ fontSize: 24, lineHeight: 30 }}
             accessibilityRole="header"
           >
             Séance terminée

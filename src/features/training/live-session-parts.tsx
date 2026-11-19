@@ -106,7 +106,7 @@ export function ExerciseCard({
         accessibilityLabel={`${name}, exercice ${position} sur ${total}`}
         accessibilityRole="header"
       >
-        <Text weight="bold" className="mb-2 text-[17px] tracking-[-0.3px] text-text">
+        <Text weight="bold" className="mb-2 tracking-[-0.3px] text-text" style={{ fontSize: 17 }}>
           {name}
         </Text>
         <View className="flex-row flex-wrap gap-1.5">
@@ -229,7 +229,7 @@ export function RestRing({ remaining, fraction }: { remaining: number; fraction:
         />
       </Svg>
       <View className="absolute inset-0 items-center justify-center">
-        <Text mono weight="medium" className="text-[62px] leading-[64px] text-text">
+        <Text mono weight="medium" className="text-text" style={{ fontSize: 62, lineHeight: 64 }}>
           {remaining}
         </Text>
         <Text mono className="mt-1 text-base text-text-muted">
@@ -385,7 +385,12 @@ export function RecapStat({
 }) {
   return (
     <View className="flex-1 items-center" accessible accessibilityLabel={spoken}>
-      <Text mono weight="medium" className="mb-1 text-[26px] leading-7 text-text">
+      <Text
+        mono
+        weight="medium"
+        className="mb-1 text-text"
+        style={{ fontSize: 26, lineHeight: 28 }}
+      >
         {value}
       </Text>
       <Text weight="bold" className="text-[11px] uppercase tracking-[0.4px] text-text-muted">

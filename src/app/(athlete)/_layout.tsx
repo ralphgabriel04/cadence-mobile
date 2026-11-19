@@ -81,7 +81,9 @@ export default function AthleteLayout() {
         tab bar while leaving the route navigable. Same for settings, a
         sub-screen of the profile.
       */}
-      <Tabs.Screen name="session" options={{ href: null }} />
+      {/* The live session is full screen, without the tab bar (wireframe
+          session-live/musculation). */}
+      <Tabs.Screen name="session" options={{ href: null, tabBarStyle: { display: "none" } }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen
         name="history"
