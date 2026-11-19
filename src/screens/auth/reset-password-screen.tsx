@@ -4,7 +4,8 @@ import { Link, router } from "expo-router";
 import * as Linking from "expo-linking";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordStrengthMeter } from "@/components/ui/password-strength-meter";
 import { Text } from "@/components/ui/text";
 import { EXPIRED_LINK_MESSAGE, parseRecoveryLink } from "@/features/auth-routing/recovery-link";
 
@@ -137,7 +138,7 @@ export function ResetPasswordScreen() {
           </Text>
 
           <View className="gap-3.5">
-            <Input
+            <PasswordInput
               label="Nouveau mot de passe"
               placeholder="Minimum 8 caractères"
               value={password}
@@ -145,12 +146,12 @@ export function ResetPasswordScreen() {
                 setPassword(v);
                 setErrors((e) => ({ ...e, password: undefined }));
               }}
-              secureTextEntry
               autoComplete="new-password"
               error={errors.password}
             />
+            <PasswordStrengthMeter password={password} />
 
-            <Input
+            <PasswordInput
               label="Confirmer le mot de passe"
               placeholder="Retapez votre mot de passe"
               value={confirmPassword}
@@ -158,7 +159,6 @@ export function ResetPasswordScreen() {
                 setConfirmPassword(v);
                 setErrors((e) => ({ ...e, confirm: undefined }));
               }}
-              secureTextEntry
               error={errors.confirm}
             />
 

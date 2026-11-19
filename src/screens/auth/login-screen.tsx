@@ -9,6 +9,7 @@ import { Link } from "expo-router";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Logo } from "@/components/ui/logo";
 import { Text } from "@/components/ui/text";
 
@@ -66,12 +67,11 @@ export function LoginScreen() {
               autoComplete="email"
             />
 
-            <Input
+            <PasswordInput
               label="Mot de passe"
               placeholder="Votre mot de passe"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
               autoComplete="current-password"
             />
 
