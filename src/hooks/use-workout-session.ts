@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { AppState } from "react-native";
 
 import {
+  draftProblem,
   initialWorkoutState,
   workoutReducer,
   type LoggedSet,
@@ -8,55 +10,78 @@ import {
   type WorkoutExercise,
   type WorkoutState,
 } from "@/features/training/workout-state";
-import { createQueueStorage } from "@/services/queue-storage";
-import { mayRestoreLocalQueue } from "@/services/purge-local-queue";
-import { SetQueue, type QueuedSet } from "@/services/set-queue";
 import {
-  completeSession,
-  loadInProgressSession,
-  sendSet,
-  startSession,
-} from "@/services/workout-session";
+  activeSessionStore,
+  mergeLogged,
+  newUuid,
+  type ActiveSession,
+  type ActiveSessionStore,
+  type PendingCompletion,
+} from "@/services/active-session";
+import type { QueuedSet, SetQueue } from "@/services/set-queue";
+import {
+  flushPendingCompletion,
+  getSetQueue,
+  markTodayDoneLocally,
+  restoreSetQueue,
+} from "@/services/training-sync";
+import { loadInProgressSession, startSession } from "@/services/workout-session";
+import { localDateISO, startedOnLocalDay } from "@/utils/local-date";
+
+/**
+ * How often unsent sets are retried while the screen is open (story 5.3: on
+ * the server less than a minute after the network comes back).
+ */
+export const RETRY_EVERY_MS = 20_000;
 
 export type WorkoutSessionStatus =
   | { status: "starting" }
   | { status: "ready" }
   | { status: "finishing" }
-  | { status: "finished" }
+  /** `queued`: saved on the phone, sent as soon as the network is back (story 5.5). */
+  | { status: "finished"; queued: boolean }
   | { status: "error"; message: string };
 
+export type ValidateResult = { ok: true; set: LoggedSet } | { ok: false; message: string };
+
 /**
- * Drives a session in progress: opens it, feeds validated sets into the durable
- * queue, and closes it.
+ * Drives a session in progress (epic 5).
  *
- * The queue lives in a ref, not in state. It must survive re-renders and keep
- * draining while this hook's screen is unmounted -- an athlete who navigates
- * away mid-session should still have their sets land.
+ * OFFLINE FIRST (story 5.3). The session opens on the phone: the log id is
+ * chosen here, the record of the session is written to the phone before any
+ * request, and the screen is usable at once. The server is told in the
+ * background; if there is no network, the first set to get through creates the
+ * log. Every validated set goes to the phone's record and to the shared,
+ * durable queue. Nothing waits on the network.
  */
 export function useWorkoutSession(args: {
   sessionId: string;
   athleteId: string;
   exercises: WorkoutExercise[];
   programAssignmentId?: string | null;
+  /** Injectable for tests. */
+  store?: ActiveSessionStore;
+  queue?: SetQueue;
 }) {
-  const { sessionId, athleteId, exercises, programAssignmentId } = args;
+  const { sessionId, athleteId, exercises, programAssignmentId = null } = args;
 
   const [state, dispatch] = useReducer(
     workoutReducer,
     { sessionLogId: "", sessionId, exercises },
-    initialWorkoutState,
+    initialWorkoutState
   );
   const [status, setStatus] = useState<WorkoutSessionStatus>({ status: "starting" });
   const [pending, setPending] = useState<readonly QueuedSet[]>([]);
   const [startedAt, setStartedAt] = useState<string | null>(null);
+  /** True when the server could not be reached at start (shown as « Hors ligne »). */
+  const [offline, setOffline] = useState(false);
 
-  const queueRef = useRef<SetQueue | null>(null);
   const mounted = useRef(true);
-  // Held in a ref rather than reducer state: the reducer is pure, and the id is
-  // assigned by the server well after the initial state was constructed.
-  // Declared here, with the other refs, so nothing below reads it before it
-  // exists.
-  const sessionLogIdRef = useRef<string>("");
+  const storeRef = useRef(args.store ?? activeSessionStore());
+  const queueRef = useRef<SetQueue>(args.queue ?? getSetQueue(athleteId));
+  const recordRef = useRef<ActiveSession | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     mounted.current = true;
@@ -65,156 +90,249 @@ export function useWorkoutSession(args: {
     };
   }, []);
 
-  // Created once. Rebuilding it would drop whatever it is still holding.
-  if (queueRef.current === null) {
-    queueRef.current = new SetQueue(
-      createQueueStorage(),
-      (entry) => sendSet(entry),
-      Date.now,
-      athleteId,
-    );
-  }
   const queue = queueRef.current;
 
   useEffect(() => {
     const unsubscribe = queue.subscribe((q) => {
       if (mounted.current) setPending([...q]);
     });
-    // Read what a previous run left on disk, then send it. Until restore() has
-    // run, the queue never writes to disk (to avoid erasing the previous run's
-    // sets), so skipping it would make the queue memory-only.
-    // After a refused purge (deleted account, file still on disk) the old sets are
-    // neither reloaded nor sent; the queue then stays memory-only until the file goes.
-    let cancelled = false;
-    void mayRestoreLocalQueue().then((ok) => {
-      if (ok && !cancelled) return queue.restore();
-    });
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
+    void restoreSetQueue(queue);
+    return unsubscribe;
   }, [queue]);
 
-  // Open or resume, then rehydrate from what the server already holds.
+  // Unsent sets are retried on their own while the screen is open, and when
+  // the app comes back to the foreground: no touch needed once the network
+  // is back (story 5.3, criterion 1).
+  const hasPending = pending.some((q) => q.rejected !== true);
+  useEffect(() => {
+    if (!hasPending) return;
+    const timer = setInterval(() => void queue.drain(), RETRY_EVERY_MS);
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") void queue.drain();
+    });
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
+  }, [hasPending, queue]);
+
+  const saveRecord = useCallback((patch: Partial<ActiveSession>) => {
+    const record = recordRef.current;
+    if (!record) return;
+    recordRef.current = { ...record, ...patch };
+    try {
+      storeRef.current.write(recordRef.current);
+    } catch {
+      // The queue still holds every unsent set; only the screen's resume suffers.
+    }
+  }, []);
+
+  // ── Open: phone first, server in the background ────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
     async function begin() {
-      const started = await startSession({ sessionId, athleteId, programAssignmentId });
+      const store = storeRef.current;
+      let record = await store.read(athleteId).catch(() => null);
+      if (cancelled || !mounted.current) return;
+
+      // A finished session whose end has not reached the server yet: sent
+      // below, before this one is announced, from the record held here (the
+      // file is about to hold the new session).
+      const previous = record?.completion ? record : null;
+
+      if (
+        !record ||
+        record.sessionId !== sessionId ||
+        record.completion ||
+        // The same session left open on an earlier day (sessions without a week
+        // number come back every week): today's workout starts fresh. The old
+        // one's unsent sets stay in the queue under their own log.
+        !startedOnLocalDay(record.startedAt, localDateISO())
+      ) {
+        record = {
+          athleteId,
+          sessionId,
+          sessionLogId: newUuid(),
+          startedAt: new Date().toISOString(),
+          programAssignmentId,
+          logged: [],
+          completion: null,
+        };
+      }
+      recordRef.current = record;
+      try {
+        store.write(record);
+      } catch {
+        // see saveRecord
+      }
+
+      setStartedAt(record.startedAt);
+      if (record.logged.length > 0) dispatch({ type: "restore", logged: record.logged });
+      setStatus({ status: "ready" });
+
+      if (previous) {
+        await flushPendingCompletion(athleteId, { record: previous, store, queue: queueRef.current }).catch(
+          () => undefined,
+        );
+        if (cancelled || !mounted.current) return;
+      }
+
+      // Tell the server. A session already open there (same session, nothing
+      // logged on the phone yet) is adopted so its sets come back.
+      const started = await startSession({
+        sessionId,
+        athleteId,
+        programAssignmentId,
+        sessionLogId: record.sessionLogId,
+        startedAt: record.startedAt,
+      }).catch((e: unknown) => ({
+        ok: false as const,
+        kind: "network" as const,
+        message: e instanceof Error ? e.message : String(e),
+      }));
       if (cancelled || !mounted.current) return;
 
       if (!started.ok) {
-        setStatus({ status: "error", message: started.message });
+        setOffline(started.kind === "network");
         return;
       }
+      setOffline(false);
 
-      const loaded = await loadInProgressSession({ athleteId });
-      if (cancelled || !mounted.current) return;
-
-      if (loaded.ok && loaded.sessionLogId !== null) {
-        setStartedAt(loaded.startedAt);
-        dispatch({ type: "restore", logged: loaded.logged });
+      // startSession only hands back another id when the server already has
+      // THIS session open (opened on another launch). Adopt it while nothing is
+      // noted on the phone, so its sets come back; otherwise keep ours.
+      if (started.sessionLogId !== record.sessionLogId && record.logged.length === 0) {
+        saveRecord({ sessionLogId: started.sessionLogId });
       }
 
-      setStatus({ status: "ready" });
-      sessionLogIdRef.current = started.sessionLogId;
+      const loaded = await loadInProgressSession({ athleteId }).catch(() => null);
+      if (cancelled || !mounted.current || !loaded?.ok || loaded.sessionLogId === null) return;
+      const current = recordRef.current;
+      if (!current || loaded.sessionLogId !== current.sessionLogId) return;
+
+      const logged = mergeLogged(loaded.logged, current.logged);
+      if (loaded.startedAt) {
+        setStartedAt(loaded.startedAt);
+        saveRecord({ startedAt: loaded.startedAt, logged });
+      } else {
+        saveRecord({ logged });
+      }
+      dispatch({ type: "restore", logged });
     }
 
     void begin();
     return () => {
       cancelled = true;
     };
-  }, [sessionId, athleteId, programAssignmentId]);
+  }, [sessionId, athleteId, programAssignmentId, saveRecord]);
+
+  const enqueue = useCallback(
+    (set: LoggedSet) => {
+      const record = recordRef.current;
+      if (!record) return;
+      queue.add({
+        clientId: `${record.sessionLogId}:${set.exerciseId}:${set.setNumber}:${set.loggedAt}`,
+        sessionLogId: record.sessionLogId,
+        exerciseId: set.exerciseId,
+        sessionExerciseId: set.sessionExerciseId,
+        setNumber: set.setNumber,
+        repsCompleted: set.repsCompleted,
+        weightKg: set.weightKg,
+        rpe: set.rpe,
+        durationSeconds: null,
+        distanceMeters: null,
+        notes: null,
+        queuedAt: new Date().toISOString(),
+        lastAttemptAt: null,
+        attempts: 0,
+        lastError: null,
+        sessionId: record.sessionId,
+        sessionStartedAt: record.startedAt,
+        programAssignmentId: record.programAssignmentId,
+      });
+    },
+    [queue]
+  );
 
   /**
-   * Validates the drafted set: into local state first, then into the queue.
-   *
-   * The order matters. The athlete sees the set land immediately; the network is
-   * the queue's problem. Reversing it would make the UI wait on connectivity,
-   * which is the one thing a gym cannot supply.
+   * Validates the drafted set (story 5.2): refused with the reason when the
+   * value is not plausible; otherwise on screen at once, on the phone, then
+   * in the queue. The order matters: the network is the queue's problem.
    */
-  const validateSet = useCallback(() => {
+  const validateSet = useCallback((): ValidateResult => {
+    const current = stateRef.current;
+    const problem = draftProblem(current.draft);
+    if (problem) return { ok: false, message: problem };
+    if (!recordRef.current) return { ok: false, message: "La séance s'ouvre encore. Réessaie." };
+
     const at = new Date().toISOString();
-    const exercise = state.exercises.at(state.currentIndex);
-    if (!exercise) return;
-
-    const setNumber = state.logged.filter((l) => l.exerciseId === exercise.exerciseId).length + 1;
-
+    const next = workoutReducer(current, { type: "validate-set", at });
+    const set = next.logged.at(-1);
+    if (!set || next.logged.length === current.logged.length) {
+      return { ok: false, message: "Aucun exercice en cours." };
+    }
+    stateRef.current = next;
     dispatch({ type: "validate-set", at });
+    saveRecord({ logged: next.logged });
+    enqueue(set);
+    return { ok: true, set };
+  }, [enqueue, saveRecord]);
 
-    queue.add({
-      clientId: `${sessionLogIdRef.current}:${exercise.exerciseId}:${setNumber}:${at}`,
-      sessionLogId: sessionLogIdRef.current,
-      exerciseId: exercise.exerciseId,
-      sessionExerciseId: exercise.sessionExerciseId,
-      setNumber,
-      repsCompleted: state.draft.reps,
-      weightKg: state.draft.weightKg,
-      rpe: null,
-      durationSeconds: null,
-      distanceMeters: null,
-      notes: null,
-      queuedAt: at,
-      lastAttemptAt: null,
-      attempts: 0,
-      lastError: null,
-    });
-  }, [queue, state.currentIndex, state.draft, state.exercises, state.logged]);
+  /** Story 5.6: effort felt on one set, changed or cleared at any time. */
+  const setRpe = useCallback(
+    (exerciseId: string, setNumber: number, rpe: number | null) => {
+      const action: WorkoutAction = { type: "set-rpe", exerciseId, setNumber, rpe };
+      const next = workoutReducer(stateRef.current, action);
+      stateRef.current = next;
+      dispatch(action);
+      saveRecord({ logged: next.logged });
+      const set = next.logged.find((l) => l.exerciseId === exerciseId && l.setNumber === setNumber);
+      // Same slot: replaces an unsent copy, or updates the row already sent.
+      if (set) enqueue(set);
+    },
+    [enqueue, saveRecord]
+  );
 
   /**
-   * Closes the session, but only after the queue has drained.
-   *
-   * Finishing while sets are still queued would mark the session complete with
-   * a volume the athlete did not actually record. The drain is awaited; if it
-   * cannot complete the caller is told rather than the session being closed on
-   * incomplete data.
+   * Ends the session (story 5.5). The summary never waits for the network:
+   * the completion is written to the phone first, then sent once every set of
+   * the session is on the server -- now if possible, otherwise as soon as the
+   * app has network again (the home screen flushes it).
    */
   const finish = useCallback(
     async (options?: { overallRpe?: number | null; notes?: string | null }) => {
+      const record = recordRef.current;
+      if (!record) return false;
       setStatus({ status: "finishing" });
-      await queue.drain();
-
-      if (queue.rejected.length > 0) {
-        setStatus({
-          status: "error",
-          message: `${queue.rejected.length} série(s) refusée(s) par le serveur. Corrige-les ou retire-les avant de terminer.`,
-        });
-        return false;
-      }
-
-      if (queue.pending.length > 0) {
-        setStatus({
-          status: "error",
-          message: `${queue.pending.length} série(s) pas encore envoyée(s). Reste connecté un instant.`,
-        });
-        return false;
-      }
 
       const completedAt = new Date().toISOString();
-      const durationMinutes =
-        startedAt === null
-          ? null
-          : Math.max(0, Math.round((Date.parse(completedAt) - Date.parse(startedAt)) / 60_000));
-
-      const result = await completeSession({
-        sessionLogId: sessionLogIdRef.current,
+      const completion: PendingCompletion = {
         completedAt,
-        durationMinutes,
+        durationMinutes: Math.max(
+          0,
+          Math.round((Date.parse(completedAt) - Date.parse(record.startedAt)) / 60_000)
+        ),
         overallRpe: options?.overallRpe ?? null,
         notes: options?.notes ?? null,
-      });
+      };
+      saveRecord({ completion });
+      const saved = recordRef.current;
+      if (saved) await markTodayDoneLocally(saved);
 
-      if (!mounted.current) return false;
+      const result = await flushPendingCompletion(athleteId, {
+        store: storeRef.current,
+        queue,
+      }).catch((e: unknown) => ({
+        status: "failed" as const,
+        message: e instanceof Error ? e.message : String(e),
+      }));
+      if (!mounted.current) return true;
 
-      if (!result.ok) {
-        setStatus({ status: "error", message: result.message });
-        return false;
-      }
-
-      setStatus({ status: "finished" });
+      setStatus({ status: "finished", queued: result.status !== "sent" });
       return true;
     },
-    [queue, startedAt],
+    [athleteId, queue, saveRecord]
   );
 
   const act = useCallback((action: WorkoutAction) => dispatch(action), []);
@@ -223,18 +341,20 @@ export function useWorkoutSession(args: {
     () => ({
       state: state as WorkoutState,
       status,
-      /** Sets still waiting to reach the server. Drives the "hors ligne" hint. */
+      offline,
+      /** Sets of this session still waiting to reach the server. */
       pendingCount: pending.filter((q) => q.rejected !== true).length,
-      /** Sets the server refused for good: shown as an error, never dropped silently. */
+      /** Sets the server refused for good: shown, never dropped silently. */
       rejectedCount: pending.filter((q) => q.rejected === true).length,
       discardRejected: () => queue.discardRejected(),
       startedAt,
       dispatch: act,
       validateSet,
+      setRpe,
       finish,
       retryPending: () => void queue.drain(),
     }),
-    [state, status, pending, startedAt, act, validateSet, finish, queue],
+    [state, status, offline, pending, startedAt, act, validateSet, setRpe, finish, queue]
   );
 }
 

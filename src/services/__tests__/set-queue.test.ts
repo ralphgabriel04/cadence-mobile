@@ -81,7 +81,7 @@ describe("backoffMs", () => {
     expect(backoffMs(4)).toBe(8000);
     // The cap is what makes the queue drain promptly when signal returns,
     // instead of sitting on an hour-long backoff from the outage.
-    expect(backoffMs(20)).toBe(60_000);
+    expect(backoffMs(20)).toBe(30_000);
   });
 });
 
@@ -527,5 +527,23 @@ describe("SetQueue owner", () => {
     q.add(set({ clientId: "new", setNumber: 2 }));
     expect(q.pending.find((p) => p.clientId === "new")?.ownerId).toBe("a");
     expect(JSON.parse((await storage.read()) ?? "[]").map((p: QueuedSet) => p.clientId)).toEqual(["mine", "new"]);
+  });
+
+  it("a correction made while its set is in flight is still sent (5.6 effort)", async () => {
+    let release: () => void = () => undefined;
+    const sent: (number | null)[] = [];
+    const q = new SetQueue(createMemoryStorage(), async (e) => {
+      sent.push(e.rpe);
+      if (sent.length === 1) await new Promise<void>((r) => (release = r));
+      return { ok: true as const };
+    });
+    await q.restore();
+    q.add(set({ clientId: "s1", rpe: null }));
+    await Promise.resolve();
+    q.add(set({ clientId: "s1", rpe: 8 })); // same slot, same id: the effort
+    release();
+    await q.drain();
+    expect(sent).toEqual([null, 8]);
+    expect(q.pending).toHaveLength(0);
   });
 });

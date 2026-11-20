@@ -26,9 +26,15 @@ export type WorkoutExercise = {
   /** `session_exercises.reps` -- TEXT, so "8-12" and "AMRAP" are both valid. */
   targetReps: string | null;
   restSeconds: number | null;
+  /** `exercises.muscle_groups`, shown on the exercise card. Optional for older callers. */
+  muscleGroups?: string[];
+  /** Number of sets in the last session containing this exercise (« 4×8 à 75 kg »). */
+  lastSetCount?: number | null;
   /** Heaviest set of the last completed session containing this exercise. */
   lastWeightKg: number | null;
   lastReps: number | null;
+  /** `weight_suggestion` when it is a plain weight (« 60 », « 60 kg »); null for « 70% 1RM ». */
+  prescribedWeightKg?: number | null;
 };
 
 export type LoggedSet = {
@@ -63,6 +69,8 @@ export type WorkoutAction =
   | { type: "set-weight"; value: number | null }
   | { type: "validate-set"; at: string }
   | { type: "undo-last-set" }
+  /** Story 5.6: effort felt on one logged set, 1..10, or null to clear it. */
+  | { type: "set-rpe"; exerciseId: string; setNumber: number; rpe: number | null }
   | { type: "go-to-exercise"; index: number }
   | { type: "next-exercise" }
   | { type: "previous-exercise" }
@@ -71,6 +79,51 @@ export type WorkoutAction =
 
 /** Smallest plate pair on a barbell, which is what makes 2.5 the useful step. */
 export const WEIGHT_STEP_KG = 2.5;
+
+/** Story 5.2: above this the value is a typo, not a lift. */
+export const MAX_WEIGHT_KG = 999;
+export const MAX_REPS = 999;
+
+/**
+ * Why the drafted set cannot be validated, or null when it can (story 5.2,
+ * criterion 4). The app refuses and says why rather than sending a value the
+ * athlete did not mean.
+ */
+export function draftProblem(draft: { reps: number; weightKg: number | null }): string | null {
+  if (!Number.isFinite(draft.reps) || draft.reps < 1) return "Note au moins 1 répétition.";
+  if (draft.reps > MAX_REPS) return `Au plus ${MAX_REPS} répétitions par série.`;
+  if (draft.weightKg !== null) {
+    if (!Number.isFinite(draft.weightKg) || draft.weightKg < 0) return "Le poids ne peut pas être négatif.";
+    if (draft.weightKg > MAX_WEIGHT_KG) return `Le poids ne peut pas dépasser ${MAX_WEIGHT_KG} kg.`;
+  }
+  return null;
+}
+
+/** Number of sets still prescribed and not logged, across the session (story 5.5). */
+export function remainingSets(state: WorkoutState): number {
+  return state.exercises.reduce(
+    (sum, e) => sum + Math.max(0, e.targetSets - setsLoggedFor(state.logged, e.exerciseId).length),
+    0,
+  );
+}
+
+/** Exercises whose prescribed sets are all logged. */
+export function completedExerciseCount(state: WorkoutState): number {
+  return state.exercises.filter((_e, i) => isExerciseComplete(state, i)).length;
+}
+
+/** Sum of reps × kg; a set without weight counts for nothing. */
+export function volumeKg(sets: readonly LoggedSet[]): number {
+  const total = sets.reduce((sum, s) => sum + s.repsCompleted * (s.weightKg ?? 0), 0);
+  return Math.round(total * 100) / 100;
+}
+
+/** Mean effort of the sets that have one, rounded to the unit, or null. */
+export function averageRpe(sets: readonly LoggedSet[]): number | null {
+  const rated = sets.filter((s) => s.rpe !== null);
+  if (rated.length === 0) return null;
+  return Math.round(rated.reduce((sum, s) => sum + (s.rpe ?? 0), 0) / rated.length);
+}
 
 /**
  * Lower bound of a prescription like "8-12".
@@ -92,10 +145,10 @@ export function parseTargetReps(target: string | null): number | null {
 /**
  * The values the counters open on for an exercise.
  *
- * Weight comes from the last session rather than from the prescription, because
- * `weight_suggestion` is free text ("70% 1RM") and the number the athlete
- * actually used last time is the better starting point. Reps come from the
- * prescription, since that is the target for today.
+ * Weight comes from the last session first: the number the athlete actually
+ * used is the better starting point. Without one (first time), a prescribed
+ * weight written as a plain number is used; free text like "70% 1RM" is not.
+ * Reps come from the prescription, since that is the target for today.
  */
 export function seedDraft(exercise: WorkoutExercise | undefined): {
   reps: number;
@@ -104,8 +157,16 @@ export function seedDraft(exercise: WorkoutExercise | undefined): {
   if (!exercise) return { reps: 0, weightKg: null };
   return {
     reps: parseTargetReps(exercise.targetReps) ?? exercise.lastReps ?? 8,
-    weightKg: exercise.lastWeightKg,
+    weightKg: exercise.lastWeightKg ?? exercise.prescribedWeightKg ?? null,
   };
+}
+
+/** « 60 », « 62,5 kg », « 60kg » → kilograms; anything else (« 70% 1RM ») → null. */
+export function parsePrescribedWeight(text: string | null): number | null {
+  const match = /^\s*(\d{1,3}(?:[.,]\d)?)\s*(?:kg)?\s*$/i.exec(text ?? "");
+  if (!match?.[1]) return null;
+  const kg = Number(match[1].replace(",", "."));
+  return kg > 0 && kg <= 999 ? kg : null;
 }
 
 export function initialWorkoutState(args: {
@@ -208,6 +269,8 @@ export function workoutReducer(state: WorkoutState, action: WorkoutAction): Work
     case "validate-set": {
       const exercise = currentExercise(state);
       if (!exercise) return state;
+      // Never logs a value the athlete would have to correct (story 5.2).
+      if (draftProblem(state.draft) !== null) return state;
 
       const entry: LoggedSet = {
         exerciseId: exercise.exerciseId,
@@ -235,6 +298,17 @@ export function workoutReducer(state: WorkoutState, action: WorkoutAction): Work
         ...state,
         logged: state.logged.filter(
           (s) => !(s.exerciseId === last.exerciseId && s.setNumber === last.setNumber),
+        ),
+      };
+    }
+
+    case "set-rpe": {
+      const rpe =
+        action.rpe === null ? null : Math.min(10, Math.max(1, Math.round(action.rpe)));
+      return {
+        ...state,
+        logged: state.logged.map((l) =>
+          l.exerciseId === action.exerciseId && l.setNumber === action.setNumber ? { ...l, rpe } : l,
         ),
       };
     }

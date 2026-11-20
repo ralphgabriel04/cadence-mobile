@@ -30,7 +30,7 @@ export type RestTimer =
 export const IDLE_TIMER: RestTimer = { status: "idle" };
 
 /** The +/- step offered next to the countdown. */
-export const REST_ADJUST_SECONDS = 15;
+export const REST_ADJUST_SECONDS = 30;
 
 /** Used when a prescription carries no rest value. */
 export const DEFAULT_REST_SECONDS = 90;

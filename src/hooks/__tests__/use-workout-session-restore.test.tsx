@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 
 import { useWorkoutSession } from "@/hooks/use-workout-session";
 import { createMemoryStorage, type QueuedSet } from "@/services/set-queue";
+import { resetSharedSetQueueForTests } from "@/services/training-sync";
 
 // The disk the queue reads on launch. A previous run left it behind.
 const mockDisk = createMemoryStorage();
@@ -57,6 +58,7 @@ async function launch(athleteId: string) {
 }
 
 beforeEach(() => {
+  resetSharedSetQueueForTests();
   mockDisk.write("[]");
   mockSendSet.mockReset().mockResolvedValue({ ok: true });
   mockErase.mockReset().mockReturnValue({ erased: false });

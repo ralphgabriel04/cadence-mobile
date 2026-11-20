@@ -18,3 +18,9 @@ export function localDateISO(now: Date = new Date()): string {
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+/** True when `iso` (a timestamp) falls on the local day `day` (yyyy-mm-dd). */
+export function startedOnLocalDay(iso: string, day: string): boolean {
+  const d = new Date(iso);
+  return !Number.isNaN(d.getTime()) && localDateISO(d) === day;
+}

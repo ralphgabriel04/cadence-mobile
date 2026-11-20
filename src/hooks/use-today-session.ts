@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/providers/auth-provider";
 import { todayCache, type TodayCache } from "@/services/today-cache";
+import { flushPendingCompletion } from "@/services/training-sync";
 import {
   fetchTodayScreen,
   type TodaySessionFailure,
@@ -81,6 +82,11 @@ export function useTodaySession(options?: { onDate?: string; cache?: TodayCache 
           ? { status: "refreshing", data: current.data }
           : { status: "loading" },
       );
+
+      // A session finished without network goes out first (story 5.5,
+      // criterion 5), so the screen below can already show it as done.
+      if (athleteId) await flushPendingCompletion(athleteId).catch(() => undefined);
+      if (!mounted.current) return;
 
       const result = await fetchTodayScreen({ onDate: date });
       if (!mounted.current) return;
