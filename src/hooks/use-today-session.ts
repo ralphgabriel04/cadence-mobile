@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useAuth } from "@/providers/auth-provider";
+import { todayCache, type TodayCache } from "@/services/today-cache";
 import {
   fetchTodayScreen,
   type TodaySessionFailure,
@@ -13,9 +15,15 @@ import { localDateISO } from "@/utils/local-date";
  */
 export type TodaySessionState =
   | { status: "loading" }
-  | { status: "refreshing"; data: TodayScreenData }
-  | { status: "ready"; data: TodayScreenData }
+  | { status: "refreshing"; data: TodayScreenData; offline?: OfflineInfo }
+  | { status: "ready"; data: TodayScreenData; offline?: OfflineInfo }
   | { status: "error"; failure: TodaySessionFailure };
+
+/**
+ * Set when `data` is the last copy kept on the phone because the network
+ * failed (story 4.1, criterion 4). `savedAt` is when that copy was fetched.
+ */
+export type OfflineInfo = { savedAt: string };
 
 /**
  * Loads the home-screen payload for the athlete's local date.
@@ -29,11 +37,15 @@ export type TodaySessionState =
  * matters for an app left open past midnight: without it the athlete would still
  * be looking at yesterday's session.
  */
-export function useTodaySession(options?: { onDate?: string }): {
+export function useTodaySession(options?: { onDate?: string; cache?: TodayCache }): {
   state: TodaySessionState;
   refetch: () => void;
 } {
   const explicitDate = options?.onDate;
+  const { state: auth } = useAuth();
+  const athleteId = auth.status === "ready" ? auth.profile.id : "";
+  // Held in a ref: a caller passing a fresh object each render must not retrigger the load.
+  const cacheRef = useRef(options?.cache);
   const [date, setDate] = useState(() => explicitDate ?? localDateISO());
   const [state, setState] = useState<TodaySessionState>({ status: "loading" });
 
@@ -73,13 +85,26 @@ export function useTodaySession(options?: { onDate?: string }): {
       const result = await fetchTodayScreen({ onDate: date });
       if (!mounted.current) return;
 
-      setState(
-        result.ok
-          ? { status: "ready", data: result.data }
-          : { status: "error", failure: result.failure },
-      );
+      const store = cacheRef.current ?? safeCache();
+      if (result.ok) {
+        store?.save(athleteId, result.data);
+        setState({ status: "ready", data: result.data });
+        return;
+      }
+
+      // No network: show the last copy this account fetched, flagged offline.
+      // Only for a network failure -- an expired session must not show data.
+      if (result.failure.kind === "network" && store) {
+        const cached = await store.read(athleteId);
+        if (!mounted.current) return;
+        if (cached) {
+          setState({ status: "ready", data: cached.data, offline: { savedAt: cached.savedAt } });
+          return;
+        }
+      }
+      setState({ status: "error", failure: result.failure });
     },
-    [date],
+    [date, athleteId],
   );
 
   useEffect(() => {
@@ -91,4 +116,13 @@ export function useTodaySession(options?: { onDate?: string }): {
   }, [load]);
 
   return { state, refetch };
+}
+
+/** The shared cache, or null when the device storage cannot be opened. */
+function safeCache(): TodayCache | null {
+  try {
+    return todayCache();
+  } catch {
+    return null;
+  }
 }

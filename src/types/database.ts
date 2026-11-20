@@ -981,6 +981,10 @@ export type Database = {
           achieved_at: string | null;
         }[];
       };
+      get_schedule_outlook: {
+        Args: { p_on_date: string };
+        Returns: Json;
+      };
       get_today_screen: {
         Args: { p_on_date: string };
         Returns: Json;
