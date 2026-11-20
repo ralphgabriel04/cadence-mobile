@@ -250,4 +250,57 @@ describe("AthleteTodayScreen", () => {
     expect(screen.getByLabelText("mardi, repos")).toBeTruthy();
     expect(screen.getByLabelText("dimanche, repos")).toBeTruthy();
   });
+
+  // ── Gaps found in review ──
+  it("names the weekday when the next session is within six days", () => {
+    ready(rest, {
+      outlook: {
+        nextSession: { sessionId: "s4", name: "Jambes", date: "2026-05-07", dayOfWeek: 4 },
+        programFinished: false,
+        weekSessions: [],
+      },
+    });
+    render(<AthleteTodayScreen />);
+    expect(screen.getByText("Prochaine séance : jeudi")).toBeTruthy();
+    expect(screen.getByText("Jambes")).toBeTruthy();
+  });
+
+  it("says the program is finished when its end date has passed (no program in force)", () => {
+    ready({ state: "no-active-program" }, { outlook: { nextSession: null, programFinished: true, weekSessions: [] } });
+    render(<AthleteTodayScreen />);
+    expect(screen.getByText("Programme terminé")).toBeTruthy();
+    expect(screen.queryByText("Aucun programme en cours")).toBeNull();
+  });
+
+  it("explains what to do when there is no program", () => {
+    ready({ state: "no-active-program" });
+    render(<AthleteTodayScreen />);
+    expect(screen.getByText("Aucun programme en cours")).toBeTruthy();
+    expect(screen.getByText("Choisis un programme et ta séance du jour apparaîtra ici.")).toBeTruthy();
+  });
+
+  it("does not claim a day is empty when the week could not be loaded", () => {
+    ready({ state: "scheduled", session }); // no outlook: get_schedule_outlook failed
+    render(<AthleteTodayScreen />);
+    fireEvent.press(screen.getByLabelText("jeudi, à venir"));
+    expect(screen.queryByText("Rien de prévu ce jour-là.")).toBeNull();
+    expect(
+      screen.getByText("Impossible d'afficher ce jour-là pour l'instant. Réessaie avec du réseau."),
+    ).toBeTruthy();
+  });
+
+  it("names the day of an offline copy kept from an earlier day instead of « Aujourd'hui »", () => {
+    ready({ state: "scheduled", session }, {}, { savedAt: "2026-05-04T07:00:00Z" });
+    render(<AthleteTodayScreen />);
+    // The fixture's date (2026-05-04, a Monday) is not the device's date.
+    expect(screen.getByText("lundi")).toBeTruthy();
+    expect(screen.queryByText("Aujourd'hui")).toBeNull();
+  });
+
+  it("shows the seven days of the week", () => {
+    ready({ state: "scheduled", session });
+    render(<AthleteTodayScreen />);
+    const days = screen.getAllByRole("button", { name: /^(lun|mar|mer|jeu|ven|sam|dim)/ });
+    expect(days).toHaveLength(7);
+  });
 });

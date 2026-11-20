@@ -117,3 +117,48 @@ BEGIN
   END;
   PERFORM rec('T96g anon cannot execute get_schedule_outlook', ok);
 END $$;
+
+-- T96h: a program whose end date has passed reads as finished, not "no program".
+-- Own athlete (the third one) so the assignments above are untouched.
+INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
+  ('96969696-0000-0000-0000-000000000003', 'outlook-ended@test.local',
+   '{"first_name":"Emma","last_name":"Ended","role":"athlete"}'),
+  ('96969696-0000-0000-0000-000000000004', 'outlook-sparse@test.local',
+   '{"first_name":"Sam","last_name":"Sparse","role":"athlete"}');
+
+DO $$
+DECLARE r JSONB;
+BEGIN
+  -- Fixture inserted by the test owner (the program is not the athlete's own).
+  INSERT INTO program_assignments (program_id, athlete_id, coach_id, start_date, end_date, status)
+  VALUES ('96aa0001-0000-0000-0000-000000000001', '96969696-0000-0000-0000-000000000003',
+          NULL, DATE '2026-08-17', DATE '2026-08-30', 'active');
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('test.uid', '96969696-0000-0000-0000-000000000003', true);
+  r := get_schedule_outlook(DATE '2026-09-02');
+  RESET ROLE;
+  PERFORM rec('T96h end date passed: programFinished with no assignment in force',
+              (r->>'programFinished')::boolean = TRUE AND jsonb_array_length(r->'weekSessions') = 0, r::text);
+END $$;
+
+-- T96i: a program with nothing in the next 8 weeks but no end is NOT finished.
+INSERT INTO programs (id, coach_id, created_by, is_public, is_template, name, status, duration_weeks)
+VALUES ('96aa0002-0000-0000-0000-000000000002', NULL,
+        '96969696-0000-0000-0000-000000000004', FALSE, FALSE, 'Lointain', 'active', NULL);
+INSERT INTO sessions (id, program_id, name, day_of_week, week_number, order_index)
+VALUES ('96bb0004-0000-0000-0000-000000000004', '96aa0002-0000-0000-0000-000000000002', 'S12 Lundi', 1, 12, 0);
+
+DO $$
+DECLARE r JSONB;
+BEGIN
+  -- Fixture inserted by the test owner (the program is not the athlete's own).
+  INSERT INTO program_assignments (program_id, athlete_id, coach_id, start_date, status)
+  VALUES ('96aa0002-0000-0000-0000-000000000002', '96969696-0000-0000-0000-000000000004',
+          NULL, DATE '2026-08-17', 'active');
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('test.uid', '96969696-0000-0000-0000-000000000004', true);
+  r := get_schedule_outlook(DATE '2026-08-18');
+  RESET ROLE;
+  PERFORM rec('T96i next session beyond the 8-week search: not finished',
+              (r->>'programFinished')::boolean = FALSE AND (r->'nextSession') = 'null'::jsonb, r::text);
+END $$;

@@ -34,6 +34,7 @@ DECLARE
   v_week       JSONB;
   d            DATE;
   v_session    RECORD;
+  v_capped     BOOLEAN;
 BEGIN
   IF v_athlete IS NULL THEN
     RETURN NULL;
@@ -54,8 +55,25 @@ BEGIN
    LIMIT 1;
 
   IF NOT FOUND THEN
-    RETURN jsonb_build_object('nextSession', NULL, 'programFinished', FALSE,
-                              'weekSessions', '[]'::jsonb);
+    -- No program in force. If the athlete's last program ended before today
+    -- (end date passed, or marked completed), say « Programme terminé » rather
+    -- than « Aucun programme en cours » (story 4.2, criterion 4).
+    RETURN jsonb_build_object(
+      'nextSession', NULL,
+      'programFinished', EXISTS (
+        SELECT 1
+          FROM program_assignments pa
+          JOIN programs p ON p.id = pa.program_id
+         WHERE pa.athlete_id = v_athlete
+           AND NOT pa.is_deleted
+           AND NOT p.is_deleted
+           AND (pa.status = 'completed'
+                OR (pa.status = 'active' AND pa.end_date < p_on_date))
+           AND NOT EXISTS (  -- a program starting later is not "finished"
+             SELECT 1 FROM program_assignments f
+              WHERE f.athlete_id = v_athlete AND NOT f.is_deleted
+                AND f.status = 'active' AND f.start_date > p_on_date)),
+      'weekSessions', '[]'::jsonb);
   END IF;
 
   -- Last day the program can still plan something: the assignment's end date,
@@ -68,6 +86,9 @@ BEGIN
          ELSE p_on_date + 56 END,
     p_on_date + 56
   );
+  -- When the 8-week cap is what stopped the search, an empty result says
+  -- nothing about the program's end: it is not « terminé ».
+  v_capped := v_last_day >= p_on_date + 56;
 
   -- ── Story 4.2: the next planned session after today ──────────────────────
   d := p_on_date + 1;
@@ -122,7 +143,7 @@ BEGIN
   RETURN jsonb_build_object(
     'nextSession', v_next,
     -- Nothing left to plan after today, within the program's bounds.
-    'programFinished', v_next IS NULL,
+    'programFinished', v_next IS NULL AND NOT v_capped,
     'weekSessions', v_week
   );
 END;

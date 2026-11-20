@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { ActivityIndicator } from "react-native";
 
 import Index from "@/app/index";
+import { profileCache } from "@/services/profile-cache";
+
 import { AuthProvider } from "../auth-provider";
 
 const mockUserId = "aaaaaaaa-0000-4000-8000-000000000001";
@@ -60,6 +62,8 @@ function mount() {
 }
 
 beforeEach(() => {
+  // The last loaded profile is kept for offline opening (4.1); start each case without it.
+  profileCache().erase();
   mockQueue.length = 0;
   mockCalls.profiles = 0;
 });

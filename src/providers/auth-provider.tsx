@@ -14,6 +14,7 @@ import { type Session, type User } from "@supabase/supabase-js";
 import { clearLocalSession, supabase } from "@/config/supabase";
 import { DELETION_FAILED, LOCAL_DATA_LEFT } from "@/features/account-deletion/deletion-copy";
 import { eraseLocalTrainingCopies } from "@/services/local-training-copies";
+import { profileCache } from "@/services/profile-cache";
 import { purgeLocalSetQueue } from "@/services/purge-local-queue";
 
 import { signInErrorMessage } from "./auth-errors";
@@ -138,6 +139,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // reset screen must not replay it).
   const acceptedUrl = useRef<string | null>(null);
 
+  // No network at startup: the profile this phone last loaded for the same user
+  // lets the app open on its offline copies (story 4.1, criterion 4) instead of
+  // the retry screen. Without that copy, the retryable error state stays.
+  const failOffline = useCallback(async (userId: string, message: string) => {
+    const cached = await safeProfileCache()?.read(userId);
+    if (!mounted.current) return;
+    dispatch(
+      cached
+        ? { type: "profile-loaded", profile: cached }
+        : { type: "profile-failed", userId, message },
+    );
+  }, []);
+
   const fetchProfile = useCallback(async (userId: string) => {
     let result;
     try {
@@ -148,12 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
     } catch (cause) {
       // A rejected promise (network down) must not leave the UI on the loader.
-      if (!mounted.current) return;
-      dispatch({
-        type: "profile-failed",
-        userId,
-        message: cause instanceof Error ? cause.message : "Erreur réseau",
-      });
+      await failOffline(userId, cause instanceof Error ? cause.message : "Erreur réseau");
       return;
     }
     const { data, error } = result;
@@ -167,6 +176,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "profile-missing", userId });
         return;
       }
+      // A fetch that never reached PostgREST carries no code: that is the network.
+      if (!error.code) {
+        await failOffline(userId, error.message);
+        return;
+      }
       dispatch({ type: "profile-failed", userId, message: error.message });
       return;
     }
@@ -176,8 +190,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    safeProfileCache()?.save(data);
     dispatch({ type: "profile-loaded", profile: data });
-  }, []);
+  }, [failOffline]);
 
   // Resolve the session, then the profile. The two are sequenced deliberately:
   // routing may not act until both are known.
@@ -448,4 +463,13 @@ export function useAuth() {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
+}
+
+/** The shared profile copy, or null when the device storage cannot be opened. */
+function safeProfileCache() {
+  try {
+    return profileCache();
+  } catch {
+    return null;
+  }
 }
