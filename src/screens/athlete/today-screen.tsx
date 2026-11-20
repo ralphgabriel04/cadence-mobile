@@ -29,6 +29,7 @@ import {
   formatDurationFr,
 } from "@/utils/format-date-fr";
 import { isoDayOfWeek } from "@/utils/program-schedule";
+import { localDateISO } from "@/utils/local-date";
 import { dayAccessibilityLabel, stripState, type StripState } from "@/utils/week-strip";
 
 const SESSION_ROUTE = "/(athlete)/session";
@@ -47,12 +48,13 @@ const COPY = {
   restTitle: "Jour de repos",
   restNone: "Plus rien de prévu cette semaine. Récupère bien.",
   finishedTitle: "Programme terminé",
-  finishedBody: "Tu as fait toutes les séances prévues. Choisis un programme pour continuer.",
+  finishedBody: "Toutes les séances prévues sont passées. Choisis un programme pour continuer.",
   noProgramTitle: "Aucun programme en cours",
   noProgramBody: "Choisis un programme et ta séance du jour apparaîtra ici.",
   noProgramCta: "Voir le programme",
   offline: "Hors ligne",
   dayRest: "Rien de prévu ce jour-là.",
+  dayUnknown: "Impossible d'afficher ce jour-là pour l'instant. Réessaie avec du réseau.",
   backToToday: "Revenir à aujourd'hui",
 } as const;
 
@@ -119,11 +121,21 @@ export function AthleteTodayScreen() {
       >
         <Header data={state.data} offline={state.offline} />
         {selectedDow === null || selectedDow === isoDayOfWeek(state.data.date) ? (
-          <TodayCard today={state.data.today} outlook={state.data.outlook ?? null} />
+          <TodayCard
+            today={state.data.today}
+            outlook={state.data.outlook ?? null}
+            date={state.data.date}
+            // An offline copy from an earlier day is not « today »: name its day instead.
+            label={
+              state.offline && state.data.date !== localDateISO()
+                ? dayNameFr(isoDayOfWeek(state.data.date))
+                : COPY.today
+            }
+          />
         ) : (
           <DayCard
             dayOfWeek={selectedDow}
-            session={findWeekSession(state.data.outlook ?? null, selectedDow)}
+            outlook={state.data.outlook ?? null}
             onBack={() => setSelectedDow(null)}
           />
         )}
@@ -172,11 +184,18 @@ function localIso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function findWeekSession(outlook: ScheduleOutlook | null, dow: number): WeekSession | null {
-  return outlook?.weekSessions.find((w) => w.dayOfWeek === dow) ?? null;
-}
-
-function TodayCard({ today, outlook }: { today: TodayState; outlook: ScheduleOutlook | null }) {
+function TodayCard({
+  today,
+  outlook,
+  date,
+  label,
+}: {
+  today: TodayState;
+  outlook: ScheduleOutlook | null;
+  /** The screen's date, from which « jeudi » or « mardi 25 août » is counted. */
+  date: string;
+  label: string;
+}) {
   const palette = usePalette();
   const goToSession = () => router.push(SESSION_ROUTE);
 
@@ -195,7 +214,7 @@ function TodayCard({ today, outlook }: { today: TodayState; outlook: ScheduleOut
             accessible
             accessibilityLabel={sessionSpokenSummary(today.session)}
           >
-            <SectionLabel className="text-accent">{COPY.today}</SectionLabel>
+            <SectionLabel className="text-accent">{label}</SectionLabel>
             {inProgress ? <Pill variant="active" label={COPY.inProgress} /> : null}
           </View>
           <SessionTitle session={today.session} />
@@ -214,7 +233,7 @@ function TodayCard({ today, outlook }: { today: TodayState; outlook: ScheduleOut
       return (
         <Card className="gap-3">
           <View className="flex-row items-center justify-between">
-            <SectionLabel>{COPY.today}</SectionLabel>
+            <SectionLabel>{label}</SectionLabel>
             <Pill variant="accent" label={COPY.completed} />
           </View>
           <SessionTitle session={today.session} />
@@ -231,7 +250,7 @@ function TodayCard({ today, outlook }: { today: TodayState; outlook: ScheduleOut
       return (
         <Card className="gap-3">
           <View className="flex-row items-center justify-between">
-            <SectionLabel>{COPY.today}</SectionLabel>
+            <SectionLabel>{label}</SectionLabel>
             <Pill label={COPY.skipped} />
           </View>
           <SessionTitle session={today.session} />
@@ -247,31 +266,13 @@ function TodayCard({ today, outlook }: { today: TodayState; outlook: ScheduleOut
       const finished = outlook?.programFinished === true;
       const next = outlook
         ? outlook.nextSession
-          ? { name: outlook.nextSession.name, when: nextSessionWhen(outlook.nextSession) }
+          ? { name: outlook.nextSession.name, when: nextSessionWhen(outlook.nextSession, date) }
           : null
         : today.nextSession
           ? { name: today.nextSession.name, when: dayNameFr(today.nextSession.dayOfWeek) }
           : null;
 
-      if (finished) {
-        return (
-          <Card className="gap-3" accessible accessibilityLabel={`${COPY.finishedTitle}. ${COPY.finishedBody}`}>
-            <SectionLabel>{COPY.today}</SectionLabel>
-            <Text weight="bold" className="text-lg tracking-[-0.3px]">
-              {COPY.finishedTitle}
-            </Text>
-            <Text variant="caption" className="text-[13px]">
-              {COPY.finishedBody}
-            </Text>
-            <Button
-              title={COPY.noProgramCta}
-              variant="secondary"
-              onPress={() => router.push(PLAN_ROUTE)}
-              className="mt-1"
-            />
-          </Card>
-        );
-      }
+      if (finished) return <FinishedCard label={label} />;
 
       const nextLine = next ? `Prochaine séance : ${next.when}` : COPY.restNone;
       return (
@@ -280,7 +281,7 @@ function TodayCard({ today, outlook }: { today: TodayState; outlook: ScheduleOut
           accessible
           accessibilityLabel={`${COPY.restTitle}. ${nextLine}${next ? `, ${next.name}` : ""}.`}
         >
-          <SectionLabel>{COPY.today}</SectionLabel>
+          <SectionLabel>{label}</SectionLabel>
           <Text weight="bold" className="text-lg tracking-[-0.3px]">
             {COPY.restTitle}
           </Text>
@@ -297,9 +298,11 @@ function TodayCard({ today, outlook }: { today: TodayState; outlook: ScheduleOut
     }
 
     case "no-active-program":
+      // The last program ended (migration 012): say so, not « aucun programme ».
+      if (outlook?.programFinished) return <FinishedCard label={label} />;
       return (
         <Card className="gap-3">
-          <SectionLabel>{COPY.today}</SectionLabel>
+          <SectionLabel>{label}</SectionLabel>
           <Text weight="bold" className="text-lg tracking-[-0.3px]">
             {COPY.noProgramTitle}
           </Text>
@@ -317,10 +320,32 @@ function TodayCard({ today, outlook }: { today: TodayState; outlook: ScheduleOut
   }
 }
 
-/** « jeudi » this week, « mardi 25 août » further away. */
-function nextSessionWhen(next: { date: string; dayOfWeek: number }): string {
+function FinishedCard({ label }: { label: string }) {
+  return (
+    <Card className="gap-3">
+      <View accessible accessibilityLabel={`${COPY.finishedTitle}. ${COPY.finishedBody}`} className="gap-3">
+        <SectionLabel>{label}</SectionLabel>
+        <Text weight="bold" className="text-lg tracking-[-0.3px]">
+          {COPY.finishedTitle}
+        </Text>
+        <Text variant="caption" className="text-[13px]">
+          {COPY.finishedBody}
+        </Text>
+      </View>
+      <Button
+        title={COPY.noProgramCta}
+        variant="secondary"
+        onPress={() => router.push(PLAN_ROUTE)}
+        className="mt-1"
+      />
+    </Card>
+  );
+}
+
+/** « jeudi » within the next six days, « mardi 25 août » further away. */
+function nextSessionWhen(next: { date: string; dayOfWeek: number }, from: string): string {
   const daysAway = Math.round(
-    (Date.parse(`${next.date}T00:00:00`) - Date.parse(`${localIso(new Date())}T00:00:00`)) / 86_400_000,
+    (Date.parse(`${next.date}T00:00:00`) - Date.parse(`${from}T00:00:00`)) / 86_400_000,
   );
   return daysAway > 0 && daysAway < 7 ? dayNameFr(next.dayOfWeek) : formatDayAndMonthFr(next.date);
 }
@@ -330,19 +355,22 @@ function sessionSpokenSummary(session: PlannedSession): string {
     session.estimatedDurationMinutes !== null
       ? `, environ ${formatDurationFr(session.estimatedDurationMinutes)}`
       : "";
-  return `Aujourd'hui : ${session.name}, ${session.exercises.length} exercices${duration}`;
+  return `${COPY.today} : ${session.name}, ${session.exercises.length} exercices${duration}`;
 }
 
 /** A day touched in the week strip (story 4.3): what is planned that day. */
 function DayCard({
   dayOfWeek,
-  session,
+  outlook,
   onBack,
 }: {
   dayOfWeek: number;
-  session: WeekSession | null;
+  /** null when get_schedule_outlook failed: the day is unknown, not empty. */
+  outlook: ScheduleOutlook | null;
   onBack: () => void;
 }) {
+  const session: WeekSession | null =
+    outlook?.weekSessions.find((w) => w.dayOfWeek === dayOfWeek) ?? null;
   return (
     <Card className="gap-3">
       <SectionLabel>{dayNameFr(dayOfWeek)}</SectionLabel>
@@ -360,7 +388,7 @@ function DayCard({
         </>
       ) : (
         <Text variant="caption" className="text-[13px]">
-          {COPY.dayRest}
+          {outlook ? COPY.dayRest : COPY.dayUnknown}
         </Text>
       )}
       <Button title={COPY.backToToday} variant="outline" onPress={onBack} className="mt-1" />
@@ -463,15 +491,27 @@ function DayDot({
   const done = state === "completed";
   const ringed = day.isToday || selected;
 
+  // Today keeps the accent ring of the design; a day touched in the strip gets a
+  // text-coloured ring so the two never look alike. On a filled (done) dot the
+  // accent ring would vanish, so today uses the text colour there too.
   const width = ringed ? "border-2" : done ? "" : "border";
-  const colour = ringed || state === "started" ? "border-accent" : "border-border";
+  const colour =
+    day.isToday && !done
+      ? "border-accent"
+      : ringed
+        ? "border-text"
+        : state === "started"
+          ? "border-accent"
+          : "border-border";
   const dashed = state === "rest" && !ringed ? "border-dashed" : "";
   // eslint-disable-next-line security/detect-object-injection -- state is a typed union
   const fill = DOT_FILL[state];
   // eslint-disable-next-line security/detect-object-injection -- state is a typed union
   const icon = DOT_ICON[state];
-  const label = done ? "text-btn-primary-text" : ringed ? "text-accent" : "text-text-muted";
-  const iconColour = done ? palette.btnPrimaryText : state === "started" ? palette.accent : palette.textMuted;
+  // text-sub, not the design's text-muted: muted reaches about 2.4:1 on the
+  // background, under the 4.5:1 the story asks for (3:1 for the symbols).
+  const label = done ? "text-btn-primary-text" : day.isToday ? "text-accent" : "text-text-sub";
+  const iconColour = done ? palette.btnPrimaryText : state === "started" ? palette.accent : palette.textSub;
 
   return (
     <Pressable
