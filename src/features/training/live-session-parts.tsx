@@ -411,7 +411,7 @@ export function ExerciseRecapRow({ recap }: { recap: ExerciseRecap }) {
           {recap.name}
         </Text>
         <View className="flex-row flex-wrap items-center gap-2">
-          <Pill label={`${recap.sets.length} séries`} />
+          <Pill label={`${recap.sets.length} série${recap.sets.length > 1 ? "s" : ""}`} />
           <Text mono className="text-[10px] text-text-muted">
             {formatKg(recap.volumeKg)} kg
           </Text>

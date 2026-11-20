@@ -813,7 +813,7 @@ function Banners({
 }
 
 function prescription(e: WorkoutExercise): string {
-  const parts = [`${e.targetSets} séries`];
+  const parts = [`${e.targetSets} série${e.targetSets > 1 ? "s" : ""}`];
   if (e.targetReps) parts.push(`${e.targetReps} rép`);
   if (e.lastWeightKg !== null) parts.push(`${formatWeight(e.lastWeightKg)} kg`);
   return parts.join(" · ");
