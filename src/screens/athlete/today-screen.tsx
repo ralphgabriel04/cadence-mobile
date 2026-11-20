@@ -545,8 +545,9 @@ function LastSessionCard({ last }: { last: LastSessionSummary }) {
     <View className="gap-2.5">
       <SectionLabel>Dernière séance</SectionLabel>
       <Card className="gap-3">
-        <Text weight="bold" className="text-[15px] capitalize">
-          {day} — {last.name}
+        <Text weight="bold" className="text-[15px]">
+          {/* Day only: `capitalize` would also turn « du corps » into « Du Corps ». */}
+          {day.charAt(0).toUpperCase()}{day.slice(1)} — {last.name}
         </Text>
         <View className="flex-row gap-4">
           <Stat value={last.exerciseCount} label="exercices" />
