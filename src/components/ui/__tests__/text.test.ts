@@ -1,10 +1,10 @@
-import { variantClasses } from "../text";
+import { hasColourClass, variantClasses } from "../text";
 
 // On the web, the variant's `text-sm` beat a caller's `text-[13px]` whatever the
 // class order: the size the design asks for was silently ignored.
 describe("Text variant classes", () => {
   it("keeps the variant size when the caller sets none", () => {
-    expect(variantClasses("body", "mt-1 text-text-sub")).toBe("text-sm text-text");
+    expect(variantClasses("body", "mt-1")).toBe("text-sm text-text");
     expect(variantClasses("caption", "")).toBe("text-xs text-text-sub");
   });
 
@@ -15,6 +15,13 @@ describe("Text variant classes", () => {
 
   it("drops it for a scale size too, but not for a colour that starts with text-", () => {
     expect(variantClasses("body", "text-lg tracking-[-0.3px]")).toBe("text-text");
-    expect(variantClasses("body", "text-text-muted text-accent")).toBe("text-sm text-text");
+    expect(variantClasses("body", "text-center")).toBe("text-sm text-text");
+  });
+
+  it("drops the variant colour when the caller sets one (« AUJOURD'HUI » in accent)", () => {
+    expect(variantClasses("body", "text-accent")).toBe("text-sm");
+    expect(variantClasses("caption", "text-[13px] text-text")).toBe("");
+    expect(hasColourClass("uppercase text-accent")).toBe(true);
+    expect(hasColourClass("text-[11px] text-center")).toBe(false);
   });
 });
