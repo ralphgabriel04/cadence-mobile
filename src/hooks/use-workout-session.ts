@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { AppState } from "react-native";
 
 import {
   draftProblem,
@@ -25,6 +26,13 @@ import {
   restoreSetQueue,
 } from "@/services/training-sync";
 import { loadInProgressSession, startSession } from "@/services/workout-session";
+import { localDateISO, startedOnLocalDay } from "@/utils/local-date";
+
+/**
+ * How often unsent sets are retried while the screen is open (story 5.3: on
+ * the server less than a minute after the network comes back).
+ */
+export const RETRY_EVERY_MS = 20_000;
 
 export type WorkoutSessionStatus =
   | { status: "starting" }
@@ -92,6 +100,22 @@ export function useWorkoutSession(args: {
     return unsubscribe;
   }, [queue]);
 
+  // Unsent sets are retried on their own while the screen is open, and when
+  // the app comes back to the foreground: no touch needed once the network
+  // is back (story 5.3, criterion 1).
+  const hasPending = pending.some((q) => q.rejected !== true);
+  useEffect(() => {
+    if (!hasPending) return;
+    const timer = setInterval(() => void queue.drain(), RETRY_EVERY_MS);
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") void queue.drain();
+    });
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
+  }, [hasPending, queue]);
+
   const saveRecord = useCallback((patch: Partial<ActiveSession>) => {
     const record = recordRef.current;
     if (!record) return;
@@ -112,10 +136,20 @@ export function useWorkoutSession(args: {
       let record = await store.read(athleteId).catch(() => null);
       if (cancelled || !mounted.current) return;
 
-      if (!record || record.sessionId !== sessionId || record.completion) {
-        // A finished-but-unsent previous session keeps its own record until it
-        // is sent; this one starts fresh.
-        if (record?.completion) void flushPendingCompletion(athleteId).catch(() => undefined);
+      // A finished session whose end has not reached the server yet: sent
+      // below, before this one is announced, from the record held here (the
+      // file is about to hold the new session).
+      const previous = record?.completion ? record : null;
+
+      if (
+        !record ||
+        record.sessionId !== sessionId ||
+        record.completion ||
+        // The same session left open on an earlier day (sessions without a week
+        // number come back every week): today's workout starts fresh. The old
+        // one's unsent sets stay in the queue under their own log.
+        !startedOnLocalDay(record.startedAt, localDateISO())
+      ) {
         record = {
           athleteId,
           sessionId,
@@ -136,6 +170,13 @@ export function useWorkoutSession(args: {
       setStartedAt(record.startedAt);
       if (record.logged.length > 0) dispatch({ type: "restore", logged: record.logged });
       setStatus({ status: "ready" });
+
+      if (previous) {
+        await flushPendingCompletion(athleteId, { record: previous, store, queue: queueRef.current }).catch(
+          () => undefined,
+        );
+        if (cancelled || !mounted.current) return;
+      }
 
       // Tell the server. A session already open there (same session, nothing
       // logged on the phone yet) is adopted so its sets come back.

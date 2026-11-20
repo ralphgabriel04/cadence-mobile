@@ -252,6 +252,62 @@ describe("live session · stories 5.2 to 5.4, without any network", () => {
     expect(screen.getByText("Série 3 / 3")).toBeTruthy();
     expect(JSON.parse((await mockDisk.read()) ?? "[]")).toHaveLength(2);
   });
+
+  it("the same session left open on an earlier day starts fresh; its sets stay queued", async () => {
+    const lastWeek = createActiveSessionStore(mockPhone);
+    lastWeek.write({
+      athleteId: "me",
+      sessionId: "s1", // a session without a week number comes back every week
+      sessionLogId: "log-last-week",
+      startedAt: "2020-01-06T17:00:00Z",
+      programAssignmentId: null,
+      logged: [
+        { exerciseId: "e1", sessionExerciseId: "se1", setNumber: 1, repsCompleted: 10, weightKg: 50, rpe: null, loggedAt: "2020-01-06T17:05:00Z" },
+      ],
+      completion: null,
+    });
+    await open();
+    expect(screen.getByText("Série 1 / 3")).toBeTruthy();
+    const record = await createActiveSessionStore(mockPhone).read("me");
+    expect(record?.sessionLogId).not.toBe("log-last-week");
+    expect(record?.logged).toHaveLength(0);
+  });
+
+  it("asks before dropping a set the server refused, and keeps it on « Garder »", async () => {
+    mockSend.mockImplementationOnce(async () => ({ ok: false, message: "refusé", retryable: false }));
+    await open();
+    fireEvent.press(screen.getByText("Série terminée"));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    fireEvent.press(screen.getByLabelText("Retirer 1 série(s) refusée(s)"));
+    expect(screen.getByText("Retirer 1 série refusée ?")).toBeTruthy();
+    fireEvent.press(screen.getByText("Garder"));
+    expect(screen.getByLabelText("Retirer 1 série(s) refusée(s)")).toBeTruthy();
+    expect(JSON.parse((await mockDisk.read()) ?? "[]")).toHaveLength(1);
+  });
+
+  it("retries unsent sets on its own every 20 s while the screen is open", async () => {
+    jest.useFakeTimers();
+    try {
+      render(<LiveSessionScreen />);
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(50);
+      });
+      fireEvent.press(screen.getByText("Série terminée"));
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(50);
+      });
+      const before = mockSend.mock.calls.length;
+      expect(before).toBeGreaterThan(0); // the first try, at once
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(20_000);
+      });
+      expect(mockSend.mock.calls.length).toBeGreaterThan(before); // no touch needed
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 // ── Stories 5.5 and 5.6 ──────────────────────────────────────────────────────

@@ -33,6 +33,8 @@ export type WorkoutExercise = {
   /** Heaviest set of the last completed session containing this exercise. */
   lastWeightKg: number | null;
   lastReps: number | null;
+  /** `weight_suggestion` when it is a plain weight (« 60 », « 60 kg »); null for « 70% 1RM ». */
+  prescribedWeightKg?: number | null;
 };
 
 export type LoggedSet = {
@@ -143,10 +145,10 @@ export function parseTargetReps(target: string | null): number | null {
 /**
  * The values the counters open on for an exercise.
  *
- * Weight comes from the last session rather than from the prescription, because
- * `weight_suggestion` is free text ("70% 1RM") and the number the athlete
- * actually used last time is the better starting point. Reps come from the
- * prescription, since that is the target for today.
+ * Weight comes from the last session first: the number the athlete actually
+ * used is the better starting point. Without one (first time), a prescribed
+ * weight written as a plain number is used; free text like "70% 1RM" is not.
+ * Reps come from the prescription, since that is the target for today.
  */
 export function seedDraft(exercise: WorkoutExercise | undefined): {
   reps: number;
@@ -155,8 +157,16 @@ export function seedDraft(exercise: WorkoutExercise | undefined): {
   if (!exercise) return { reps: 0, weightKg: null };
   return {
     reps: parseTargetReps(exercise.targetReps) ?? exercise.lastReps ?? 8,
-    weightKg: exercise.lastWeightKg,
+    weightKg: exercise.lastWeightKg ?? exercise.prescribedWeightKg ?? null,
   };
+}
+
+/** « 60 », « 62,5 kg », « 60kg » → kilograms; anything else (« 70% 1RM ») → null. */
+export function parsePrescribedWeight(text: string | null): number | null {
+  const match = /^\s*(\d{1,3}(?:[.,]\d)?)\s*(?:kg)?\s*$/i.exec(text ?? "");
+  if (!match?.[1]) return null;
+  const kg = Number(match[1].replace(",", "."));
+  return kg > 0 && kg <= 999 ? kg : null;
 }
 
 export function initialWorkoutState(args: {

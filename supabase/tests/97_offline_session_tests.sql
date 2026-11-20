@@ -82,3 +82,22 @@ EXCEPTION WHEN others THEN
   RESET ROLE;
   PERFORM rec('T97d an abandoned session is closed and a new one can open', FALSE, SQLERRM);
 END $$;
+
+-- T97e: a set queued offline reaches the server before its session log. The
+--       exercise_logs policy (WITH CHECK on session_logs) is evaluated before the
+--       foreign key, so the owner gets insufficient_privilege (42501), not
+--       foreign_key_violation (23503). The sender must create the log on 42501.
+DO $$
+DECLARE code TEXT := 'none';
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('test.uid', '96969696-9696-9696-9696-969696969696', true);
+  BEGIN
+    INSERT INTO exercise_logs (session_log_id, exercise_id, set_number, reps_completed, weight_kg)
+    VALUES ('97970000-0000-4000-8000-0000000000e5', 'aaaa0001-0000-0000-0000-000000000001', 1, 10, 50);
+  EXCEPTION WHEN others THEN code := SQLSTATE;
+  END;
+  RESET ROLE;
+  PERFORM rec('T97e a set before its session log is refused with 42501 (RLS before FK)',
+              code = '42501', 'sqlstate=' || code);
+END $$;

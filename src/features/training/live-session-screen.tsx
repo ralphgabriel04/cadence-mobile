@@ -43,6 +43,7 @@ import {
   draftProblem,
   isExerciseComplete,
   nextSetNumber,
+  parsePrescribedWeight,
   parseTargetReps,
   remainingSets,
   setsLoggedFor,
@@ -149,10 +150,15 @@ export function toWorkoutExercise(e: PrescribedExercise): WorkoutExercise {
     lastSetCount: e.lastPerformance?.sets.length ?? null,
     lastWeightKg: heaviest?.weightKg ?? null,
     lastReps: heaviest?.reps ?? null,
+    prescribedWeightKg: parsePrescribedWeight(e.weightSuggestion),
   };
 }
 
-type Confirm = { kind: "quit" } | { kind: "finish"; remaining: number } | null;
+type Confirm =
+  | { kind: "quit" }
+  | { kind: "finish"; remaining: number }
+  | { kind: "discard"; count: number }
+  | null;
 
 const rpeHelpStore = createLocalStore("rpe-help-seen.json");
 
@@ -299,7 +305,8 @@ function ActiveWorkout({
       pending={session.pendingCount}
       rejected={session.rejectedCount}
       onRetry={session.retryPending}
-      onDiscard={session.discardRejected}
+      // Refused sets are only dropped after a confirmation (story 5.3).
+      onDiscard={() => setConfirm({ kind: "discard", count: session.rejectedCount })}
     />
   );
 
@@ -586,7 +593,11 @@ function ActiveWorkout({
             </View>
           </View>
           {!isLast ? (
-            <Pressable accessibilityRole="button" onPress={askFinish} className="items-center py-2">
+            <Pressable
+              accessibilityRole="button"
+              onPress={askFinish}
+              className="min-h-[48px] items-center justify-center"
+            >
               <Text variant="caption" weight="semibold">
                 Terminer la séance
               </Text>
@@ -620,6 +631,19 @@ function ActiveWorkout({
             setConfirm(null);
             void rest.cancel();
             router.back();
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      ) : null}
+      {confirm?.kind === "discard" ? (
+        <ConfirmOverlay
+          title={`Retirer ${confirm.count} série${confirm.count > 1 ? "s" : ""} refusée${confirm.count > 1 ? "s" : ""} ?`}
+          body="Le serveur les a refusées. Une fois retirées, elles ne seront plus envoyées."
+          confirmLabel="Retirer"
+          cancelLabel="Garder"
+          onConfirm={() => {
+            setConfirm(null);
+            session.discardRejected();
           }}
           onCancel={() => setConfirm(null)}
         />
@@ -763,7 +787,7 @@ function Banners({
         <Pressable
           accessibilityRole="button"
           onPress={onRetry}
-          className="mx-5 mt-3 rounded-xl border border-border bg-surface px-3.5 py-2.5"
+          className="mx-5 mt-3 min-h-[44px] justify-center rounded-xl border border-border bg-surface px-3.5 py-2.5"
         >
           <Text variant="caption">
             {pending} série{pending > 1 ? "s" : ""} en attente d&apos;envoi, gardée
@@ -776,11 +800,11 @@ function Banners({
           accessibilityRole="button"
           accessibilityLabel={`Retirer ${rejected} série(s) refusée(s)`}
           onPress={onDiscard}
-          className="mx-5 mt-3 rounded-xl border border-error bg-surface px-3.5 py-2.5"
+          className="mx-5 mt-3 min-h-[44px] justify-center rounded-xl border border-error bg-surface px-3.5 py-2.5"
         >
           <Text variant="error">
             {rejected} série{rejected > 1 ? "s" : ""} refusée{rejected > 1 ? "s" : ""} par le
-            serveur. Touche pour la retirer.
+            serveur. Touche pour choisir.
           </Text>
         </Pressable>
       ) : null}

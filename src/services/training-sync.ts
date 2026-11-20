@@ -61,11 +61,16 @@ export async function flushPendingCompletion(
     queue?: SetQueue;
     complete?: typeof completeSession;
     ensure?: typeof ensureSessionLog;
+    /**
+     * The finished session to send, when the caller already holds it: the live
+     * session passes the previous record before writing the new one over it.
+     */
+    record?: ActiveSession;
   } = {}
 ): Promise<FlushResult> {
   if (!athleteId) return { status: "nothing" };
   const store = deps.store ?? activeSessionStore();
-  const record = await store.read(athleteId);
+  const record = deps.record ?? (await store.read(athleteId));
   if (!record?.completion) return { status: "nothing" };
 
   const queue = deps.queue ?? getSetQueue(athleteId);
@@ -89,7 +94,10 @@ export async function flushPendingCompletion(
   });
   if (!done.ok) return { status: "failed", message: done.message };
 
-  store.erase();
+  // Only erase the record that was sent: a new session may have replaced it
+  // in the meantime, and its record must survive.
+  const now = await store.read(athleteId);
+  if (now?.sessionLogId === record.sessionLogId) store.erase();
   return { status: "sent" };
 }
 

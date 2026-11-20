@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import type { LoggedSet } from "@/features/training/workout-state";
 import type { QueuedSet, SendResult } from "@/services/set-queue";
+import { localDateISO, startedOnLocalDay } from "@/utils/local-date";
 
 // ============================================================================
 // Writes for a session in progress (cm#25)
@@ -18,6 +19,7 @@ const PGRST_JWT_ERROR = "PGRST301";
 const PG_UNIQUE_VIOLATION = "23505";
 /** PostgreSQL foreign_key_violation: the session log does not exist (yet). */
 const PG_FOREIGN_KEY_VIOLATION = "23503";
+const PG_INSUFFICIENT_PRIVILEGE = "42501";
 
 async function resolveClient(injected?: Client): Promise<Client> {
   if (injected) return injected;
@@ -56,7 +58,7 @@ export async function startSession(args: {
   // somebody else's session.
   const existing = await client
     .from("session_logs")
-    .select("id, session_id")
+    .select("id, session_id, started_at")
     .eq("athlete_id", args.athleteId)
     .eq("is_deleted", false)
     .eq("status", "in_progress")
@@ -66,8 +68,13 @@ export async function startSession(args: {
   if (existing.error) return failure(existing.error);
 
   if (existing.data) {
-    // Same session (or an older caller that lets the server choose): resume it.
-    if (!args.sessionLogId || existing.data.session_id === args.sessionId) {
+    // Same session, opened today (or an older caller that lets the server
+    // choose): resume it. A session without a week number comes back every
+    // week, so the same session left open on an earlier day is NOT resumed:
+    // today's sets would land in last week's workout.
+    const openedToday =
+      !existing.data.started_at || startedOnLocalDay(existing.data.started_at, localDateISO());
+    if (!args.sessionLogId || (existing.data.session_id === args.sessionId && openedToday)) {
       return { ok: true, sessionLogId: existing.data.id, resumed: true };
     }
     // A DIFFERENT session was left open (yesterday's, quit without finishing).
@@ -155,6 +162,55 @@ export async function ensureSessionLog(
 }
 
 /**
+ * The log of a session opened offline cannot be created because another one is
+ * open on the account (see sendSet). Closes the older of the two.
+ */
+async function resolveOpenConflict(
+  args: {
+    sessionLogId: string;
+    sessionId: string;
+    athleteId: string;
+    startedAt: string | null;
+    programAssignmentId: string | null;
+  },
+  db: Client,
+): Promise<{ ok: true } | { ok: false; message: string; code?: string }> {
+  const open = await db
+    .from("session_logs")
+    .select("id, started_at")
+    .eq("athlete_id", args.athleteId)
+    .eq("is_deleted", false)
+    .eq("status", "in_progress")
+    .limit(1)
+    .maybeSingle();
+  if (open.error) return { ok: false, message: open.error.message, code: open.error.code };
+
+  const mine = args.startedAt ? Date.parse(args.startedAt) : Date.now();
+  const theirs = open.data?.started_at ? Date.parse(open.data.started_at) : 0;
+
+  if (open.data && theirs <= mine) {
+    const closed = await closeAbandonedSession(db, open.data.id);
+    if (!closed.ok) return { ok: false, message: closed.error.message, code: closed.error.code };
+    return ensureSessionLog(args, db);
+  }
+
+  // This session is the older one: created already closed, with its sets.
+  const { error } = await db.from("session_logs").upsert(
+    {
+      id: args.sessionLogId,
+      session_id: args.sessionId,
+      athlete_id: args.athleteId,
+      program_assignment_id: args.programAssignmentId,
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      ...(args.startedAt ? { started_at: args.startedAt } : {}),
+    },
+    { onConflict: "id", ignoreDuplicates: true },
+  );
+  return error ? { ok: false, message: error.message, code: error.code } : { ok: true };
+}
+
+/**
  * Sends one set. This is the {@link SetSender} the queue drives.
  *
  * WHY NOT `upsert`
@@ -192,8 +248,13 @@ export async function sendSet(entry: QueuedSet, client?: Client): Promise<SendRe
 
   // Story 5.3: the session was opened without network, so its log does not
   // exist yet. Create it from what the queued set carries, then retry once.
+  // The exercise_logs policy checks the log BEFORE the foreign key does, so the
+  // server answers 42501, not 23503 (supabase/tests/97, T97e). If the log really
+  // belongs to someone else, ensureSessionLog is refused too and the set stays
+  // refused.
   if (
-    inserted.error?.code === PG_FOREIGN_KEY_VIOLATION &&
+    (inserted.error?.code === PG_FOREIGN_KEY_VIOLATION ||
+      inserted.error?.code === PG_INSUFFICIENT_PRIVILEGE) &&
     entry.sessionId &&
     entry.ownerId
   ) {
@@ -208,15 +269,25 @@ export async function sendSet(entry: QueuedSet, client?: Client): Promise<SendRe
       db,
     );
     if (!ensured.ok) {
-      if (ensured.code === PG_UNIQUE_VIOLATION) {
-        // Another session is still open on the server for this account.
-        return {
-          ok: false,
-          message: "Une autre séance est encore ouverte sur ton compte.",
-          retryable: false,
-        };
+      if (ensured.code !== PG_UNIQUE_VIOLATION) {
+        return sendFailure({ message: ensured.message, code: ensured.code });
       }
-      return sendFailure({ message: ensured.message, code: ensured.code });
+      // Another session is still open on the server for this account (one open
+      // session per athlete, migration 005). Refusing would lose this set for
+      // good, so the two are told apart by when they started: an older open
+      // session was left behind and is closed; if the open one is the newer,
+      // THIS session is the one left behind and its log is created closed.
+      const resolved = await resolveOpenConflict(
+        {
+          sessionLogId: entry.sessionLogId,
+          sessionId: entry.sessionId,
+          athleteId: entry.ownerId,
+          startedAt: entry.sessionStartedAt ?? null,
+          programAssignmentId: entry.programAssignmentId ?? null,
+        },
+        db,
+      );
+      if (!resolved.ok) return sendFailure({ message: resolved.message, code: resolved.code });
     }
     inserted = await db.from("exercise_logs").insert(row);
   }

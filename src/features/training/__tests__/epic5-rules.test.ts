@@ -4,6 +4,7 @@ import { formatElapsed, formatKg, sessionRecap } from "../session-recap";
 import {
   draftProblem,
   initialWorkoutState,
+  parsePrescribedWeight,
   remainingSets,
   volumeKg,
   workoutReducer,
@@ -40,6 +41,23 @@ describe("story 5.2 — noter une série", () => {
     const after = workoutReducer(s, { type: "validate-set", at: "2026-08-17T18:00:00Z" });
     expect(after.logged).toHaveLength(1);
     expect(after.logged[0]).toMatchObject({ repsCompleted: 10, weightKg: 50, setNumber: 1 });
+  });
+
+  it("first time on an exercise: prefills a prescribed weight written as a number, not « 70% 1RM »", () => {
+    expect(parsePrescribedWeight("60 kg")).toBe(60);
+    expect(parsePrescribedWeight("62,5")).toBe(62.5);
+    expect(parsePrescribedWeight("70% 1RM")).toBeNull();
+    expect(parsePrescribedWeight(null)).toBeNull();
+    const first = { ...ex("a"), lastWeightKg: null, lastReps: null, prescribedWeightKg: 60 };
+    const s = initialWorkoutState({ sessionLogId: "l", sessionId: "s", exercises: [first] });
+    expect(s.draft).toEqual({ reps: 10, weightKg: 60 });
+    // The weight actually used last time still wins.
+    const again = initialWorkoutState({
+      sessionLogId: "l",
+      sessionId: "s",
+      exercises: [{ ...ex("a"), prescribedWeightKg: 60 }],
+    });
+    expect(again.draft.weightKg).toBe(50);
   });
 
   it("one + takes 50 to 52.5", () => {

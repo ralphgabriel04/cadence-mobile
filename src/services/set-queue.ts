@@ -168,13 +168,13 @@ export function markRejected(
 /**
  * Backoff before the next attempt, in milliseconds.
  *
- * Capped at a minute: a gym outage lasts the whole session, and doubling past a
- * minute only means the first set sits unsent long after signal returns. The
+ * Capped at 30 s: a gym outage lasts the whole session, and doubling past that
+ * only means the first set sits unsent long after signal returns. The
  * cap is what makes the queue drain promptly when the athlete walks outside.
  */
 export function backoffMs(attempts: number): number {
   if (attempts <= 0) return 0;
-  return Math.min(1000 * 2 ** (attempts - 1), 60_000);
+  return Math.min(1000 * 2 ** (attempts - 1), 30_000);
 }
 
 /**
@@ -433,6 +433,11 @@ export class SetQueue {
 
       const result = await this.attemptSend(current);
       if (this.closed) return; // closed during the send: write nothing back
+      // Corrected while in flight (an effort added just after the set, story
+      // 5.6): the newer copy replaced `current` and must still be sent, so the
+      // result of the older one is not written over it. The rerun flag set by
+      // add() sends it in the next pass.
+      if (!this.queue.includes(current)) continue;
       if (result.ok) {
         this.queue = removeById(this.queue, current.clientId);
       } else if (result.retryable) {

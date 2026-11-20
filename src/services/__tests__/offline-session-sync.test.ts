@@ -4,14 +4,22 @@ import { createActiveSessionStore, type ActiveSession } from "@/services/active-
 import { createMemoryStore } from "@/services/local-store";
 import { createMemoryStorage, SetQueue, type QueuedSet } from "@/services/set-queue";
 import { flushPendingCompletion } from "@/services/training-sync";
-import { sendSet } from "@/services/workout-session";
+import { sendSet, startSession } from "@/services/workout-session";
 import type { Database } from "@/types/database";
 
 type Err = { message: string; code?: string } | null;
 
-/** exercise_logs.insert answers from a script; session_logs.upsert records the call. */
-function stubDb(insertErrors: Err[], upsertError: Err = null) {
+/**
+ * exercise_logs.insert and session_logs.upsert answer from scripts (the last
+ * upsert answer repeats); a select finds `openLog` as the open session.
+ */
+function stubDb(
+  insertErrors: Err[],
+  upsertError: Err | Err[] = null,
+  openLog: { id: string; started_at: string } | null = { id: "older", started_at: "2026-08-16T17:00:00Z" },
+) {
   const calls: string[] = [];
+  const upserts = Array.isArray(upsertError) ? upsertError : [upsertError];
   const db = {
     from: (table: string) => ({
       insert: () => {
@@ -20,7 +28,17 @@ function stubDb(insertErrors: Err[], upsertError: Err = null) {
       },
       upsert: () => {
         calls.push(`${table}.upsert`);
-        return Promise.resolve({ error: upsertError });
+        return Promise.resolve({ error: upserts.length > 1 ? (upserts.shift() ?? null) : (upserts[0] ?? null) });
+      },
+      select: () => {
+        calls.push(`${table}.select`);
+        const chain = {
+          eq: () => chain,
+          limit: () => chain,
+          maybeSingle: () => Promise.resolve({ data: openLog, error: null }),
+          then: (r: (v: { count: number; error: Err }) => void) => r({ count: 1, error: null }),
+        };
+        return chain;
       },
       update: () => {
         calls.push(`${table}.update`);
@@ -63,10 +81,39 @@ describe("sendSet for a session opened without network (story 5.3)", () => {
     expect(calls).toEqual(["exercise_logs.insert", "session_logs.upsert", "exercise_logs.insert"]);
   });
 
-  it("refuses for good when another session is open on the account", async () => {
-    const { db } = stubDb([{ message: "fk", code: "23503" }], { message: "dup", code: "23505" });
+  it("creates the log on the code the database really sends (42501, policy before FK — T97e)", async () => {
+    const { db, calls } = stubDb([{ message: "new row violates row-level security policy", code: "42501" }, null]);
+    await expect(sendSet(entry, db)).resolves.toEqual({ ok: true });
+    expect(calls).toEqual(["exercise_logs.insert", "session_logs.upsert", "exercise_logs.insert"]);
+  });
+
+  it("a set still refused after creating the log stays refused for good", async () => {
+    const rls = { message: "rls", code: "42501" };
+    const { db } = stubDb([rls, rls]);
+    await expect(sendSet(entry, db)).resolves.toMatchObject({ ok: false, retryable: false });
+  });
+
+  it("another open session on the account: the older one is closed, the set is kept", async () => {
+    const { db, calls } = stubDb([{ message: "rls", code: "42501" }, null], [{ message: "dup", code: "23505" }, null]);
     const result = await sendSet(entry, db);
-    expect(result).toMatchObject({ ok: false, retryable: false });
+    expect(result).toEqual({ ok: true });
+    expect(calls).toEqual([
+      "exercise_logs.insert",
+      "session_logs.upsert", // refused: another session is open
+      "session_logs.select", // the open one started earlier (16 Aug)...
+      "exercise_logs.select",
+      "session_logs.update", // ...so it is closed
+      "session_logs.upsert", // and this session's log is created
+      "exercise_logs.insert",
+    ]);
+  });
+
+  it("when the open session is the newer one, this older session's log is created closed", async () => {
+    const newer = { id: "newer", started_at: "2026-08-18T17:00:00Z" };
+    const { db, calls } = stubDb([{ message: "rls", code: "42501" }, null], [{ message: "dup", code: "23505" }, null], newer);
+    await expect(sendSet(entry, db)).resolves.toEqual({ ok: true });
+    expect(calls).not.toContain("session_logs.update");
+    expect(calls.at(-1)).toBe("exercise_logs.insert");
   });
 
   it("a set sent twice is kept once: the duplicate becomes an update", async () => {
@@ -136,9 +183,68 @@ describe("flushPendingCompletion (story 5.5, criterion 5)", () => {
     expect(await store.read("me")).toBeNull();
   });
 
+  it("sends the finished session it is given, and leaves the new session's record alone", async () => {
+    const store = createActiveSessionStore(createMemoryStore());
+    const finished = record();
+    // The live session already wrote today's record over the finished one.
+    store.write(record({ sessionLogId: "log-new", completion: null }));
+    const queue = new SetQueue(createMemoryStorage(), async () => ({ ok: true }));
+    await queue.restore();
+    const complete = jest.fn(async () => ({ ok: true as const }));
+    const result = await flushPendingCompletion("me", {
+      store,
+      queue,
+      complete,
+      ensure: jest.fn(async () => ({ ok: true as const })),
+      record: finished,
+    });
+    expect(result).toEqual({ status: "sent" });
+    expect(complete).toHaveBeenCalledWith(expect.objectContaining({ sessionLogId: "log-offline" }));
+    expect((await store.read("me"))?.sessionLogId).toBe("log-new");
+  });
+
   it("does nothing for another account's record", async () => {
     const store = createActiveSessionStore(createMemoryStore());
     store.write(record({ athleteId: "someone-else" }));
     expect(await flushPendingCompletion("me", { store })).toEqual({ status: "nothing" });
+  });
+});
+
+describe("startSession and a session left open (story 5.3)", () => {
+  function startDb(open: { id: string; session_id: string; started_at: string }) {
+    const calls: string[] = [];
+    const chain = (table: string) => {
+      const c = {
+        eq: () => c,
+        limit: () => c,
+        maybeSingle: () => Promise.resolve({ data: open, error: null }),
+        single: () => Promise.resolve({ data: { id: "phone-id" }, error: null }),
+        select: () => c,
+        then: (r: (v: { count: number; error: null }) => void) => r({ count: 2, error: null }),
+      };
+      calls.push(table);
+      return c;
+    };
+    const db = {
+      from: (table: string) => ({
+        select: () => chain(`${table}.select`),
+        update: () => chain(`${table}.update`),
+        insert: () => chain(`${table}.insert`),
+      }),
+    };
+    return { db: db as unknown as SupabaseClient<Database>, calls };
+  }
+
+  it("resumes the same session opened today", async () => {
+    const { db } = startDb({ id: "today-log", session_id: "s", started_at: new Date().toISOString() });
+    const r = await startSession({ sessionId: "s", athleteId: "me", sessionLogId: "phone-id", client: db });
+    expect(r).toEqual({ ok: true, sessionLogId: "today-log", resumed: true });
+  });
+
+  it("does not resume the same session left open last week: closes it, opens today's", async () => {
+    const { db, calls } = startDb({ id: "last-week", session_id: "s", started_at: "2020-01-06T17:00:00Z" });
+    const r = await startSession({ sessionId: "s", athleteId: "me", sessionLogId: "phone-id", client: db });
+    expect(r).toEqual({ ok: true, sessionLogId: "phone-id", resumed: false });
+    expect(calls).toContain("session_logs.update");
   });
 });
