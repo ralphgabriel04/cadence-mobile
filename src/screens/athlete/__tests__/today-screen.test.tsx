@@ -108,6 +108,28 @@ describe("AthleteTodayScreen", () => {
     expect(mockPush).toHaveBeenCalledWith("/(athlete)/session");
   });
 
+  // Seen on the local stack: « 1 exercices » under « Dernière séance ».
+  it("writes « 1 exercice » in the singular", () => {
+    ready(
+      { state: "scheduled", session: { ...session, exercises: [exercise(0)] } },
+      {
+        lastSession: {
+          sessionLogId: "log0",
+          name: "Force — Bas du corps",
+          completedAt: "2026-05-01T18:00:00Z",
+          exerciseCount: 1,
+          durationMinutes: 52,
+          prCount: 2,
+        },
+      },
+    );
+    render(<AthleteTodayScreen />);
+
+    // The pill of the day and the « Dernière séance » stat (value and label share one Text).
+    expect(screen.getAllByText("1 exercice").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText(/1 exercices/)).toBeNull();
+  });
+
   it("shows a rest day without a call to action", () => {
     ready({
       state: "rest-day",
