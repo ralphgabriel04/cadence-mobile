@@ -355,7 +355,7 @@ function sessionSpokenSummary(session: PlannedSession): string {
     session.estimatedDurationMinutes !== null
       ? `, environ ${formatDurationFr(session.estimatedDurationMinutes)}`
       : "";
-  return `${COPY.today} : ${session.name}, ${session.exercises.length} exercices${duration}`;
+  return `${COPY.today} : ${session.name}, ${session.exercises.length} exercice${session.exercises.length > 1 ? "s" : ""}${duration}`;
 }
 
 /** A day touched in the week strip (story 4.3): what is planned that day. */
@@ -380,7 +380,7 @@ function DayCard({
             {session.name}
           </Text>
           <View className="flex-row flex-wrap gap-2">
-            <Pill label={`${session.exerciseCount} exercices`} />
+            <Pill label={`${session.exerciseCount} exercice${session.exerciseCount > 1 ? "s" : ""}`} />
             {session.estimatedDurationMinutes !== null ? (
               <Pill label={`~${formatDurationFr(session.estimatedDurationMinutes)}`} />
             ) : null}
@@ -407,7 +407,7 @@ function SessionTitle({ session }: { session: PlannedSession }) {
 function SessionPills({ session }: { session: PlannedSession }) {
   return (
     <View className="flex-row flex-wrap gap-2">
-      <Pill label={`${session.exercises.length} exercices`} />
+      <Pill label={`${session.exercises.length} exercice${session.exercises.length > 1 ? "s" : ""}`} />
       {session.estimatedDurationMinutes !== null ? (
         <Pill label={`~${formatDurationFr(session.estimatedDurationMinutes)}`} />
       ) : null}
@@ -550,7 +550,7 @@ function LastSessionCard({ last }: { last: LastSessionSummary }) {
           {day.charAt(0).toUpperCase()}{day.slice(1)} — {last.name}
         </Text>
         <View className="flex-row gap-4">
-          <Stat value={last.exerciseCount} label="exercices" />
+          <Stat value={last.exerciseCount} label={last.exerciseCount > 1 ? "exercices" : "exercice"} />
           {last.durationMinutes !== null ? <Stat value={last.durationMinutes} label="min" /> : null}
           <Stat value={last.prCount} label="PRs" accent />
         </View>
